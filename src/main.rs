@@ -5,7 +5,7 @@
 
 mod error;
 mod game_state;
-//~ mod map;
+mod map;
 //~ mod menu;
 mod sfx;
 //~ mod spatial_grid;
@@ -88,11 +88,15 @@ fn real_main() -> Result<()>
 	let mut rng = thread_rng();
 
 	//~ let mut menu = menu::Menu::new(
-		//~ &mut state,
-		//~ display.get_width() as f32,
-		//~ display.get_height() as f32,
+	//~ &mut state,
+	//~ display.get_width() as f32,
+	//~ display.get_height() as f32,
 	//~ )?;
-	//~ let mut map: Option<map::Map> = None;
+	let mut map: Option<map::Map> = Some(map::Map::new(
+		&mut state,
+		display.get_width() as f32,
+		display.get_height() as f32,
+	)?);
 	let mut logics_without_draw = 0;
 	let mut prev_frame_start = state.core.get_time();
 
@@ -107,20 +111,20 @@ fn real_main() -> Result<()>
 			state.core.clear_depth_buffer(1.);
 			if options.vsync_method == 2
 			{
-				state.core.wait_for_vsync();
+				state.core.wait_for_vsync().ok();
 			}
 
-			//~ if let Some(map) = &mut map
-			//~ {
-				//~ map.draw(&state)?;
-			//~ }
+			if let Some(map) = &mut map
+			{
+				map.draw(&state)?;
+			}
 			//~ else
 			//~ {
-				//~ menu.draw(&state)?;
+			//~ menu.draw(&state)?;
 			//~ }
 
 			state.core.flip_display();
-			
+
 			if state.tick % 20 == 0
 			{
 				println!("FPS: {}", 1. / (frame_start - prev_frame_start));
@@ -133,34 +137,34 @@ fn real_main() -> Result<()>
 		//~ let next_screen;
 		//~ if let Some(map) = &mut map
 		//~ {
-			//~ next_screen = map.input(&event, &mut state)?;
+		//~ next_screen = map.input(&event, &mut state)?;
 		//~ }
 		//~ else
 		//~ {
-			//~ next_screen = menu.input(&event, &mut state)?;
+		//~ next_screen = menu.input(&event, &mut state)?;
 		//~ }
 		//~ if let Some(next_screen) = next_screen
 		//~ {
-			//~ match next_screen
-			//~ {
-				//~ NextScreen::Game =>
-				//~ {
-					//~ map = Some(map::Map::new(
-						//~ &mut state,
-						//~ rng.gen_range(0..16000),
-						//~ display.get_width() as f32,
-						//~ display.get_height() as f32,
-					//~ )?);
-				//~ }
-				//~ NextScreen::Menu =>
-				//~ {
-					//~ map = None;
-				//~ }
-				//~ NextScreen::Quit =>
-				//~ {
-					//~ quit = true;
-				//~ }
-			//~ }
+		//~ match next_screen
+		//~ {
+		//~ NextScreen::Game =>
+		//~ {
+		//~ map = Some(map::Map::new(
+		//~ &mut state,
+		//~ rng.gen_range(0..16000),
+		//~ display.get_width() as f32,
+		//~ display.get_height() as f32,
+		//~ )?);
+		//~ }
+		//~ NextScreen::Menu =>
+		//~ {
+		//~ map = None;
+		//~ }
+		//~ NextScreen::Quit =>
+		//~ {
+		//~ quit = true;
+		//~ }
+		//~ }
 		//~ }
 		match event
 		{
@@ -169,8 +173,14 @@ fn real_main() -> Result<()>
 			{
 				if logics_without_draw < 10
 				{
-					continue
+					continue;
 				}
+
+				if let Some(map) = &mut map
+				{
+					map.logic(&mut state)?;
+				}
+
 				logics_without_draw += 1;
 				state.sfx.update_sounds()?;
 

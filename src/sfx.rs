@@ -119,7 +119,7 @@ impl Sfx
 	) -> Result<()>
 	{
 		self.cache_sample(name)?;
-		
+
 		if self.sample_instances.len() < 50
 		{
 			let sample = self.samples.get(name).unwrap();
@@ -152,8 +152,8 @@ impl Sfx
 	pub fn play_music(&mut self) -> Result<()>
 	{
 		//~ let mut new_stream =
-			//~ AudioStream::load(&self.audio, "data/a_different_reality_lagoona_remix.xm")
-				//~ .map_err(|_| "Couldn't load a_different_reality_lagoona_remix.xm".to_string())?;
+		//~ AudioStream::load(&self.audio, "data/a_different_reality_lagoona_remix.xm")
+		//~ .map_err(|_| "Couldn't load a_different_reality_lagoona_remix.xm".to_string())?;
 		//~ new_stream.attach(&mut self.sink).unwrap();
 		//~ new_stream.set_playmode(Playmode::Loop).unwrap();
 		//~ self.stream = Some(new_stream);

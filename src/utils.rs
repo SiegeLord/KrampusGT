@@ -10,7 +10,6 @@ use slr_config::{from_element, to_element, ConfigElement, Source};
 use std::{fs, path};
 
 pub const DT: f32 = 1. / 120.;
-pub const TILE: f32 = 64.;
 pub const PI: f32 = std::f32::consts::PI;
 pub type Vec2D = nalgebra::Vector2<f32>;
 pub type Vec3D = nalgebra::Vector3<f32>;
@@ -42,7 +41,7 @@ pub fn mat4_to_transform(mat: Matrix4<f32>) -> Transform
 pub fn camera_project(x: f32, y: f32, z: f32, player_z: f32) -> Isometry3<f32>
 {
 	let eye = Point3::new(x, y, z);
-	let target = Point3::new(x, 0., player_z);
+	let target = Point3::new(x, y, player_z);
 	let view = Isometry3::look_at_rh(&eye, &target, &Vector3::y());
 	view
 }
