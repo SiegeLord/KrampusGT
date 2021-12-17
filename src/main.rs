@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 #![feature(backtrace)]
 
+mod components;
 mod error;
 mod game_state;
 mod map;
@@ -85,7 +86,7 @@ fn real_main() -> Result<()>
 
 	let mut quit = false;
 	let mut draw = true;
-	let mut rng = thread_rng();
+	//~ let mut rng = thread_rng();
 
 	//~ let mut menu = menu::Menu::new(
 	//~ &mut state,
@@ -98,14 +99,14 @@ fn real_main() -> Result<()>
 		display.get_height() as f32,
 	)?);
 	let mut logics_without_draw = 0;
-	let mut prev_frame_start = state.core.get_time();
+	//~ let mut prev_frame_start = state.core.get_time();
 
 	timer.start();
 	while !quit
 	{
 		if draw && queue.is_empty()
 		{
-			let frame_start = state.core.get_time();
+			//~ let frame_start = state.core.get_time();
 			state.core.set_target_bitmap(Some(display.get_backbuffer()));
 			state.core.clear_to_color(Color::from_rgb_f(0., 0.2, 0.));
 			state.core.clear_depth_buffer(1.);
@@ -125,11 +126,11 @@ fn real_main() -> Result<()>
 
 			state.core.flip_display();
 
-			if state.tick % 20 == 0
-			{
-				println!("FPS: {}", 1. / (frame_start - prev_frame_start));
-			}
-			prev_frame_start = frame_start;
+			//~ if state.tick % 20 == 0
+			//~ {
+			//~ println!("FPS: {}", 1. / (frame_start - prev_frame_start));
+			//~ }
+			//~ prev_frame_start = frame_start;
 			logics_without_draw = 0;
 		}
 
@@ -171,7 +172,7 @@ fn real_main() -> Result<()>
 			Event::DisplayClose { .. } => quit = true,
 			Event::TimerTick { .. } =>
 			{
-				if logics_without_draw < 10
+				if logics_without_draw > 10
 				{
 					continue;
 				}

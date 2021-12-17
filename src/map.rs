@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::{game_state, utils};
+use crate::{components, game_state, utils};
 
 use allegro::*;
 use allegro_font::*;
@@ -177,8 +177,15 @@ pub struct Map
 
 	level: Level,
 
-	player_pos: Point3<f32>,
-	player_angle: f32,
+	player: hecs::Entity,
+	camera_anchor: components::Position,
+
+	left_state: bool,
+	right_state: bool,
+	up_state: bool,
+	down_state: bool,
+
+	world: hecs::World,
 }
 
 impl Map
@@ -187,6 +194,35 @@ impl Map
 		state: &mut game_state::GameState, display_width: f32, display_height: f32,
 	) -> Result<Self>
 	{
+		let mut world = hecs::World::default();
+
+		let player_pos = components::Position {
+			pos: Point3::new(0., 0., 0.),
+			dir: 0.,
+		};
+		let player = world.spawn((
+			player_pos,
+			components::Velocity {
+				vel: Vector3::zeros(),
+				dir_vel: 0.,
+			},
+			components::Drawable,
+		));
+
+		for z in 0..=40
+		{
+			for x in -20..=20
+			{
+				world.spawn((
+					components::Position {
+						pos: Point3::new(x as f32 * 128., 0., 256. + z as f32 * 128.),
+						dir: 0.,
+					},
+					components::Drawable,
+				));
+			}
+		}
+
 		state.cache_bitmap("data/test.png")?;
 
 		Ok(Self {
@@ -194,23 +230,28 @@ impl Map
 			display_width: display_width,
 			display_height: display_height,
 			level: Level::new(256, 256),
-			player_pos: Point3::new(0., 0., 0.),
-			player_angle: 0.,
+			player: player,
+			camera_anchor: player_pos,
+			world: world,
+			left_state: false,
+			right_state: false,
+			up_state: false,
+			down_state: false,
 		})
 	}
 
 	fn make_camera(&self) -> Isometry3<f32>
 	{
-		let rot = Rotation2::new(self.player_angle);
+		let rot = Rotation2::new(self.camera_anchor.dir);
 		let offt = rot * Vector2::new(0., -2. * TILE);
 		let height = TILE * 2.;
 
 		utils::camera_project(
-			self.player_pos.x + offt.x,
+			self.camera_anchor.pos.x + offt.x,
 			height,
-			self.player_pos.z + offt.y,
-			self.player_pos.x,
-			self.player_pos.z,
+			self.camera_anchor.pos.z + offt.y,
+			self.camera_anchor.pos.x,
+			self.camera_anchor.pos.z,
 		)
 	}
 
@@ -228,92 +269,18 @@ impl Map
 			.use_transform(&utils::mat4_to_transform(camera.to_homogeneous()));
 
 		let bmp = state.get_bitmap("data/test.png").unwrap();
-		let bmp_width = bmp.get_width() as f32;
-		let bmp_height = bmp.get_width() as f32;
 
-		let shift_x = 0.;
-		let shift_z = 0.;
 		let mut vertices = vec![];
 
 		self.level.draw(&mut vertices);
 
-		draw_billboard(
-			Point3::new(0., 0., 2048. / 8.),
-			self.player_angle,
-			256.,
-			128.,
-			&mut vertices,
-		);
-		draw_billboard(
-			Point3::new(2048. / 8., 0., 2048. / 8.),
-			self.player_angle,
-			256.,
-			512.,
-			&mut vertices,
-		);
-		draw_billboard(
-			Point3::new(-2048. / 8., 0., 2048. / 8.),
-			self.player_angle,
-			256.,
-			128.,
-			&mut vertices,
-		);
-
-		draw_billboard(self.player_pos, self.player_angle, 64., 64., &mut vertices);
-
-		//~ let player_x = self.player_pos.x - TILE / 2.;
-		//~ let player_z = self.player_pos.z;
-		//~ let color = Color::from_rgb_f(1., 0.5, 0.5);
-
-		//~ vertices.push(Vertex {
-		//~ x: player_x + 0.,
-		//~ y: 0.,
-		//~ z: player_z,
-		//~ u: 0.,
-		//~ v: 0.,
-		//~ color: color,
-		//~ });
-		//~ vertices.push(Vertex {
-		//~ x: player_x + TILE,
-		//~ y: 0.,
-		//~ z: player_z,
-		//~ u: bmp_width,
-		//~ v: 0.,
-		//~ color: color,
-		//~ });
-		//~ vertices.push(Vertex {
-		//~ x: player_x + TILE,
-		//~ y: TILE,
-		//~ z: player_z,
-		//~ u: bmp_width,
-		//~ v: bmp_height,
-		//~ color: color,
-		//~ });
-
-		//~ vertices.push(Vertex {
-		//~ x: player_x + 0.,
-		//~ y: 0.,
-		//~ z: player_z,
-		//~ u: 0.,
-		//~ v: 0.,
-		//~ color: color,
-		//~ });
-		//~ vertices.push(Vertex {
-		//~ x: player_x + TILE,
-		//~ y: TILE,
-		//~ z: player_z,
-		//~ u: bmp_width,
-		//~ v: bmp_height,
-		//~ color: color,
-		//~ });
-		//~ vertices.push(Vertex {
-		//~ x: player_x + 0.,
-		//~ y: TILE,
-		//~ z: player_z,
-		//~ u: 0.,
-		//~ v: bmp_height,
-		//~ color: color,
-		//~ });
+		for (_, (pos, _)) in self
+			.world
+			.query::<(&components::Position, &components::Drawable)>()
+			.iter()
+		{
+			draw_billboard(pos.pos, self.camera_anchor.dir, 64., 64., &mut vertices);
+		}
 
 		state.prim.draw_prim(
 			&vertices[..],
@@ -326,12 +293,41 @@ impl Map
 		Ok(())
 	}
 
-	pub fn logic(&mut self, state: &mut game_state::GameState) -> Result<()>
+	pub fn logic(&mut self, _state: &mut game_state::GameState) -> Result<()>
 	{
+		if self.world.contains(self.player)
+		{
+			let left_right = self.right_state as i32 - (self.left_state as i32);
+			let up_down = self.up_state as i32 - (self.down_state as i32);
+
+			let dir = self.world.get::<components::Position>(self.player)?.dir;
+			let rot = Rotation2::new(dir);
+			let vel = rot * Vector2::new(0., up_down as f32 * 1000.);
+
+			let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
+			player_vel.vel = Vector3::new(vel.x, 0., vel.y);
+			player_vel.dir_vel = left_right as f32 * f32::pi();
+		}
+
+		for (_, (pos, vel)) in self
+			.world
+			.query::<(&mut components::Position, &components::Velocity)>()
+			.iter()
+		{
+			pos.pos += utils::DT * vel.vel;
+			pos.dir += utils::DT * vel.dir_vel;
+			//pos.dir = pos.dir.fmod(2. * f32::pi());
+		}
+
+		if let Ok(player_pos) = self.world.get::<components::Position>(self.player)
+		{
+			self.camera_anchor = *player_pos;
+		}
+
 		Ok(())
 	}
 
-	pub fn input(&mut self, event: &Event, state: &mut game_state::GameState) -> Result<()>
+	pub fn input(&mut self, event: &Event, _state: &mut game_state::GameState) -> Result<()>
 	{
 		match event
 		{
@@ -339,23 +335,39 @@ impl Map
 			{
 				KeyCode::W =>
 				{
-					let rot = Rotation2::new(self.player_angle);
-					let diff = rot * Vector2::new(0., 1000000. * utils::DT);
-					self.player_pos += utils::DT * Vector3::new(diff.x, 0., diff.y);
+					self.up_state = true;
 				}
 				KeyCode::S =>
 				{
-					let rot = Rotation2::new(self.player_angle);
-					let diff = rot * Vector2::new(0., -1000000. * utils::DT);
-					self.player_pos += utils::DT * Vector3::new(diff.x, 0., diff.y);
+					self.down_state = true;
 				}
 				KeyCode::A =>
 				{
-					self.player_angle -= utils::DT * 10. * 3.14;
+					self.left_state = true;
 				}
 				KeyCode::D =>
 				{
-					self.player_angle += utils::DT * 10. * 3.14;
+					self.right_state = true;
+				}
+				_ => (),
+			},
+			Event::KeyUp { keycode, .. } => match keycode
+			{
+				KeyCode::W =>
+				{
+					self.up_state = false;
+				}
+				KeyCode::S =>
+				{
+					self.down_state = false;
+				}
+				KeyCode::A =>
+				{
+					self.left_state = false;
+				}
+				KeyCode::D =>
+				{
+					self.right_state = false;
 				}
 				_ => (),
 			},
