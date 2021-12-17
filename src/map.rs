@@ -180,10 +180,12 @@ pub struct Map
 	player: hecs::Entity,
 	camera_anchor: components::Position,
 
-	left_state: bool,
-	right_state: bool,
+	rot_left_state: i32,
+	rot_right_state: i32,
 	up_state: bool,
 	down_state: bool,
+	left_state: bool,
+	right_state: bool,
 
 	world: hecs::World,
 }
@@ -233,10 +235,12 @@ impl Map
 			player: player,
 			camera_anchor: player_pos,
 			world: world,
-			left_state: false,
-			right_state: false,
+			rot_left_state: 0,
+			rot_right_state: 0,
 			up_state: false,
 			down_state: false,
+			left_state: false,
+			right_state: false,
 		})
 	}
 
@@ -297,16 +301,17 @@ impl Map
 	{
 		if self.world.contains(self.player)
 		{
-			let left_right = self.right_state as i32 - (self.left_state as i32);
+			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
+			let left_right = self.left_state as i32 - (self.right_state as i32);
 			let up_down = self.up_state as i32 - (self.down_state as i32);
 
 			let dir = self.world.get::<components::Position>(self.player)?.dir;
 			let rot = Rotation2::new(dir);
-			let vel = rot * Vector2::new(0., up_down as f32 * 1000.);
+			let vel = rot * Vector2::new(left_right as f32 * 1000., up_down as f32 * 1000.);
 
 			let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
 			player_vel.vel = Vector3::new(vel.x, 0., vel.y);
-			player_vel.dir_vel = left_right as f32 * f32::pi();
+			player_vel.dir_vel = rot_left_right as f32 * f32::pi();
 		}
 
 		for (_, (pos, vel)) in self
@@ -324,6 +329,9 @@ impl Map
 			self.camera_anchor = *player_pos;
 		}
 
+		self.rot_left_state = 0;
+		self.rot_right_state = 0;
+
 		Ok(())
 	}
 
@@ -331,6 +339,19 @@ impl Map
 	{
 		match event
 		{
+			Event::MouseAxes { dx, .. } =>
+			{
+				if *dx < 0
+				{
+					self.rot_left_state = -*dx;
+					self.rot_right_state = 0;
+				}
+				else if *dx > 0
+				{
+					self.rot_left_state = 0;
+					self.rot_right_state = *dx;
+				}
+			}
 			Event::KeyDown { keycode, .. } => match keycode
 			{
 				KeyCode::W =>

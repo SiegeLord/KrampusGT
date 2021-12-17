@@ -28,6 +28,7 @@ pub struct GameState
 	pub tick: i64,
 	pub paused: bool,
 	pub sfx: Sfx,
+	pub hide_mouse: bool,
 
 	bitmaps: HashMap<String, Bitmap>,
 }
@@ -58,6 +59,7 @@ impl GameState
 			ttf: ttf,
 			sfx: sfx,
 			paused: false,
+			hide_mouse: true,
 		})
 	}
 

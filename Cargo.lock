@@ -7,6 +7,7 @@ name = "KrampusGT"
 version = "0.1.0"
 dependencies = [
  "allegro",
+ "allegro-sys",
  "allegro_acodec",
  "allegro_audio",
  "allegro_color",

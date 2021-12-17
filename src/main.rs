@@ -19,6 +19,7 @@ use crate::game_state::{GameState, NextScreen};
 use crate::utils::{load_config, DT};
 use allegro::*;
 use allegro_dialog::*;
+use allegro_sys::*;
 use rand::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use std::rc::Rc;
@@ -99,6 +100,7 @@ fn real_main() -> Result<()>
 		display.get_height() as f32,
 	)?);
 	let mut logics_without_draw = 0;
+	let mut old_mouse_hide = false;
 	//~ let mut prev_frame_start = state.core.get_time();
 
 	timer.start();
@@ -180,6 +182,29 @@ fn real_main() -> Result<()>
 				if let Some(map) = &mut map
 				{
 					map.logic(&mut state)?;
+				}
+
+				if state.hide_mouse
+				{
+					state
+						.core
+						.set_mouse_xy(&display, display.get_width() / 2, display.get_height() / 2)
+						.map_err(|_| "Couldn't set mouse position".to_string())?;
+				}
+
+				if old_mouse_hide != state.hide_mouse
+				{
+					old_mouse_hide = state.hide_mouse;
+					unsafe {
+						if state.hide_mouse
+						{
+							al_hide_mouse_cursor(display.get_allegro_display());
+						}
+						else
+						{
+							al_show_mouse_cursor(display.get_allegro_display());
+						}
+					}
 				}
 
 				logics_without_draw += 1;

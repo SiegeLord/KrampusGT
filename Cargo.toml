@@ -7,6 +7,8 @@ authors = ["SiegeLord <slabode@aim.com>"]
 
 [dependencies]
 
+allegro-sys = { version="0.0.41" }
+
 allegro = { version="0.0.41" }
 allegro_dialog = { version="0.0.41" }
 allegro_image = { version="0.0.41" }
