@@ -135,10 +135,10 @@ fn real_main() -> Result<()>
 
 		let event = queue.wait_for_event();
 		//~ let next_screen;
-		//~ if let Some(map) = &mut map
-		//~ {
-		//~ next_screen = map.input(&event, &mut state)?;
-		//~ }
+		if let Some(map) = &mut map
+		{
+			map.input(&event, &mut state)?;
+		}
 		//~ else
 		//~ {
 		//~ next_screen = menu.input(&event, &mut state)?;

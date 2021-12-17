@@ -12,6 +12,76 @@ use nalgebra as na;
 
 pub const TILE: f32 = 64.;
 
+fn draw_billboard(
+	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, vertices: &mut Vec<Vertex>,
+)
+{
+	let rot = Rotation2::new(camera_angle);
+	let diff = rot * Vector2::new(0., 1.);
+	let horiz_offt = width / 2. * Vector3::new(-diff.y, 0., diff.x);
+	let vert_offt = height * Vector3::new(0., 1., 0.);
+
+	let pos1 = pos - horiz_offt + vert_offt;
+	let pos2 = pos + horiz_offt + vert_offt;
+	let pos3 = pos + horiz_offt;
+	let pos4 = pos - horiz_offt;
+
+	let bmp_width = 256.;
+	let bmp_height = 256.;
+
+	let color = Color::from_rgb_f(1., 1., 1.);
+
+	vertices.push(Vertex {
+		x: pos1.x,
+		y: pos1.y,
+		z: pos1.z,
+		u: 0.,
+		v: 0.,
+		color: color,
+	});
+	vertices.push(Vertex {
+		x: pos2.x,
+		y: pos2.y,
+		z: pos2.z,
+		u: bmp_width,
+		v: 0.,
+		color: color,
+	});
+	vertices.push(Vertex {
+		x: pos3.x,
+		y: pos3.y,
+		z: pos3.z,
+		u: bmp_width,
+		v: bmp_height,
+		color: color,
+	});
+
+	vertices.push(Vertex {
+		x: pos1.x,
+		y: pos1.y,
+		z: pos1.z,
+		u: 0.,
+		v: 0.,
+		color: color,
+	});
+	vertices.push(Vertex {
+		x: pos3.x,
+		y: pos3.y,
+		z: pos3.z,
+		u: bmp_width,
+		v: bmp_height,
+		color: color,
+	});
+	vertices.push(Vertex {
+		x: pos4.x,
+		y: pos4.y,
+		z: pos4.z,
+		u: 0.,
+		v: bmp_height,
+		color: color,
+	});
+}
+
 pub struct Level
 {
 	width: i32,
@@ -108,6 +178,7 @@ pub struct Map
 	level: Level,
 
 	player_pos: Point3<f32>,
+	player_angle: f32,
 }
 
 impl Map
@@ -124,16 +195,21 @@ impl Map
 			display_height: display_height,
 			level: Level::new(256, 256),
 			player_pos: Point3::new(0., 0., 0.),
+			player_angle: 0.,
 		})
 	}
 
 	fn make_camera(&self) -> Isometry3<f32>
 	{
+		let rot = Rotation2::new(self.player_angle);
+		let offt = rot * Vector2::new(0., -2. * TILE);
 		let height = TILE * 2.;
+
 		utils::camera_project(
-			self.player_pos.x,
+			self.player_pos.x + offt.x,
 			height,
-			self.player_pos.z + 2. * TILE,
+			self.player_pos.z + offt.y,
+			self.player_pos.x,
 			self.player_pos.z,
 		)
 	}
@@ -161,59 +237,83 @@ impl Map
 
 		self.level.draw(&mut vertices);
 
-		let player_x = self.player_pos.x - TILE / 2.;
-		let player_z = self.player_pos.z;
-		let color = Color::from_rgb_f(1., 0.5, 0.5);
+		draw_billboard(
+			Point3::new(0., 0., 2048. / 8.),
+			self.player_angle,
+			256.,
+			128.,
+			&mut vertices,
+		);
+		draw_billboard(
+			Point3::new(2048. / 8., 0., 2048. / 8.),
+			self.player_angle,
+			256.,
+			512.,
+			&mut vertices,
+		);
+		draw_billboard(
+			Point3::new(-2048. / 8., 0., 2048. / 8.),
+			self.player_angle,
+			256.,
+			128.,
+			&mut vertices,
+		);
 
-		vertices.push(Vertex {
-			x: player_x + 0.,
-			y: 0.,
-			z: player_z,
-			u: 0.,
-			v: 0.,
-			color: color,
-		});
-		vertices.push(Vertex {
-			x: player_x + TILE,
-			y: 0.,
-			z: player_z,
-			u: bmp_width,
-			v: 0.,
-			color: color,
-		});
-		vertices.push(Vertex {
-			x: player_x + TILE,
-			y: TILE,
-			z: player_z,
-			u: bmp_width,
-			v: bmp_height,
-			color: color,
-		});
+		draw_billboard(self.player_pos, self.player_angle, 64., 64., &mut vertices);
 
-		vertices.push(Vertex {
-			x: player_x + 0.,
-			y: 0.,
-			z: player_z,
-			u: 0.,
-			v: 0.,
-			color: color,
-		});
-		vertices.push(Vertex {
-			x: player_x + TILE,
-			y: TILE,
-			z: player_z,
-			u: bmp_width,
-			v: bmp_height,
-			color: color,
-		});
-		vertices.push(Vertex {
-			x: player_x + 0.,
-			y: TILE,
-			z: player_z,
-			u: 0.,
-			v: bmp_height,
-			color: color,
-		});
+		//~ let player_x = self.player_pos.x - TILE / 2.;
+		//~ let player_z = self.player_pos.z;
+		//~ let color = Color::from_rgb_f(1., 0.5, 0.5);
+
+		//~ vertices.push(Vertex {
+		//~ x: player_x + 0.,
+		//~ y: 0.,
+		//~ z: player_z,
+		//~ u: 0.,
+		//~ v: 0.,
+		//~ color: color,
+		//~ });
+		//~ vertices.push(Vertex {
+		//~ x: player_x + TILE,
+		//~ y: 0.,
+		//~ z: player_z,
+		//~ u: bmp_width,
+		//~ v: 0.,
+		//~ color: color,
+		//~ });
+		//~ vertices.push(Vertex {
+		//~ x: player_x + TILE,
+		//~ y: TILE,
+		//~ z: player_z,
+		//~ u: bmp_width,
+		//~ v: bmp_height,
+		//~ color: color,
+		//~ });
+
+		//~ vertices.push(Vertex {
+		//~ x: player_x + 0.,
+		//~ y: 0.,
+		//~ z: player_z,
+		//~ u: 0.,
+		//~ v: 0.,
+		//~ color: color,
+		//~ });
+		//~ vertices.push(Vertex {
+		//~ x: player_x + TILE,
+		//~ y: TILE,
+		//~ z: player_z,
+		//~ u: bmp_width,
+		//~ v: bmp_height,
+		//~ color: color,
+		//~ });
+		//~ vertices.push(Vertex {
+		//~ x: player_x + 0.,
+		//~ y: TILE,
+		//~ z: player_z,
+		//~ u: 0.,
+		//~ v: bmp_height,
+		//~ color: color,
+		//~ });
 
 		state.prim.draw_prim(
 			&vertices[..],
@@ -226,8 +326,41 @@ impl Map
 		Ok(())
 	}
 
-	pub fn logic(&mut self, logic: &mut game_state::GameState) -> Result<()>
+	pub fn logic(&mut self, state: &mut game_state::GameState) -> Result<()>
 	{
+		Ok(())
+	}
+
+	pub fn input(&mut self, event: &Event, state: &mut game_state::GameState) -> Result<()>
+	{
+		match event
+		{
+			Event::KeyDown { keycode, .. } => match keycode
+			{
+				KeyCode::W =>
+				{
+					let rot = Rotation2::new(self.player_angle);
+					let diff = rot * Vector2::new(0., 1000000. * utils::DT);
+					self.player_pos += utils::DT * Vector3::new(diff.x, 0., diff.y);
+				}
+				KeyCode::S =>
+				{
+					let rot = Rotation2::new(self.player_angle);
+					let diff = rot * Vector2::new(0., -1000000. * utils::DT);
+					self.player_pos += utils::DT * Vector3::new(diff.x, 0., diff.y);
+				}
+				KeyCode::A =>
+				{
+					self.player_angle -= utils::DT * 10. * 3.14;
+				}
+				KeyCode::D =>
+				{
+					self.player_angle += utils::DT * 10. * 3.14;
+				}
+				_ => (),
+			},
+			_ => (),
+		}
 		Ok(())
 	}
 }
