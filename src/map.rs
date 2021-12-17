@@ -10,10 +10,12 @@ use na::{
 };
 use nalgebra as na;
 
+use std::collections::HashMap;
+
 pub const TILE: f32 = 64.;
 
 fn draw_billboard(
-	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, vertices: &mut Vec<Vertex>,
+	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, vertices: &mut Vec<Vertex>, indices: &mut Vec<i32>,
 )
 {
 	let rot = Rotation2::new(camera_angle);
@@ -31,6 +33,7 @@ fn draw_billboard(
 
 	let color = Color::from_rgb_f(1., 1., 1.);
 
+	let idx = vertices.len() as i32;
 	vertices.push(Vertex {
 		x: pos1.x,
 		y: pos1.y,
@@ -55,23 +58,6 @@ fn draw_billboard(
 		v: bmp_height,
 		color: color,
 	});
-
-	vertices.push(Vertex {
-		x: pos1.x,
-		y: pos1.y,
-		z: pos1.z,
-		u: 0.,
-		v: 0.,
-		color: color,
-	});
-	vertices.push(Vertex {
-		x: pos3.x,
-		y: pos3.y,
-		z: pos3.z,
-		u: bmp_width,
-		v: bmp_height,
-		color: color,
-	});
 	vertices.push(Vertex {
 		x: pos4.x,
 		y: pos4.y,
@@ -80,31 +66,51 @@ fn draw_billboard(
 		v: bmp_height,
 		color: color,
 	});
+	
+	indices.extend([idx + 0, idx + 1, idx + 2, idx + 0, idx + 2, idx + 3]);
 }
 
 pub struct Level
 {
 	width: i32,
 	height: i32,
+	tile_meshes: Vec<Mesh>,
+	tiles: Vec<i32>,
 }
 
 impl Level
 {
-	pub fn new(width: i32, height: i32) -> Self
+	pub fn new(width: i32, height: i32, tile_meshes: &HashMap<String, Mesh>) -> Self
 	{
+		let mut tile_meshes_vec = Vec::with_capacity(tile_meshes.len());
+		for i in 0..tile_meshes.len()
+		{
+			tile_meshes_vec.push(tile_meshes[&i.to_string()].clone())
+		}
+		
+		let mut tiles = Vec::with_capacity((width * height) as usize);
+		for tile in 0..width * height
+		{
+			tiles.push(7);
+		}
+		
 		Level {
 			width: width,
 			height: height,
+			tile_meshes: tile_meshes_vec,
+			tiles: tiles,
 		}
 	}
 
-	pub fn draw(&self, vertices: &mut Vec<Vertex>)
+	pub fn draw(&self, vertices: &mut Vec<Vertex>, indices: &mut Vec<i32>)
 	{
 		let bmp_width = 256.;
 		let bmp_height = 256.;
 
 		let offt_x = self.width as f32 * TILE / 2.;
 		let offt_z = self.height as f32 * TILE / 2.;
+
+		let mut i = 0;
 
 		for z in 0..self.height
 		{
@@ -114,56 +120,29 @@ impl Level
 
 				let shift_x = x as f32 * TILE + TILE / 2. - offt_x;
 				let shift_z = z as f32 * TILE + TILE / 2. - offt_z;
-
-				vertices.push(Vertex {
-					x: shift_x + 0.,
-					y: 0.,
-					z: shift_z + 0.,
-					u: 0.,
-					v: 0.,
-					color: color,
-				});
-				vertices.push(Vertex {
-					x: shift_x + TILE,
-					y: 0.,
-					z: shift_z + 0.,
-					u: bmp_width,
-					v: 0.,
-					color: color,
-				});
-				vertices.push(Vertex {
-					x: shift_x + TILE,
-					y: 0.,
-					z: shift_z + TILE,
-					u: bmp_width,
-					v: bmp_height,
-					color: color,
-				});
-
-				vertices.push(Vertex {
-					x: shift_x + 0.,
-					y: 0.,
-					z: shift_z + 0.,
-					u: 0.,
-					v: 0.,
-					color: color,
-				});
-				vertices.push(Vertex {
-					x: shift_x + TILE,
-					y: 0.,
-					z: shift_z + TILE,
-					u: bmp_width,
-					v: bmp_height,
-					color: color,
-				});
-				vertices.push(Vertex {
-					x: shift_x + 0.,
-					y: 0.,
-					z: shift_z + TILE,
-					u: 0.,
-					v: bmp_height,
-					color: color,
-				});
+				
+				let idx = vertices.len() as i32;
+				
+				let mesh = &self.tile_meshes[self.tiles[(x + z * self.width) as usize] as usize];
+				
+				for vtx in &mesh.vtxs
+				{
+					vertices.push(Vertex
+					{
+						x: vtx.x + shift_x,
+						y: vtx.y,
+						z: vtx.z + shift_z,
+						u: vtx.u,
+						v: vtx.v,
+						color: Color::from_rgb_f(vtx.x / 64., vtx.z / 64., vtx.y / 64.),
+					});
+				}
+				for vec_idx in &mesh.idxs
+				{
+					indices.push(vec_idx + idx);
+				}
+				
+				i += 1;
 			}
 		}
 	}
@@ -188,6 +167,69 @@ pub struct Map
 	right_state: bool,
 
 	world: hecs::World,
+}
+
+#[derive(Clone)]
+pub struct Mesh
+{
+	vtxs: Vec<Vertex>,
+	idxs: Vec<i32>,
+}
+
+fn load_meshes(gltf_file: &str) -> HashMap<String, Mesh>
+{
+	let (document, buffers, _) = gltf::import(gltf_file).unwrap();
+	let mut meshes = HashMap::new();
+	for node in document.nodes()
+	{
+		//~ dbg!(node.name());
+		let ([dx, dy, dz], [rx, ry, rz, rw], [sx, sy, sz]) = node.transform().decomposed();
+
+		if let Some(mesh) = node.mesh()
+		{
+			let mut vtxs = vec![];
+			let mut idxs = vec![];
+
+			for prim in mesh.primitives()
+			{
+				let reader = prim.reader(|buffer| Some(&buffers[buffer.index()]));
+				if let (Some(pos_iter), Some(norm_iter)) =
+					(reader.read_positions(), reader.read_normals())
+				{
+					for (pos, _) in pos_iter.zip(norm_iter)
+					{
+						vtxs.push(Vertex {
+							x: pos[0],
+							y: pos[1] + dy,
+							z: pos[2],
+							u: 0.,
+							v: 0.,
+							color: Color::from_rgb_f(1., 1., 1.),
+						})
+					}
+				}
+
+				if let Some(iter) = reader.read_indices()
+				{
+					for idx in iter.into_u32()
+					{
+						idxs.push(idx as i32)
+					}
+				}
+			}
+			//~ dbg!(dx, dy, dz);
+			//~ dbg!(rx, ry, rz, rw);
+			//~ dbg!(sx, sy, sz);
+
+			let out_mesh = Mesh {
+				vtxs: vtxs,
+				idxs: idxs,
+			};
+
+			meshes.insert(node.name().unwrap().to_string(), out_mesh);
+		}
+	}
+	meshes
 }
 
 impl Map
@@ -215,6 +257,8 @@ impl Map
 			},
 		));
 
+		let tile_meshes = load_meshes("data/all_tiles.gltf");
+
 		for z in 0..=20
 		{
 			for x in -1..=1
@@ -239,7 +283,7 @@ impl Map
 			projection: utils::projection_transform(display_width, display_height),
 			display_width: display_width,
 			display_height: display_height,
-			level: Level::new(256, 256),
+			level: Level::new(256, 256, &tile_meshes),
 			player: player,
 			camera_anchor: player_pos,
 			world: world,
@@ -283,22 +327,26 @@ impl Map
 		let bmp = state.get_bitmap("data/test.png").unwrap();
 
 		let mut vertices = vec![];
+		let mut indices = vec![];
 
-		self.level.draw(&mut vertices);
+		self.level.draw(&mut vertices, &mut indices);
 
 		for (_, (pos, _)) in self
 			.world
 			.query::<(&components::Position, &components::Drawable)>()
 			.iter()
 		{
-			draw_billboard(pos.pos, self.camera_anchor.dir, 64., 64., &mut vertices);
+			draw_billboard(pos.pos, self.camera_anchor.dir, 64., 64., &mut vertices, &mut indices);
 		}
 
-		state.prim.draw_prim(
+		//~ println!("{}", indices.len());
+
+		state.prim.draw_indexed_prim(
 			&vertices[..],
 			Some(bmp),
+			&indices[..],
 			0,
-			vertices.len() as u32,
+			indices.len() as u32,
 			PrimType::TriangleList,
 		);
 
@@ -349,10 +397,7 @@ impl Map
 				broccoli::rect(x - r, x + r, z - r, z + r),
 				id,
 			));
-
-			//~ dbg!(id);
 		}
-		//~ println!();
 
 		let mut tree = broccoli::new(&mut boxes);
 		let mut colliding_pairs = vec![];
@@ -364,7 +409,6 @@ impl Map
 		{
 			for &(id1, id2) in &colliding_pairs
 			{
-				//~ dbg!(id1, id2);
 				let pos1 = self.world.get::<components::Position>(id1)?.pos;
 				let pos2 = self.world.get::<components::Position>(id2)?.pos;
 				let solid1 = *self.world.get::<components::Solid>(id1)?;
