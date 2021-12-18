@@ -65,6 +65,9 @@ fn real_main() -> Result<()>
 	let display = Display::new(&state.core, options.width, options.height)
 		.map_err(|_| "Couldn't create display".to_string())?;
 
+	gl_loader::init_gl();
+	gl::load_with(|symbol| gl_loader::get_proc_address(symbol) as *const _);
+
 	let timer =
 		Timer::new(&state.core, DT as f64).map_err(|_| "Couldn't create timer".to_string())?;
 
@@ -112,6 +115,11 @@ fn real_main() -> Result<()>
 			state.core.set_target_bitmap(Some(display.get_backbuffer()));
 			state.core.clear_to_color(Color::from_rgb_f(0., 0.2, 0.));
 			state.core.clear_depth_buffer(1.);
+			unsafe {
+				gl::Enable(gl::CULL_FACE);
+				gl::CullFace(gl::BACK);
+			}
+
 			if options.vsync_method == 2
 			{
 				state.core.wait_for_vsync().ok();

@@ -46,11 +46,11 @@ fn draw_billboard(
 		color: color,
 	});
 	vertices.push(Vertex {
-		x: pos2.x,
-		y: pos2.y,
-		z: pos2.z,
-		u: bmp_width,
-		v: 0.,
+		x: pos4.x,
+		y: pos4.y,
+		z: pos4.z,
+		u: 0.,
+		v: bmp_height,
 		color: color,
 	});
 	vertices.push(Vertex {
@@ -62,11 +62,11 @@ fn draw_billboard(
 		color: color,
 	});
 	vertices.push(Vertex {
-		x: pos4.x,
-		y: pos4.y,
-		z: pos4.z,
-		u: 0.,
-		v: bmp_height,
+		x: pos2.x,
+		y: pos2.y,
+		z: pos2.z,
+		u: bmp_width,
+		v: 0.,
 		color: color,
 	});
 

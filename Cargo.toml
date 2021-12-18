@@ -28,6 +28,8 @@ serde_derive = "1.0.131"
 broccoli = "2.1.1"
 gltf = "0.16.0"
 tiled = "0.9.5"
+gl = "0.14.0"
+gl_loader = "0.1.2"
 
 [profile.release]
 debug = true
