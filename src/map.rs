@@ -11,6 +11,7 @@ use na::{
 use nalgebra as na;
 
 use std::collections::HashMap;
+use std::path::Path;
 
 pub const TILE: f32 = 64.;
 
@@ -80,18 +81,12 @@ pub struct Level
 
 impl Level
 {
-	pub fn new(width: i32, height: i32, tile_meshes: &HashMap<String, Mesh>) -> Self
+	pub fn new(width: i32, height: i32, tile_meshes: &HashMap<String, Mesh>, tiles: Vec<i32>) -> Self
 	{
 		let mut tile_meshes_vec = Vec::with_capacity(tile_meshes.len());
 		for i in 0..tile_meshes.len()
 		{
 			tile_meshes_vec.push(tile_meshes[&i.to_string()].clone())
-		}
-		
-		let mut tiles = Vec::with_capacity((width * height) as usize);
-		for tile in 0..width * height
-		{
-			tiles.push(7);
 		}
 		
 		Level {
@@ -257,8 +252,6 @@ impl Map
 			},
 		));
 
-		let tile_meshes = load_meshes("data/all_tiles.gltf");
-
 		for z in 0..=20
 		{
 			for x in -1..=1
@@ -278,12 +271,42 @@ impl Map
 		}
 
 		state.cache_bitmap("data/test.png")?;
+		
+		let tile_meshes = load_meshes("data/all_tiles.gltf");
+		
+		let map = tiled::parse_file(&Path::new("data/level.tmx"))?;
+		let layer_tiles = &map.layers[0].tiles;
+		let layer_tiles = match layer_tiles
+		{
+			tiled::LayerData::Finite(layer_tiles) => layer_tiles,
+			_ => return Err("Bad map!".to_string().into())
+		};
+		
+		let height = layer_tiles.len();
+		let width = layer_tiles[0].len();
+		
+		let tileset = &map.tilesets[0];
+		let mut tiles = Vec::with_capacity(width * height);
+		
+		for row in layer_tiles
+		{
+			for tile in row
+			{
+				tiles.push((tile.gid - tileset.first_gid) as i32);
+				println!("{}", tile.gid - tileset.first_gid);
+			}
+		}
+		
+		//~ if let  = layer_tiles
+		//~ {
+			//~ dbg!(layer_tiles);
+		//~ }
 
 		Ok(Self {
 			projection: utils::projection_transform(display_width, display_height),
 			display_width: display_width,
 			display_height: display_height,
-			level: Level::new(256, 256, &tile_meshes),
+			level: Level::new(width as i32, height as i32, &tile_meshes, tiles),
 			player: player,
 			camera_anchor: player_pos,
 			world: world,

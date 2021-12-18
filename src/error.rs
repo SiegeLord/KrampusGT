@@ -58,6 +58,18 @@ impl From<hecs::ComponentError> for Error
 	}
 }
 
+impl From<tiled::TiledError> for Error
+{
+	fn from(error: tiled::TiledError) -> Self
+	{
+		Self {
+			message: format!("{}", error),
+			inner: Some(Box::new(error)),
+			backtrace: Backtrace::capture(),
+		}
+	}
+}
+
 impl fmt::Display for Error
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
