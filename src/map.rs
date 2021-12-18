@@ -9,6 +9,7 @@ use na::{
 	Unit, Vector2, Vector3, Vector4,
 };
 use nalgebra as na;
+use serde_derive::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,7 +17,8 @@ use std::path::Path;
 pub const TILE: f32 = 64.;
 
 fn draw_billboard(
-	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, vertices: &mut Vec<Vertex>, indices: &mut Vec<i32>,
+	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, vertices: &mut Vec<Vertex>,
+	indices: &mut Vec<i32>,
 )
 {
 	let rot = Rotation2::new(camera_angle);
@@ -67,8 +69,15 @@ fn draw_billboard(
 		v: bmp_height,
 		color: color,
 	});
-	
+
 	indices.extend([idx + 0, idx + 1, idx + 2, idx + 0, idx + 2, idx + 3]);
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct LevelDesc
+{
+	level: String,
+	meshes: String,
 }
 
 pub struct Level
@@ -81,49 +90,64 @@ pub struct Level
 
 impl Level
 {
-	pub fn new(width: i32, height: i32, tile_meshes: &HashMap<String, Mesh>, tiles: Vec<i32>) -> Self
+	pub fn new(filename: &str) -> Result<Self>
 	{
+		let desc: LevelDesc = utils::load_config(filename)?;
+
+		let tile_meshes = load_meshes(&desc.meshes);
+
+		let map = tiled::parse_file(&Path::new(&desc.level))?;
+		let layer_tiles = &map.layers[0].tiles;
+		let layer_tiles = match layer_tiles
+		{
+			tiled::LayerData::Finite(layer_tiles) => layer_tiles,
+			_ => return Err("Bad map!".to_string().into()),
+		};
+
+		let height = layer_tiles.len();
+		let width = layer_tiles[0].len();
+
+		let tileset = &map.tilesets[0];
+		let mut tiles = Vec::with_capacity(width * height);
+
+		for row in layer_tiles
+		{
+			for tile in row
+			{
+				tiles.push((tile.gid - tileset.first_gid) as i32);
+			}
+		}
+
 		let mut tile_meshes_vec = Vec::with_capacity(tile_meshes.len());
 		for i in 0..tile_meshes.len()
 		{
 			tile_meshes_vec.push(tile_meshes[&i.to_string()].clone())
 		}
-		
-		Level {
-			width: width,
-			height: height,
+
+		Ok(Level {
+			width: width as i32,
+			height: height as i32,
 			tile_meshes: tile_meshes_vec,
 			tiles: tiles,
-		}
+		})
 	}
 
 	pub fn draw(&self, vertices: &mut Vec<Vertex>, indices: &mut Vec<i32>)
 	{
-		let bmp_width = 256.;
-		let bmp_height = 256.;
-
-		let offt_x = self.width as f32 * TILE / 2.;
-		let offt_z = self.height as f32 * TILE / 2.;
-
-		let mut i = 0;
-
 		for z in 0..self.height
 		{
 			for x in 0..self.width
 			{
-				let color = Color::from_rgb_f(0.5 + 0.5 * z as f32 / self.height as f32, 1., 1.);
+				let shift_x = x as f32 * TILE + TILE / 2.;
+				let shift_z = z as f32 * TILE + TILE / 2.;
 
-				let shift_x = x as f32 * TILE + TILE / 2. - offt_x;
-				let shift_z = z as f32 * TILE + TILE / 2. - offt_z;
-				
 				let idx = vertices.len() as i32;
-				
+
 				let mesh = &self.tile_meshes[self.tiles[(x + z * self.width) as usize] as usize];
-				
+
 				for vtx in &mesh.vtxs
 				{
-					vertices.push(Vertex
-					{
+					vertices.push(Vertex {
 						x: vtx.x + shift_x,
 						y: vtx.y,
 						z: vtx.z + shift_z,
@@ -136,9 +160,71 @@ impl Level
 				{
 					indices.push(vec_idx + idx);
 				}
-				
-				i += 1;
 			}
+		}
+	}
+
+	pub fn check_collision(&self, loc: Point3<f32>, size: f32) -> Option<Vector3<f32>>
+	{
+		let center_x = (loc.x / TILE).floor() as i32;
+		let center_z = (loc.z / TILE).floor() as i32;
+
+		let mut res = Vector3::zeros();
+		for map_z in center_z - 1..=center_z + 1
+		{
+			for map_x in center_x - 1..=center_x + 1
+			{
+				if map_x < 0 || map_x >= self.width || map_z < 0 || map_z >= self.height
+				{
+					continue;
+				}
+				let tile = self.tiles[(map_z * self.width + map_x) as usize];
+				if tile == 0
+				{
+					continue;
+				}
+
+				let cx = map_x as f32 * TILE;
+				let cz = map_z as f32 * TILE;
+
+				let vs = [
+					Point2::new(cx, cz),
+					Point2::new(cx, cz + TILE),
+					Point2::new(cx + TILE, cz + TILE),
+					Point2::new(cx + TILE, cz),
+				];
+
+				let nearest_point = utils::nearest_poly_point(&vs, loc.xz());
+				let nearest_point = Point3::new(nearest_point.x, 0., nearest_point.y);
+
+				let nearest_dist = utils::max(1e-20, (loc - nearest_point).norm());
+				let inside = utils::is_inside_poly(&vs, loc.xz());
+				if nearest_dist < size || inside
+				{
+					let new_dir = if inside
+					{
+						(nearest_point - loc) * (nearest_dist + size) / nearest_dist
+					}
+					else
+					{
+						//~ dbg!(nearest_point, (loc - nearest_point) * (size - nearest_dist) / nearest_dist);
+						(loc - nearest_point) * (size - nearest_dist) / nearest_dist
+					};
+
+					if new_dir.norm() > res.norm()
+					{
+						res = new_dir;
+					}
+				}
+			}
+		}
+		if res.norm() > 0.
+		{
+			Some(res)
+		}
+		else
+		{
+			None
 		}
 	}
 }
@@ -178,7 +264,8 @@ fn load_meshes(gltf_file: &str) -> HashMap<String, Mesh>
 	for node in document.nodes()
 	{
 		//~ dbg!(node.name());
-		let ([dx, dy, dz], [rx, ry, rz, rw], [sx, sy, sz]) = node.transform().decomposed();
+		//let ([dx, dy, dz], [rx, ry, rz, rw], [sx, sy, sz]) = node.transform().decomposed();
+		let ([_, dy, _], _, _) = node.transform().decomposed();
 
 		if let Some(mesh) = node.mesh()
 		{
@@ -247,7 +334,7 @@ impl Map
 			},
 			components::Drawable,
 			components::Solid {
-				size: TILE / 2.,
+				size: TILE / 8.,
 				mass: 1.,
 			},
 		));
@@ -258,55 +345,25 @@ impl Map
 			{
 				world.spawn((
 					components::Position {
-						pos: Point3::new(x as f32 * 128., 0., 256. + z as f32 * 128.),
+						pos: Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.),
 						dir: 0.,
 					},
 					components::Drawable,
 					components::Solid {
-						size: TILE / 2.,
-						mass: f32::INFINITY, //1. * z as f32,
+						size: TILE / 8.,
+						mass: 1. * z as f32,
 					},
 				));
 			}
 		}
 
 		state.cache_bitmap("data/test.png")?;
-		
-		let tile_meshes = load_meshes("data/all_tiles.gltf");
-		
-		let map = tiled::parse_file(&Path::new("data/level.tmx"))?;
-		let layer_tiles = &map.layers[0].tiles;
-		let layer_tiles = match layer_tiles
-		{
-			tiled::LayerData::Finite(layer_tiles) => layer_tiles,
-			_ => return Err("Bad map!".to_string().into())
-		};
-		
-		let height = layer_tiles.len();
-		let width = layer_tiles[0].len();
-		
-		let tileset = &map.tilesets[0];
-		let mut tiles = Vec::with_capacity(width * height);
-		
-		for row in layer_tiles
-		{
-			for tile in row
-			{
-				tiles.push((tile.gid - tileset.first_gid) as i32);
-				println!("{}", tile.gid - tileset.first_gid);
-			}
-		}
-		
-		//~ if let  = layer_tiles
-		//~ {
-			//~ dbg!(layer_tiles);
-		//~ }
 
 		Ok(Self {
 			projection: utils::projection_transform(display_width, display_height),
 			display_width: display_width,
 			display_height: display_height,
-			level: Level::new(width as i32, height as i32, &tile_meshes, tiles),
+			level: Level::new("data/level.cfg")?,
 			player: player,
 			camera_anchor: player_pos,
 			world: world,
@@ -322,8 +379,8 @@ impl Map
 	fn make_camera(&self) -> Isometry3<f32>
 	{
 		let rot = Rotation2::new(self.camera_anchor.dir);
-		let offt = rot * Vector2::new(0., -2. * TILE);
-		let height = TILE * 2.;
+		let offt = rot * Vector2::new(0., -TILE / 2.);
+		let height = TILE / 2.;
 
 		utils::camera_project(
 			self.camera_anchor.pos.x + offt.x,
@@ -359,7 +416,14 @@ impl Map
 			.query::<(&components::Position, &components::Drawable)>()
 			.iter()
 		{
-			draw_billboard(pos.pos, self.camera_anchor.dir, 64., 64., &mut vertices, &mut indices);
+			draw_billboard(
+				pos.pos,
+				self.camera_anchor.dir,
+				16.,
+				16.,
+				&mut vertices,
+				&mut indices,
+			);
 		}
 
 		//~ println!("{}", indices.len());
@@ -387,7 +451,7 @@ impl Map
 
 			let dir = self.world.get::<components::Position>(self.player)?.dir;
 			let rot = Rotation2::new(dir);
-			let speed = 500.;
+			let speed = 100.;
 			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
 
 			let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
@@ -459,6 +523,17 @@ impl Map
 
 				self.world.get_mut::<components::Position>(id1)?.pos -= diff * f;
 				self.world.get_mut::<components::Position>(id2)?.pos += diff * (1. - f);
+			}
+
+			for (_, (pos, solid)) in self
+				.world
+				.query::<(&mut components::Position, &components::Solid)>()
+				.iter()
+			{
+				if let Some(resolve_diff) = self.level.check_collision(pos.pos, solid.size)
+				{
+					pos.pos += 0.9 * resolve_diff;
+				}
 			}
 		}
 

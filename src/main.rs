@@ -142,6 +142,7 @@ fn real_main() -> Result<()>
 		{
 			map.input(&event, &mut state)?;
 		}
+
 		//~ else
 		//~ {
 		//~ next_screen = menu.input(&event, &mut state)?;
@@ -182,6 +183,7 @@ fn real_main() -> Result<()>
 				if let Some(map) = &mut map
 				{
 					map.logic(&mut state)?;
+					//~ println!();
 				}
 
 				if state.hide_mouse

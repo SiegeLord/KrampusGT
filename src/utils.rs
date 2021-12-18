@@ -15,8 +15,8 @@ pub type Vec2D = nalgebra::Vector2<f32>;
 pub type Vec3D = nalgebra::Vector3<f32>;
 
 use na::{
-	Isometry3, Matrix4, Perspective3, Point3, Quaternion, RealField, Rotation3, Unit, Vector3,
-	Vector4,
+	Isometry3, Matrix4, Perspective3, Point2, Point3, Quaternion, RealField, Rotation3, Unit,
+	Vector2, Vector3, Vector4,
 };
 use nalgebra as na;
 
@@ -142,4 +142,118 @@ pub fn load_bitmap(core: &Core, file: &str) -> Result<Bitmap>
 pub fn load_sample(audio: &AudioAddon, path: &str) -> Result<Sample>
 {
 	Ok(Sample::load(audio, path).map_err(|_| format!("Couldn't load '{}'", path))?)
+}
+
+pub fn nearest_line_point(v1: Point2<f32>, v2: Point2<f32>, test_point: Point2<f32>)
+	-> Point2<f32>
+{
+	let v1_t = test_point - v1;
+
+	let v2_v1 = v2 - v1;
+	let v2_v1_norm_sq = max(v2_v1.norm_squared(), 1e-20);
+
+	let dot = v1_t.dot(&v2_v1) / v2_v1_norm_sq;
+
+	if dot < 0.
+	{
+		v1
+	}
+	else if dot > 1.
+	{
+		v2
+	}
+	else
+	{
+		v1 + dot * (v2 - v1)
+	}
+}
+
+pub fn nearest_poly_point(vs: &[Point2<f32>], test_point: Point2<f32>) -> Point2<f32>
+{
+	assert!(vs.len() >= 3);
+	let mut best_dist_sq = f32::INFINITY;
+	let mut best_point = Point2::new(0., 0.);
+
+	for idx in 0..vs.len()
+	{
+		let v1 = vs[idx];
+		let v2 = vs[(idx + 1) % vs.len()];
+
+		let cand_point = nearest_line_point(v1, v2, test_point);
+		let cand_dist_sq = (cand_point - test_point).norm_squared();
+		if cand_dist_sq < best_dist_sq
+		{
+			best_point = cand_point;
+			best_dist_sq = cand_dist_sq;
+		}
+	}
+	best_point
+}
+
+pub fn is_inside_poly(vs: &[Point2<f32>], test_point: Point2<f32>) -> bool
+{
+	assert!(vs.len() >= 3);
+	let mut inside = true;
+
+	for idx in 0..vs.len()
+	{
+		let v1 = vs[idx];
+		let v2 = vs[(idx + 1) % vs.len()];
+		let v1_v2 = v2 - v1;
+		let normal = Vector2::new(-v1_v2.y, v1_v2.x);
+
+		let v1_t = test_point - v1;
+		inside &= v1_t.dot(&normal) < 0.;
+		if !inside
+		{
+			return false;
+		}
+	}
+	true
+}
+
+#[test]
+fn test_nearest_line_point()
+{
+	let v1 = Point2::new(1., 2.);
+	let v2 = Point2::new(3., 4.);
+
+	let t = Point2::new(-1., -1.);
+	let n = nearest_line_point(v1, v2, t);
+	assert!(n == v1);
+
+	let t = Point2::new(5., 5.);
+	let n = nearest_line_point(v1, v2, t);
+	assert!((n - v2).norm() < 1e-3);
+
+	let t = Point2::new(2., 3.);
+	let n = nearest_line_point(v1, v2, t);
+	dbg!(n, t);
+	assert!((n - t).norm() < 1e-3);
+
+	let t = Point2::new(1., 4.);
+	let n = nearest_line_point(v1, v2, t);
+	assert!((n - Point2::new(2., 3.)).norm() < 1e-3);
+}
+
+#[test]
+fn is_inside_poly_test()
+{
+	let vs = [
+		Point2::new(0., 0.),
+		Point2::new(0., 3.),
+		Point2::new(3., 3.),
+		Point2::new(3., 0.),
+	];
+
+	assert!(is_inside_poly(&vs, Point2::new(1., 1.)));
+	assert!(!is_inside_poly(&vs, Point2::new(-1., -1.)));
+
+	let vs = [
+		Point2::new(-1., 1.),
+		Point2::new(1., 3.),
+		Point2::new(4., -3.),
+		Point2::new(-1., -1.),
+	];
+	assert!(is_inside_poly(&vs, Point2::new(0., 0.)));
 }
