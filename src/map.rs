@@ -207,7 +207,6 @@ impl Level
 					}
 					else
 					{
-						//~ dbg!(nearest_point, (loc - nearest_point) * (size - nearest_dist) / nearest_dist);
 						(loc - nearest_point) * (size - nearest_dist) / nearest_dist
 					};
 
@@ -229,6 +228,31 @@ impl Level
 	}
 }
 
+pub fn spawn_projectile(
+	pos: Point3<f32>, dir: f32, speed: f32, lifetime: f64, size: f32,
+	state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: speed * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable,
+		components::Solid {
+			size: size,
+			mass: 0.,
+		},
+		components::TimeToDie {
+			time_to_die: state.time() + lifetime,
+		},
+		components::OnContactEffect {
+			effect: components::Effect::Die,
+		},
+	))
+}
+
 pub struct Map
 {
 	projection: Perspective3<f32>,
@@ -246,6 +270,7 @@ pub struct Map
 	down_state: bool,
 	left_state: bool,
 	right_state: bool,
+	fire_state: bool,
 
 	world: hecs::World,
 }
@@ -337,6 +362,14 @@ impl Map
 				size: TILE / 8.,
 				mass: 1.,
 			},
+			components::WeaponSet {
+				weapons: vec![components::Weapon {
+					delay: 0.25,
+					time_to_fire: 0.,
+				}],
+				cur_weapon: 0,
+				want_to_fire: false,
+			},
 		));
 
 		for z in 0..=20
@@ -373,6 +406,7 @@ impl Map
 			down_state: false,
 			left_state: false,
 			right_state: false,
+			fire_state: false,
 		})
 	}
 
@@ -389,6 +423,196 @@ impl Map
 			self.camera_anchor.pos.x,
 			self.camera_anchor.pos.z,
 		)
+	}
+
+	pub fn logic(&mut self, state: &mut game_state::GameState) -> Result<()>
+	{
+		// Player controller.
+		if self.world.contains(self.player)
+		{
+			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
+			let left_right = self.left_state as i32 - (self.right_state as i32);
+			let up_down = self.up_state as i32 - (self.down_state as i32);
+
+			let dir = self.world.get::<components::Position>(self.player)?.dir;
+			let rot = Rotation2::new(dir);
+			let speed = 100.;
+			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
+
+			let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
+			player_vel.vel = Vector3::new(vel.x, 0., vel.y);
+			player_vel.dir_vel = rot_left_right as f32 * f32::pi() / 2.;
+
+			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
+			{
+				weapon_set.want_to_fire = self.fire_state;
+			}
+		}
+
+		// Weapon handling.
+		let mut proj_spawns = vec![];
+		for (_, (pos, weapon_set, solid)) in self
+			.world
+			.query::<(
+				&components::Position,
+				&mut components::WeaponSet,
+				&components::Solid,
+			)>()
+			.iter()
+		{
+			if !weapon_set.want_to_fire
+				|| weapon_set.weapons.is_empty()
+				|| weapon_set.weapons[weapon_set.cur_weapon].time_to_fire > state.time()
+			{
+				continue;
+			}
+
+			let weapon = &mut weapon_set.weapons[weapon_set.cur_weapon];
+			weapon.time_to_fire = state.time() + weapon.delay;
+
+			let proj_size = 4.;
+			let spawn_pos = pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
+			proj_spawns.push((spawn_pos, pos.dir, proj_size));
+		}
+
+		for (pos, dir, proj_size) in proj_spawns
+		{
+			spawn_projectile(pos, dir, 256., 2., proj_size, state, &mut self.world);
+		}
+
+		// Velocity handling.
+		for (_, (pos, vel)) in self
+			.world
+			.query::<(&mut components::Position, &components::Velocity)>()
+			.iter()
+		{
+			pos.pos += utils::DT * vel.vel;
+			pos.dir += utils::DT * vel.dir_vel;
+			//pos.dir = pos.dir.fmod(2. * f32::pi());
+		}
+
+		// Collision detection.
+		let mut boxes = vec![];
+		for (id, (pos, solid)) in self
+			.world
+			.query::<(&components::Position, &components::Solid)>()
+			.iter()
+		{
+			let r = solid.size;
+			let x = pos.pos.x;
+			let z = pos.pos.z;
+			boxes.push(broccoli::bbox(
+				broccoli::rect(x - r, x + r, z - r, z + r),
+				id,
+			));
+		}
+
+		let mut tree = broccoli::new(&mut boxes);
+		let mut colliding_pairs = vec![];
+		tree.find_colliding_pairs_mut(|a, b| {
+			colliding_pairs.push((a.inner, b.inner));
+		});
+
+		let mut on_contact_effects = vec![];
+		for pass in 0..5
+		{
+			for &(id1, id2) in &colliding_pairs
+			{
+				let pos1 = self.world.get::<components::Position>(id1)?.pos;
+				let pos2 = self.world.get::<components::Position>(id2)?.pos;
+				let solid1 = *self.world.get::<components::Solid>(id1)?;
+				let solid2 = *self.world.get::<components::Solid>(id2)?;
+
+				let diff = pos2 - pos1;
+				let diff_norm = utils::max(0.1, diff.norm());
+
+				if diff_norm > solid1.size + solid2.size
+				{
+					continue;
+				}
+
+				let diff = 0.9 * diff * (solid1.size + solid2.size - diff_norm) / diff_norm;
+
+				let f = 1. - solid1.mass / (solid2.mass + solid1.mass);
+				if f32::is_finite(f)
+				{
+					self.world.get_mut::<components::Position>(id1)?.pos -= diff * f;
+					self.world.get_mut::<components::Position>(id2)?.pos += diff * (1. - f);
+				}
+
+				if pass == 0
+				{
+					for id in [id1, id2]
+					{
+						if let Ok(on_contact_effect) =
+							self.world.get::<components::OnContactEffect>(id)
+						{
+							on_contact_effects.push((id, on_contact_effect.effect));
+						}
+					}
+				}
+			}
+
+			for (id, (pos, solid)) in self
+				.world
+				.query::<(&mut components::Position, &components::Solid)>()
+				.iter()
+			{
+				if let Some(resolve_diff) = self.level.check_collision(pos.pos, solid.size)
+				{
+					pos.pos += 0.9 * resolve_diff;
+
+					if pass == 0
+					{
+						if let Ok(on_contact_effect) =
+							self.world.get::<components::OnContactEffect>(id)
+						{
+							on_contact_effects.push((id, on_contact_effect.effect));
+						}
+					}
+				}
+			}
+		}
+
+		// On contact effects.
+		let mut to_die = vec![];
+		for (id, effect) in on_contact_effects
+		{
+			match effect
+			{
+				components::Effect::Die => to_die.push(id),
+			}
+		}
+
+		// Update camera anchor.
+		if let Ok(player_pos) = self.world.get::<components::Position>(self.player)
+		{
+			self.camera_anchor = *player_pos;
+		}
+
+		// Time to die
+		for (id, time_to_die) in self.world.query::<&components::TimeToDie>().iter()
+		{
+			if state.time() > time_to_die.time_to_die
+			{
+				to_die.push(id);
+			}
+		}
+
+		to_die.sort();
+		to_die.dedup();
+
+		// Remove dead entities
+		for id in to_die
+		{
+			self.world.despawn(id)?;
+		}
+
+		// HACK.
+		self.rot_left_state = 0;
+		self.rot_right_state = 0;
+
+		Ok(())
 	}
 
 	pub fn draw(&mut self, state: &game_state::GameState) -> Result<()>
@@ -440,116 +664,6 @@ impl Map
 		Ok(())
 	}
 
-	pub fn logic(&mut self, _state: &mut game_state::GameState) -> Result<()>
-	{
-		// Player controller.
-		if self.world.contains(self.player)
-		{
-			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
-			let left_right = self.left_state as i32 - (self.right_state as i32);
-			let up_down = self.up_state as i32 - (self.down_state as i32);
-
-			let dir = self.world.get::<components::Position>(self.player)?.dir;
-			let rot = Rotation2::new(dir);
-			let speed = 100.;
-			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
-
-			let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
-			player_vel.vel = Vector3::new(vel.x, 0., vel.y);
-			player_vel.dir_vel = rot_left_right as f32 * f32::pi() / 2.;
-		}
-
-		// Velocity handling.
-		for (_, (pos, vel)) in self
-			.world
-			.query::<(&mut components::Position, &components::Velocity)>()
-			.iter()
-		{
-			pos.pos += utils::DT * vel.vel;
-			pos.dir += utils::DT * vel.dir_vel;
-			//pos.dir = pos.dir.fmod(2. * f32::pi());
-		}
-
-		// Collision detection.
-		let mut boxes = vec![];
-		for (id, (pos, solid)) in self
-			.world
-			.query::<(&components::Position, &components::Solid)>()
-			.iter()
-		{
-			let r = solid.size;
-			let x = pos.pos.x;
-			let z = pos.pos.z;
-			boxes.push(broccoli::bbox(
-				broccoli::rect(x - r, x + r, z - r, z + r),
-				id,
-			));
-		}
-
-		let mut tree = broccoli::new(&mut boxes);
-		let mut colliding_pairs = vec![];
-		tree.find_colliding_pairs_mut(|a, b| {
-			colliding_pairs.push((a.inner, b.inner));
-		});
-
-		for _ in 0..5
-		{
-			for &(id1, id2) in &colliding_pairs
-			{
-				let pos1 = self.world.get::<components::Position>(id1)?.pos;
-				let pos2 = self.world.get::<components::Position>(id2)?.pos;
-				let solid1 = *self.world.get::<components::Solid>(id1)?;
-				let solid2 = *self.world.get::<components::Solid>(id2)?;
-
-				let diff = pos2 - pos1;
-				let diff_norm = utils::max(0.1, diff.norm());
-
-				if diff_norm > solid1.size + solid2.size
-				{
-					continue;
-				}
-
-				let diff = 0.9 * diff * (solid1.size + solid2.size - diff_norm) / diff_norm;
-
-				let mut f = 1. - solid1.mass / (solid2.mass + solid1.mass);
-				if !f32::is_finite(solid1.mass)
-				{
-					f = 0.;
-				}
-				else if !f32::is_finite(solid2.mass)
-				{
-					f = 1.;
-				}
-
-				self.world.get_mut::<components::Position>(id1)?.pos -= diff * f;
-				self.world.get_mut::<components::Position>(id2)?.pos += diff * (1. - f);
-			}
-
-			for (_, (pos, solid)) in self
-				.world
-				.query::<(&mut components::Position, &components::Solid)>()
-				.iter()
-			{
-				if let Some(resolve_diff) = self.level.check_collision(pos.pos, solid.size)
-				{
-					pos.pos += 0.9 * resolve_diff;
-				}
-			}
-		}
-
-		// Update camera anchor.
-		if let Ok(player_pos) = self.world.get::<components::Position>(self.player)
-		{
-			self.camera_anchor = *player_pos;
-		}
-
-		// HACK.
-		self.rot_left_state = 0;
-		self.rot_right_state = 0;
-
-		Ok(())
-	}
-
 	pub fn input(&mut self, event: &Event, _state: &mut game_state::GameState) -> Result<()>
 	{
 		match event
@@ -565,6 +679,20 @@ impl Map
 				{
 					self.rot_left_state = 0;
 					self.rot_right_state = *dx;
+				}
+			}
+			Event::MouseButtonDown { button, .. } =>
+			{
+				if *button == 1
+				{
+					self.fire_state = true;
+				}
+			}
+			Event::MouseButtonUp { button, .. } =>
+			{
+				if *button == 1
+				{
+					self.fire_state = false;
 				}
 			}
 			Event::KeyDown { keycode, .. } => match keycode
