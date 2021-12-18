@@ -50,10 +50,45 @@ pub struct TimeToDie
 pub enum Effect
 {
 	Die,
+	Hurt
+	{
+		damage: f32,
+	},
+}
+
+#[derive(Debug, Clone)]
+pub struct OnContactEffect
+{
+	pub effects: Vec<Effect>,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct OnContactEffect
+pub struct Health
 {
-	pub effect: Effect,
+	pub health: f32,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Status
+{
+	Idle,
+	Moving(hecs::Entity),
+	Attacking(hecs::Entity),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct AI
+{
+	pub sense_range: f32,
+	pub disengage_range: f32,
+	pub attack_range: f32,
+	pub status: Status,
+	pub time_to_check_status: f64,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Team
+{
+	Player,
+	Monster,
 }

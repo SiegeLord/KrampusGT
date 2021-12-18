@@ -248,7 +248,10 @@ pub fn spawn_projectile(
 			time_to_die: state.time() + lifetime,
 		},
 		components::OnContactEffect {
-			effect: components::Effect::Die,
+			effects: vec![
+				components::Effect::Die,
+				components::Effect::Hurt { damage: 6. },
+			],
 		},
 	))
 }
@@ -370,21 +373,53 @@ impl Map
 				cur_weapon: 0,
 				want_to_fire: false,
 			},
+			components::Health { health: 100. },
+			components::Team::Player,
 		));
 
-		for z in 0..=20
+		//~ for z in [0]
+		for z in -1..=1
 		{
+			//~ for x in [0]
 			for x in -1..=1
 			{
 				world.spawn((
 					components::Position {
-						pos: Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.),
+						pos: Point3::new(x as f32 * 64., 0., 256. + z as f32 * 64.),
 						dir: 0.,
+					},
+					components::Velocity {
+						vel: Vector3::zeros(),
+						dir_vel: 0.,
 					},
 					components::Drawable,
 					components::Solid {
 						size: TILE / 8.,
-						mass: 1. * z as f32,
+						mass: 1.,
+					},
+					components::Health { health: 10. },
+					if x == 0
+					{
+						components::Team::Monster
+					}
+					else
+					{
+						components::Team::Player
+					},
+					components::WeaponSet {
+						weapons: vec![components::Weapon {
+							delay: 0.25,
+							time_to_fire: 0.,
+						}],
+						cur_weapon: 0,
+						want_to_fire: false,
+					},
+					components::AI {
+						sense_range: TILE * 4.,
+						attack_range: TILE * 3.,
+						disengage_range: TILE * 5.,
+						status: components::Status::Idle,
+						time_to_check_status: 0.,
 					},
 				));
 			}
@@ -451,14 +486,11 @@ impl Map
 
 		// Weapon handling.
 		let mut proj_spawns = vec![];
-		for (_, (pos, weapon_set, solid)) in self
-			.world
-			.query::<(
-				&components::Position,
-				&mut components::WeaponSet,
-				&components::Solid,
-			)>()
-			.iter()
+		for (_, (pos, weapon_set, solid)) in self.world.query_mut::<(
+			&components::Position,
+			&mut components::WeaponSet,
+			&components::Solid,
+		)>()
 		{
 			if !weapon_set.want_to_fire
 				|| weapon_set.weapons.is_empty()
@@ -483,8 +515,7 @@ impl Map
 		// Velocity handling.
 		for (_, (pos, vel)) in self
 			.world
-			.query::<(&mut components::Position, &components::Velocity)>()
-			.iter()
+			.query_mut::<(&mut components::Position, &components::Velocity)>()
 		{
 			pos.pos += utils::DT * vel.vel;
 			pos.dir += utils::DT * vel.dir_vel;
@@ -493,17 +524,27 @@ impl Map
 
 		// Collision detection.
 		let mut boxes = vec![];
+
+		#[derive(Debug, Copy, Clone)]
+		struct Inner
+		{
+			id: hecs::Entity,
+			pos: Point3<f32>,
+		}
+
 		for (id, (pos, solid)) in self
 			.world
-			.query::<(&components::Position, &components::Solid)>()
-			.iter()
+			.query_mut::<(&components::Position, &components::Solid)>()
 		{
 			let r = solid.size;
 			let x = pos.pos.x;
 			let z = pos.pos.z;
 			boxes.push(broccoli::bbox(
 				broccoli::rect(x - r, x + r, z - r, z + r),
-				id,
+				Inner {
+					pos: pos.pos,
+					id: id,
+				},
 			));
 		}
 
@@ -516,10 +557,13 @@ impl Map
 		let mut on_contact_effects = vec![];
 		for pass in 0..5
 		{
-			for &(id1, id2) in &colliding_pairs
+			for &(inner1, inner2) in &colliding_pairs
 			{
-				let pos1 = self.world.get::<components::Position>(id1)?.pos;
-				let pos2 = self.world.get::<components::Position>(id2)?.pos;
+				let id1 = inner1.id;
+				let id2 = inner2.id;
+				let pos1 = inner1.pos;
+				let pos2 = inner2.pos;
+
 				let solid1 = *self.world.get::<components::Solid>(id1)?;
 				let solid2 = *self.world.get::<components::Solid>(id2)?;
 
@@ -542,12 +586,16 @@ impl Map
 
 				if pass == 0
 				{
-					for id in [id1, id2]
+					for (id, other_id) in [(id1, Some(id2)), (id2, Some(id1))]
 					{
 						if let Ok(on_contact_effect) =
 							self.world.get::<components::OnContactEffect>(id)
 						{
-							on_contact_effects.push((id, on_contact_effect.effect));
+							on_contact_effects.push((
+								id,
+								other_id,
+								on_contact_effect.effects.clone(),
+							));
 						}
 					}
 				}
@@ -567,20 +615,215 @@ impl Map
 						if let Ok(on_contact_effect) =
 							self.world.get::<components::OnContactEffect>(id)
 						{
-							on_contact_effects.push((id, on_contact_effect.effect));
+							on_contact_effects.push((id, None, on_contact_effect.effects.clone()));
 						}
 					}
 				}
 			}
 		}
 
+		// AI
+		for (id, (pos, vel, team, ai)) in self
+			.world
+			.query::<(
+				&components::Position,
+				&mut components::Velocity,
+				&components::Team,
+				&mut components::AI,
+			)>()
+			.iter()
+		{
+			if ai.time_to_check_status < state.time()
+			{
+				match ai.status
+				{
+					components::Status::Idle =>
+					{
+						fn distance_squared(a: f32, b: f32) -> f32
+						{
+							let diff = a - b;
+							diff * diff
+						}
+
+						let mut handler = broccoli::helper::knearest_from_closure(
+							&tree,
+							(),
+							|_, point, a| {
+								if let Ok(other_team) =
+									self.world.get::<components::Team>(a.inner.id)
+								{
+									if *other_team == *team
+									{
+										return Some(f32::INFINITY);
+									}
+								}
+								Some(a.rect.distance_squared_to_point(point).unwrap_or(0.))
+							},
+							|_, point, a| {
+								(a.inner.pos - Point3::new(point.x, 0., point.y)).norm_squared()
+							},
+							|_, point, a| distance_squared(point.x, a),
+							|_, point, a| distance_squared(point.y, a),
+						);
+
+						let res = tree.k_nearest_mut(
+							broccoli::axgeom::Vec2 {
+								x: pos.pos.x,
+								y: pos.pos.z,
+							},
+							2,
+							&mut handler,
+						);
+						for one_res in res.into_vec()
+						{
+							let inner = one_res.bot.inner;
+							if let Ok(other_team) = self.world.get::<components::Team>(inner.id)
+							{
+								if *team == *other_team
+								{
+									continue;
+								}
+							}
+							else
+							{
+								continue;
+							}
+							if (inner.pos - pos.pos).norm_squared()
+								< ai.sense_range * ai.sense_range
+							{
+								ai.status = components::Status::Moving(inner.id);
+								break;
+							}
+						}
+					}
+					components::Status::Moving(target_id) =>
+					{
+						if !self.world.contains(target_id)
+						{
+							ai.status = components::Status::Idle;
+							vel.dir_vel = 0.;
+							vel.vel = Vector3::zeros();
+						}
+						else if let Ok(target) = self.world.get::<components::Position>(target_id)
+						{
+							let diff = target.pos - pos.pos;
+							let dist_sq = diff.norm_squared();
+							let dir = (-diff.x).atan2(diff.z);
+							let cur_dir =
+								(pos.dir + f32::pi()).rem_euclid(2. * f32::pi()) - f32::pi();
+
+							if dist_sq > ai.disengage_range * ai.disengage_range
+							{
+								ai.status = components::Status::Idle;
+								vel.dir_vel = 0.;
+								vel.vel = Vector3::zeros();
+							}
+							else if dist_sq < ai.attack_range * ai.attack_range
+								&& (cur_dir - dir).abs() < 0.01
+							{
+								ai.status = components::Status::Attacking(target_id);
+								vel.dir_vel = 0.;
+								vel.vel = Vector3::zeros();
+							}
+							else
+							{
+								let angular_vel = f32::pi();
+								if cur_dir < dir
+								{
+									vel.dir_vel =
+										utils::min((dir - cur_dir) / utils::DT, angular_vel);
+								}
+								else
+								{
+									vel.dir_vel =
+										-utils::min((cur_dir - dir) / utils::DT, angular_vel);
+								}
+
+								if (cur_dir - dir).abs() < 0.01
+									&& dist_sq > ai.attack_range * ai.attack_range
+								{
+									let new_vel = utils::dir_vec3(cur_dir) * 50.;
+									vel.dir_vel = 0.;
+									vel.vel = new_vel;
+								}
+								else
+								{
+									vel.vel = Vector3::zeros();
+								}
+							}
+						}
+					}
+					components::Status::Attacking(target_id) =>
+					{
+						if !self.world.contains(target_id)
+						{
+							ai.status = components::Status::Idle;
+							if let Ok(mut weapon_set) =
+								self.world.get_mut::<components::WeaponSet>(id)
+							{
+								weapon_set.want_to_fire = false;
+							}
+						}
+						else if let Ok(target) = self.world.get::<components::Position>(target_id)
+						{
+							let diff = target.pos - pos.pos;
+							let dist_sq = diff.norm_squared();
+							let dir = (-diff.x).atan2(diff.z);
+							let cur_dir =
+								(pos.dir + f32::pi()).rem_euclid(2. * f32::pi()) - f32::pi();
+
+							if (cur_dir - dir).abs() < 0.01
+								&& dist_sq < ai.attack_range * ai.attack_range
+							{
+								if let Ok(mut weapon_set) =
+									self.world.get_mut::<components::WeaponSet>(id)
+								{
+									weapon_set.want_to_fire = true;
+								}
+							}
+							else
+							{
+								if let Ok(mut weapon_set) =
+									self.world.get_mut::<components::WeaponSet>(id)
+								{
+									weapon_set.want_to_fire = false;
+								}
+								ai.status = components::Status::Moving(target_id);
+							}
+						}
+					}
+				}
+				//~ ai.time_to_check_status = state.time() + 1.;
+			}
+		}
+
 		// On contact effects.
 		let mut to_die = vec![];
-		for (id, effect) in on_contact_effects
+		for (id, other_id, effects) in on_contact_effects
 		{
-			match effect
+			for effect in effects
 			{
-				components::Effect::Die => to_die.push(id),
+				match (effect, other_id)
+				{
+					(components::Effect::Die, _) => to_die.push(id),
+					(components::Effect::Hurt { damage }, Some(other_id)) =>
+					{
+						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
+						{
+							health.health -= damage;
+						}
+					}
+					_ => (),
+				}
+			}
+		}
+
+		// Health;
+		for (id, health) in self.world.query_mut::<&components::Health>()
+		{
+			if health.health < 0.
+			{
+				to_die.push(id);
 			}
 		}
 
@@ -591,7 +834,7 @@ impl Map
 		}
 
 		// Time to die
-		for (id, time_to_die) in self.world.query::<&components::TimeToDie>().iter()
+		for (id, time_to_die) in self.world.query_mut::<&components::TimeToDie>()
 		{
 			if state.time() > time_to_die.time_to_die
 			{
