@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::{components, game_state, utils};
+use crate::{components, game_state, spatial_grid, utils};
 
 use allegro::*;
 use allegro_font::*;
@@ -385,7 +385,7 @@ impl Map
 			{
 				world.spawn((
 					components::Position {
-						pos: Point3::new(x as f32 * 64., 0., 256. + z as f32 * 64.),
+						pos: Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.),
 						dir: 0.,
 					},
 					components::Velocity {
@@ -398,14 +398,7 @@ impl Map
 						mass: 1.,
 					},
 					components::Health { health: 10. },
-					if x == 0
-					{
-						components::Team::Monster
-					}
-					else
-					{
-						components::Team::Player
-					},
+					components::Team::Monster,
 					components::WeaponSet {
 						weapons: vec![components::Weapon {
 							delay: 0.25,
@@ -523,7 +516,12 @@ impl Map
 		}
 
 		// Collision detection.
-		let mut boxes = vec![];
+		let mut grid = spatial_grid::SpatialGrid::new(
+			self.level.width as usize,
+			self.level.height as usize,
+			TILE,
+			TILE,
+		);
 
 		#[derive(Debug, Copy, Clone)]
 		struct Inner
@@ -539,8 +537,9 @@ impl Map
 			let r = solid.size;
 			let x = pos.pos.x;
 			let z = pos.pos.z;
-			boxes.push(broccoli::bbox(
-				broccoli::rect(x - r, x + r, z - r, z + r),
+			grid.push(spatial_grid::entry(
+				Point2::new(x - r, z - r),
+				Point2::new(x + r, z + r),
 				Inner {
 					pos: pos.pos,
 					id: id,
@@ -548,11 +547,11 @@ impl Map
 			));
 		}
 
-		let mut tree = broccoli::new(&mut boxes);
 		let mut colliding_pairs = vec![];
-		tree.find_colliding_pairs_mut(|a, b| {
+		for (a, b) in grid.all_pairs()
+		{
 			colliding_pairs.push((a.inner, b.inner));
-		});
+		}
 
 		let mut on_contact_effects = vec![];
 		for pass in 0..5
@@ -561,8 +560,8 @@ impl Map
 			{
 				let id1 = inner1.id;
 				let id2 = inner2.id;
-				let pos1 = inner1.pos;
-				let pos2 = inner2.pos;
+				let pos1 = self.world.get::<components::Position>(id1)?.pos;
+				let pos2 = self.world.get::<components::Position>(id2)?.pos;
 
 				let solid1 = *self.world.get::<components::Solid>(id1)?;
 				let solid2 = *self.world.get::<components::Solid>(id2)?;
@@ -639,61 +638,49 @@ impl Map
 				{
 					components::Status::Idle =>
 					{
-						fn distance_squared(a: f32, b: f32) -> f32
-						{
-							let diff = a - b;
-							diff * diff
-						}
-
-						let mut handler = broccoli::helper::knearest_from_closure(
-							&tree,
-							(),
-							|_, point, a| {
+						let entries = grid.query_rect(
+							Point2::new(pos.pos.x - ai.sense_range, pos.pos.z - ai.sense_range),
+							Point2::new(pos.pos.x + ai.sense_range, pos.pos.z + ai.sense_range),
+							|entry| {
 								if let Ok(other_team) =
-									self.world.get::<components::Team>(a.inner.id)
+									self.world.get::<components::Team>(entry.inner.id)
 								{
 									if *other_team == *team
 									{
-										return Some(f32::INFINITY);
+										false
+									}
+									else if (entry.inner.pos - pos.pos).norm_squared()
+										< ai.sense_range * ai.sense_range
+									{
+										true
+									}
+									else
+									{
+										false
 									}
 								}
-								Some(a.rect.distance_squared_to_point(point).unwrap_or(0.))
+								else
+								{
+									false
+								}
 							},
-							|_, point, a| {
-								(a.inner.pos - Point3::new(point.x, 0., point.y)).norm_squared()
-							},
-							|_, point, a| distance_squared(point.x, a),
-							|_, point, a| distance_squared(point.y, a),
 						);
 
-						let res = tree.k_nearest_mut(
-							broccoli::axgeom::Vec2 {
-								x: pos.pos.x,
-								y: pos.pos.z,
-							},
-							2,
-							&mut handler,
-						);
-						for one_res in res.into_vec()
+						let mut least_dist = f32::INFINITY;
+						let mut best_id = None;
+						for entry in entries
 						{
-							let inner = one_res.bot.inner;
-							if let Ok(other_team) = self.world.get::<components::Team>(inner.id)
+							let new_dist = (entry.inner.pos - pos.pos).norm_squared();
+							if new_dist < least_dist
 							{
-								if *team == *other_team
-								{
-									continue;
-								}
+								best_id = Some(entry.inner.id);
+								least_dist = new_dist;
 							}
-							else
-							{
-								continue;
-							}
-							if (inner.pos - pos.pos).norm_squared()
-								< ai.sense_range * ai.sense_range
-							{
-								ai.status = components::Status::Moving(inner.id);
-								break;
-							}
+						}
+						if let Some(id) = best_id
+						{
+							ai.status = components::Status::Moving(id);
+							break;
 						}
 					}
 					components::Status::Moving(target_id) =>

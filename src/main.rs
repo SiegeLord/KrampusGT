@@ -9,7 +9,7 @@ mod game_state;
 mod map;
 //~ mod menu;
 mod sfx;
-//~ mod spatial_grid;
+mod spatial_grid;
 //~ mod speech;
 mod sprite;
 mod utils;

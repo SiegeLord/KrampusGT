@@ -199,6 +199,7 @@ pub fn nearest_poly_point(vs: &[Point2<f32>], test_point: Point2<f32>) -> Point2
 
 pub fn is_inside_poly(vs: &[Point2<f32>], test_point: Point2<f32>) -> bool
 {
+	// Clockwise.
 	assert!(vs.len() >= 3);
 	let mut inside = true;
 
@@ -217,6 +218,81 @@ pub fn is_inside_poly(vs: &[Point2<f32>], test_point: Point2<f32>) -> bool
 		}
 	}
 	true
+}
+
+// Stolen from ncollide.
+pub fn nearest_ray_ray(
+	orig1: Point2<f32>, dir1: Vector2<f32>, orig2: Point2<f32>, dir2: Vector2<f32>,
+) -> Option<(f32, f32)>
+{
+	// Inspired by RealField-time collision detection by Christer Ericson.
+	let r = orig1 - orig2;
+	let eps = 1e-20;
+
+	let a = dir1.norm_squared();
+	let e = dir2.norm_squared();
+	let f = dir2.dot(&r);
+
+	let (f1, f2, parallel) = if a <= eps && e <= eps
+	{
+		(0., 0., false)
+	}
+	else if a <= eps
+	{
+		(0., f / e, false)
+	}
+	else
+	{
+		let c = dir1.dot(&r);
+		if e <= eps
+		{
+			(-c / a, 0., false)
+		}
+		else
+		{
+			let b = dir1.dot(&dir2);
+			let ae = a * e;
+			let bb = b * b;
+			let denom = ae - bb;
+
+			// Use absolute and ulps error to test collinearity.
+			let parallel = denom <= eps || (ae / bb - 1.).abs() < eps;
+
+			let s = if !parallel
+			{
+				(b * f - c * e) / denom
+			}
+			else
+			{
+				0.
+			};
+
+			(s, (b * s + f) / e, parallel)
+		}
+	};
+
+	if parallel
+	{
+		None
+	}
+	else
+	{
+		Some((f1, f2))
+	}
+}
+
+pub fn intersect_segment_segment(
+	start1: Point2<f32>, end1: Point2<f32>, start2: Point2<f32>, end2: Point2<f32>,
+) -> bool
+{
+	if let Some((f1, f2)) = nearest_ray_ray(start1, end1 - start1, start2, end2 - start2)
+	{
+		f1 > 0. && f1 < 1. && f2 > 0. && f2 < 1.
+	}
+	else
+	{
+		false
+	}
 }
 
 #[test]
