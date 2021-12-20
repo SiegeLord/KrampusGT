@@ -181,6 +181,17 @@ fn real_main() -> Result<()>
 		match event
 		{
 			Event::DisplayClose { .. } => quit = true,
+			Event::KeyDown { keycode, .. } =>
+			{
+				if keycode == KeyCode::Escape
+				{
+					state.hide_mouse = false;
+				}
+			}
+			Event::MouseButtonDown { .. } =>
+			{
+				state.hide_mouse = true;
+			}
 			Event::TimerTick { .. } =>
 			{
 				if logics_without_draw > 10

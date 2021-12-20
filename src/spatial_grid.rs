@@ -1,7 +1,7 @@
 use crate::utils;
 use nalgebra::{Point2, Vector2};
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Rect
 {
 	pub start: Point2<f32>,
@@ -30,8 +30,16 @@ impl Rect
 	{
 		let v1 = self.start;
 		let v2 = Point2::new(self.end.x, self.start.y);
-		let v3 = end;
+		let v3 = self.end;
 		let v4 = Point2::new(self.start.x, self.end.y);
+
+		//~ dbg!(v1, v2, v3, v4);
+
+		//~ dbg!(utils::intersect_segment_segment(v1, v2, start, end));
+		//~ dbg!(utils::intersect_segment_segment(v2, v3, start, end));
+		//~ dbg!(utils::intersect_segment_segment(v3, v4, start, end));
+		//~ dbg!(utils::intersect_segment_segment(v4, v1, start, end));
+		//~ dbg!(utils::is_inside_poly(&[v1, v2, v3, v4], start));
 
 		utils::intersect_segment_segment(v1, v2, start, end)
 			|| utils::intersect_segment_segment(v2, v3, start, end)
@@ -41,6 +49,7 @@ impl Rect
 	}
 }
 
+#[derive(Debug, Clone)]
 pub struct Entry<T>
 {
 	pub rect: Rect,
@@ -58,6 +67,7 @@ pub fn entry<T>(start: Point2<f32>, end: Point2<f32>, inner: T) -> Entry<T>
 	}
 }
 
+#[derive(Debug, Clone)]
 pub struct SpatialGrid<T>
 {
 	entries: Vec<Entry<T>>,
@@ -106,9 +116,8 @@ impl<T> SpatialGrid<T>
 		let i = (point.x / self.cell_width) as i64;
 		let j = (point.y / self.cell_height) as i64;
 
-		let i = if i < 0 { 0 } else { self.width - 1 };
-		let j = if j < 0 { 0 } else { self.height - 1 };
-
+		let i = utils::max(0, utils::min(i, self.width as i64 - 1));
+		let j = utils::max(0, utils::min(j, self.height as i64 - 1));
 		(i as usize, j as usize)
 	}
 
@@ -171,8 +180,12 @@ impl<T> SpatialGrid<T>
 			{
 				for &id in &self.cells[i + j * self.width]
 				{
+					let rect = Rect {
+						start: start,
+						end: end,
+					};
 					let entry = &self.entries[id];
-					if filter_fn(entry)
+					if filter_fn(entry) && rect.intersects_with_rect(entry.rect)
 					{
 						ids.push(id);
 					}
@@ -190,4 +203,90 @@ impl<T> SpatialGrid<T>
 		}
 		res
 	}
+
+	pub fn query_segment(
+		&self, start: Point2<f32>, end: Point2<f32>, filter_fn: impl Fn(&Entry<T>) -> bool,
+	) -> Vec<&Entry<T>>
+	{
+		let (start_i, start_j) = self.index_from_point(start);
+		let (end_i, end_j) = self.index_from_point(end);
+
+		let (start_i, end_i) = if start_i > end_i
+		{
+			(end_i, start_i)
+		}
+		else
+		{
+			(start_i, end_i)
+		};
+		let (start_j, end_j) = if start_j > end_j
+		{
+			(end_j, start_j)
+		}
+		else
+		{
+			(start_j, end_j)
+		};
+
+		//~ dbg!(start_i, start_j, end_i, end_j);
+
+		let mut ids = vec![];
+		for j in start_j..=end_j
+		{
+			for i in start_i..=end_i
+			{
+				let cell = &self.cells[i + j * self.width];
+				let cell_start =
+					Point2::new(i as f32 * self.cell_width, j as f32 * self.cell_height);
+				let cell_rect = Rect {
+					start: cell_start,
+					end: cell_start + Vector2::new(self.cell_width, self.cell_height),
+				};
+				//~ dbg!(
+				//~ i,
+				//~ j,
+				//~ start,
+				//~ end,
+				//~ cell_start,
+				//~ cell_start + Vector2::new(self.cell_width, self.cell_height),
+				//~ cell_rect.intersects_with_segment(start, end)
+				//~ );
+				if cell_rect.intersects_with_segment(start, end)
+				{
+					for &id in cell
+					{
+						let entry = &self.entries[id];
+						//~ dbg!(id, entry.rect, entry.rect.intersects_with_segment(start, end));
+						if filter_fn(entry) && entry.rect.intersects_with_segment(start, end)
+						{
+							ids.push(id);
+						}
+					}
+				}
+			}
+		}
+
+		ids.sort();
+		ids.dedup();
+
+		let mut res = vec![];
+		for id in ids
+		{
+			res.push(&self.entries[id]);
+		}
+		res
+	}
+}
+
+#[test]
+fn test_rect_segment()
+{
+	let rect = Rect {
+		start: Point2::new(0., 64.),
+		end: Point2::new(64., 128.),
+	};
+	let start = Point2::new(0., 256.);
+	let end = Point2::new(0., 120.);
+
+	assert!(rect.intersects_with_segment(start, end));
 }

@@ -256,28 +256,6 @@ pub fn spawn_projectile(
 	))
 }
 
-pub struct Map
-{
-	projection: Perspective3<f32>,
-	display_width: f32,
-	display_height: f32,
-
-	level: Level,
-
-	player: hecs::Entity,
-	camera_anchor: components::Position,
-
-	rot_left_state: i32,
-	rot_right_state: i32,
-	up_state: bool,
-	down_state: bool,
-	left_state: bool,
-	right_state: bool,
-	fire_state: bool,
-
-	world: hecs::World,
-}
-
 #[derive(Clone)]
 pub struct Mesh
 {
@@ -342,6 +320,100 @@ fn load_meshes(gltf_file: &str) -> HashMap<String, Mesh>
 	meshes
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct GridInner
+{
+	id: hecs::Entity,
+	pos: Point3<f32>,
+}
+
+fn segment_check(
+	start: Point2<f32>, end: Point2<f32>, team: components::Team, origin_id: hecs::Entity,
+	margin: f32, world: &hecs::World, grid: &spatial_grid::SpatialGrid<GridInner>,
+) -> bool
+{
+	let blockers = grid.query_segment(start, end, |entry| {
+		if entry.inner.id == origin_id
+		{
+			false
+		}
+		else if let Ok(other_team) = world.get::<components::Team>(entry.inner.id)
+		{
+			*other_team == team
+		}
+		else
+		{
+			false
+		}
+	});
+
+	let mut actually_blocked = false;
+	for blocker in blockers
+	{
+		let nearest = utils::nearest_line_point(start, end, blocker.inner.pos.xz());
+		if let Ok(solid) = world.get::<components::Solid>(blocker.inner.id)
+		{
+			let size = solid.size + margin;
+			if (nearest - blocker.inner.pos.xz()).norm_squared() < size * size
+			{
+				actually_blocked = true;
+				break;
+			}
+		}
+	}
+	actually_blocked
+}
+
+fn turn_towards(
+	origin: Point2<f32>, target: Point2<f32>, cur_dir: f32, rot_speed: f32,
+) -> Option<f32>
+{
+	let diff = (target - origin).normalize();
+	let cur_dir = utils::dir_vec3(cur_dir).xz();
+
+	let angle_diff = diff.dot(&cur_dir).acos();
+
+	let left_normal = Vector2::new(-diff.y, diff.x);
+
+	let cross = left_normal.dot(&cur_dir);
+	if cross.abs() < 0.01 && angle_diff.abs() < 0.01
+	{
+		None
+	}
+	else if cross < 0.
+	{
+		Some(utils::min(angle_diff / utils::DT, rot_speed))
+	}
+	else
+	{
+		Some(-utils::min(angle_diff / utils::DT, rot_speed))
+	}
+}
+
+pub struct Map
+{
+	projection: Perspective3<f32>,
+	display_width: f32,
+	display_height: f32,
+
+	level: Level,
+
+	player: hecs::Entity,
+	camera_anchor: components::Position,
+
+	rot_left_state: i32,
+	rot_right_state: i32,
+	up_state: bool,
+	down_state: bool,
+	left_state: bool,
+	right_state: bool,
+	fire_state: bool,
+
+	test: hecs::Entity,
+
+	world: hecs::World,
+}
+
 impl Map
 {
 	pub fn new(
@@ -377,13 +449,15 @@ impl Map
 			components::Team::Player,
 		));
 
+		let mut test = player;
 		//~ for z in [0]
 		for z in -1..=1
+		//~ for z in [0, -1]
 		{
 			//~ for x in [0]
 			for x in -1..=1
 			{
-				world.spawn((
+				let monster = world.spawn((
 					components::Position {
 						pos: Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.),
 						dir: 0.,
@@ -407,6 +481,9 @@ impl Map
 						cur_weapon: 0,
 						want_to_fire: false,
 					},
+				));
+				world.insert_one(
+					monster,
 					components::AI {
 						sense_range: TILE * 4.,
 						attack_range: TILE * 3.,
@@ -414,13 +491,20 @@ impl Map
 						status: components::Status::Idle,
 						time_to_check_status: 0.,
 					},
-				));
+				);
+
+				if z == 0
+				{
+					test = monster;
+					dbg!(test);
+				}
 			}
 		}
 
 		state.cache_bitmap("data/test.png")?;
 
 		Ok(Self {
+			test: test,
 			projection: utils::projection_transform(display_width, display_height),
 			display_width: display_width,
 			display_height: display_height,
@@ -523,24 +607,18 @@ impl Map
 			TILE,
 		);
 
-		#[derive(Debug, Copy, Clone)]
-		struct Inner
-		{
-			id: hecs::Entity,
-			pos: Point3<f32>,
-		}
-
 		for (id, (pos, solid)) in self
 			.world
 			.query_mut::<(&components::Position, &components::Solid)>()
 		{
-			let r = solid.size;
+			let margin = 8.;
+			let r = solid.size + margin;
 			let x = pos.pos.x;
 			let z = pos.pos.z;
 			grid.push(spatial_grid::entry(
 				Point2::new(x - r, z - r),
 				Point2::new(x + r, z + r),
-				Inner {
+				GridInner {
 					pos: pos.pos,
 					id: id,
 				},
@@ -632,6 +710,10 @@ impl Map
 			)>()
 			.iter()
 		{
+			if id == self.test
+			{
+				println!("s---- {} {:?}", state.time(), ai.status);
+			}
 			if ai.time_to_check_status < state.time()
 			{
 				match ai.status
@@ -679,11 +761,11 @@ impl Map
 						}
 						if let Some(id) = best_id
 						{
-							ai.status = components::Status::Moving(id);
+							ai.status = components::Status::Pursuing(id);
 							break;
 						}
 					}
-					components::Status::Moving(target_id) =>
+					components::Status::Pursuing(target_id) =>
 					{
 						if !self.world.contains(target_id)
 						{
@@ -693,11 +775,12 @@ impl Map
 						}
 						else if let Ok(target) = self.world.get::<components::Position>(target_id)
 						{
-							let diff = target.pos - pos.pos;
-							let dist_sq = diff.norm_squared();
-							let dir = (-diff.x).atan2(diff.z);
-							let cur_dir =
-								(pos.dir + f32::pi()).rem_euclid(2. * f32::pi()) - f32::pi();
+							let rot_speed = f32::pi();
+							let speed = 50.;
+
+							let dist_sq = (target.pos - pos.pos).norm_squared();
+							let new_dir_vel =
+								turn_towards(pos.pos.xz(), target.pos.xz(), pos.dir, rot_speed);
 
 							if dist_sq > ai.disengage_range * ai.disengage_range
 							{
@@ -705,37 +788,41 @@ impl Map
 								vel.dir_vel = 0.;
 								vel.vel = Vector3::zeros();
 							}
-							else if dist_sq < ai.attack_range * ai.attack_range
-								&& (cur_dir - dir).abs() < 0.01
+							else if let Some(new_dir_vel) = new_dir_vel
 							{
-								ai.status = components::Status::Attacking(target_id);
-								vel.dir_vel = 0.;
-								vel.vel = Vector3::zeros();
+								vel.dir_vel = new_dir_vel;
+								if dist_sq < ai.attack_range * ai.attack_range
+								{
+									vel.vel = Vector3::zeros();
+								}
 							}
 							else
 							{
-								let angular_vel = f32::pi();
-								if cur_dir < dir
+								vel.dir_vel = 0.;
+								if dist_sq < ai.attack_range * ai.attack_range
 								{
-									vel.dir_vel =
-										utils::min((dir - cur_dir) / utils::DT, angular_vel);
+									let blocked = segment_check(
+										pos.pos.xz(),
+										target.pos.xz(),
+										*team,
+										id,
+										8.,
+										&self.world,
+										&grid,
+									);
+									if !blocked
+									{
+										ai.status = components::Status::Attacking(target_id);
+										vel.vel = Vector3::zeros();
+									}
+									else
+									{
+										vel.vel = utils::dir_vec3(pos.dir) * speed;
+									}
 								}
 								else
 								{
-									vel.dir_vel =
-										-utils::min((cur_dir - dir) / utils::DT, angular_vel);
-								}
-
-								if (cur_dir - dir).abs() < 0.01
-									&& dist_sq > ai.attack_range * ai.attack_range
-								{
-									let new_vel = utils::dir_vec3(cur_dir) * 50.;
-									vel.dir_vel = 0.;
-									vel.vel = new_vel;
-								}
-								else
-								{
-									vel.vel = Vector3::zeros();
+									vel.vel = utils::dir_vec3(pos.dir) * speed;
 								}
 							}
 						}
@@ -753,18 +840,28 @@ impl Map
 						}
 						else if let Ok(target) = self.world.get::<components::Position>(target_id)
 						{
-							let diff = target.pos - pos.pos;
-							let dist_sq = diff.norm_squared();
-							let dir = (-diff.x).atan2(diff.z);
-							let cur_dir =
-								(pos.dir + f32::pi()).rem_euclid(2. * f32::pi()) - f32::pi();
+							let dist_sq = (target.pos - pos.pos).norm_squared();
+							let new_dir_vel =
+								turn_towards(pos.pos.xz(), target.pos.xz(), pos.dir, 0.);
 
-							if (cur_dir - dir).abs() < 0.01
+							let blocked = segment_check(
+								pos.pos.xz(),
+								target.pos.xz(),
+								*team,
+								id,
+								8.,
+								&self.world,
+								&grid,
+							);
+
+							if new_dir_vel.is_none()
 								&& dist_sq < ai.attack_range * ai.attack_range
+								&& !blocked
 							{
 								if let Ok(mut weapon_set) =
 									self.world.get_mut::<components::WeaponSet>(id)
 								{
+									//~ dbg!("Fire!");
 									weapon_set.want_to_fire = true;
 								}
 							}
@@ -775,10 +872,16 @@ impl Map
 								{
 									weapon_set.want_to_fire = false;
 								}
-								ai.status = components::Status::Moving(target_id);
+								ai.status = components::Status::Pursuing(target_id);
 							}
 						}
 					}
+					_ => (),
+				}
+
+				if id == self.test
+				{
+					println!("e---- {}", state.time());
 				}
 				//~ ai.time_to_check_status = state.time() + 1.;
 			}
@@ -835,6 +938,7 @@ impl Map
 		// Remove dead entities
 		for id in to_die
 		{
+			dbg!("died", id);
 			self.world.despawn(id)?;
 		}
 

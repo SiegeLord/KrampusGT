@@ -221,78 +221,82 @@ pub fn is_inside_poly(vs: &[Point2<f32>], test_point: Point2<f32>) -> bool
 }
 
 // Stolen from ncollide.
-pub fn nearest_ray_ray(
-	orig1: Point2<f32>, dir1: Vector2<f32>, orig2: Point2<f32>, dir2: Vector2<f32>,
-) -> Option<(f32, f32)>
-{
-	// Inspired by RealField-time collision detection by Christer Ericson.
-	let r = orig1 - orig2;
-	let eps = 1e-20;
-
-	let a = dir1.norm_squared();
-	let e = dir2.norm_squared();
-	let f = dir2.dot(&r);
-
-	let (f1, f2, parallel) = if a <= eps && e <= eps
-	{
-		(0., 0., false)
-	}
-	else if a <= eps
-	{
-		(0., f / e, false)
-	}
-	else
-	{
-		let c = dir1.dot(&r);
-		if e <= eps
-		{
-			(-c / a, 0., false)
-		}
-		else
-		{
-			let b = dir1.dot(&dir2);
-			let ae = a * e;
-			let bb = b * b;
-			let denom = ae - bb;
-
-			// Use absolute and ulps error to test collinearity.
-			let parallel = denom <= eps || (ae / bb - 1.).abs() < eps;
-
-			let s = if !parallel
-			{
-				(b * f - c * e) / denom
-			}
-			else
-			{
-				0.
-			};
-
-			(s, (b * s + f) / e, parallel)
-		}
-	};
-
-	if parallel
-	{
-		None
-	}
-	else
-	{
-		Some((f1, f2))
-	}
-}
-
 pub fn intersect_segment_segment(
 	start1: Point2<f32>, end1: Point2<f32>, start2: Point2<f32>, end2: Point2<f32>,
 ) -> bool
 {
-	if let Some((f1, f2)) = nearest_ray_ray(start1, end1 - start1, start2, end2 - start2)
+	// Inspired by RealField-time collision detection by Christer Ericson.
+	let eps = 1e-3;
+	let d1 = end1 - start1;
+	let d2 = end2 - start2;
+	let r = start1 - start2;
+
+	let a = d1.norm_squared();
+	let e = d2.norm_squared();
+	let f = d2.dot(&r);
+
+	let mut s;
+	let mut t;
+	let parallel;
+
+	if a <= eps && e <= eps
 	{
-		f1 > 0. && f1 < 1. && f2 > 0. && f2 < 1.
+		s = 0.;
+		t = 0.;
+	}
+	else if a <= eps
+	{
+		s = 0.;
+		t = clamp(f / e, 0., 1.);
 	}
 	else
 	{
-		false
+		let c = d1.dot(&r);
+		if e <= eps
+		{
+			t = 0.;
+			s = clamp(-c / a, 0., 1.);
+		}
+		else
+		{
+			let b = d1.dot(&d2);
+			let ae = a * e;
+			let bb = b * b;
+			let denom = ae - bb;
+
+			parallel = denom <= eps || (ae / bb - 1.).abs() < eps;
+
+			// Use absolute and ulps error to test collinearity.
+			if !parallel
+			{
+				s = clamp((b * f - c * e) / denom, 0., 1.);
+			}
+			else
+			{
+				s = 0.;
+			}
+
+			t = (b * s + f) / e;
+
+			if t < 0.
+			{
+				t = 0.;
+				s = clamp(-c / a, 0., 1.);
+			}
+			else if t > 1.
+			{
+				t = 1.;
+				s = clamp((b - c) / a, 0., 1.);
+			}
+		}
 	}
+
+	let v1 = start1 + d1 * s;
+	let v2 = start2 + d2 * t;
+
+	//~ dbg!(v1, v2, (v1 - v2).norm_squared());
+
+	(v1 - v2).norm_squared() < eps
 }
 
 #[test]
@@ -320,7 +324,7 @@ fn test_nearest_line_point()
 }
 
 #[test]
-fn is_inside_poly_test()
+fn test_is_inside_poly()
 {
 	let vs = [
 		Point2::new(0., 0.),
@@ -339,4 +343,28 @@ fn is_inside_poly_test()
 		Point2::new(-1., -1.),
 	];
 	assert!(is_inside_poly(&vs, Point2::new(0., 0.)));
+}
+
+#[test]
+fn test_segment_segment()
+{
+	let start1 = Point2::new(0., 64.);
+	let end1 = Point2::new(0., 128.);
+
+	let start2 = Point2::new(0., 256.);
+	let end2 = Point2::new(0., 120.);
+
+	assert!(intersect_segment_segment(start1, end1, start2, end2));
+}
+
+#[test]
+fn test_segment_segment2()
+{
+	let start1 = Point2::new(0., 256.);
+	let end1 = Point2::new(15., 65.);
+
+	let start2 = Point2::new(-16., 208.);
+	let end2 = Point2::new(16., 208.);
+
+	assert!(intersect_segment_segment(start1, end1, start2, end2));
 }

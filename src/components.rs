@@ -1,4 +1,4 @@
-use na::{Point3, Vector3};
+use na::{Point2, Point3, Vector3};
 use nalgebra as na;
 
 #[derive(Debug, Copy, Clone)]
@@ -72,7 +72,8 @@ pub struct Health
 pub enum Status
 {
 	Idle,
-	Moving(hecs::Entity),
+	Pursuing(hecs::Entity),
+	Moving(Point2<f32>),
 	Attacking(hecs::Entity),
 }
 
