@@ -9,6 +9,7 @@ use na::{
 	Unit, Vector2, Vector3, Vector4,
 };
 use nalgebra as na;
+use rand::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 
 use std::collections::HashMap;
@@ -810,14 +811,23 @@ impl Map
 										&self.world,
 										&grid,
 									);
-									if !blocked
+									if blocked
 									{
-										ai.status = components::Status::Attacking(target_id);
-										vel.vel = Vector3::zeros();
+										let mut rng = rand::thread_rng();
+										let offset = Vector3::new(
+											TILE * (2. * rng.gen::<f32>() - 1.),
+											0.,
+											TILE * (2. * rng.gen::<f32>() - 1.),
+										);
+										ai.status = components::Status::Moving(
+											pos.pos + offset,
+											state.time() + 2.,
+										);
 									}
 									else
 									{
-										vel.vel = utils::dir_vec3(pos.dir) * speed;
+										ai.status = components::Status::Attacking(target_id);
+										vel.vel = Vector3::zeros();
 									}
 								}
 								else
@@ -825,6 +835,35 @@ impl Map
 									vel.vel = utils::dir_vec3(pos.dir) * speed;
 								}
 							}
+						}
+					}
+					components::Status::Moving(target, time_to_stop) =>
+					{
+						let rot_speed = f32::pi();
+						let speed = 50.;
+
+						let dist_sq = (target - pos.pos).norm_squared();
+						let new_dir_vel =
+							turn_towards(pos.pos.xz(), target.xz(), pos.dir, rot_speed);
+
+						if dist_sq < 0.1 || state.time() > time_to_stop
+						{
+							ai.status = components::Status::Idle;
+							vel.dir_vel = 0.;
+							vel.vel = Vector3::zeros();
+						}
+						else if let Some(new_dir_vel) = new_dir_vel
+						{
+							vel.dir_vel = new_dir_vel;
+							if dist_sq < ai.attack_range * ai.attack_range
+							{
+								vel.vel = Vector3::zeros();
+							}
+						}
+						else
+						{
+							vel.dir_vel = 0.;
+							vel.vel = utils::dir_vec3(pos.dir) * speed;
 						}
 					}
 					components::Status::Attacking(target_id) =>

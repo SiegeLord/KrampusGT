@@ -73,7 +73,7 @@ pub enum Status
 {
 	Idle,
 	Pursuing(hecs::Entity),
-	Moving(Point2<f32>),
+	Moving(Point3<f32>, f64),
 	Attacking(hecs::Entity),
 }
 
