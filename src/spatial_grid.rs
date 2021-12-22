@@ -121,7 +121,9 @@ impl<T> SpatialGrid<T>
 		(i as usize, j as usize)
 	}
 
-	pub fn all_pairs(&self) -> Vec<(&Entry<T>, &Entry<T>)>
+	pub fn all_pairs(
+		&self, filter_fn: impl Fn(&Entry<T>, &Entry<T>) -> bool,
+	) -> Vec<(&Entry<T>, &Entry<T>)>
 	{
 		let mut ids = vec![];
 		for (id1, entry1) in self.entries.iter().enumerate()
@@ -136,6 +138,10 @@ impl<T> SpatialGrid<T>
 					for &id2 in &self.cells[i + j * self.width]
 					{
 						if id1 == id2
+						{
+							continue;
+						}
+						if !filter_fn(&entry1, &self.entries[id2])
 						{
 							continue;
 						}

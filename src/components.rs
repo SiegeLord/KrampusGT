@@ -15,15 +15,46 @@ pub struct Velocity
 	pub dir_vel: f32,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum CollisionClass
+{
+	Regular,
+	Tiny,
+}
+
+impl CollisionClass
+{
+	pub fn collides_with(&self, other: CollisionClass) -> bool
+	{
+		match self
+		{
+			CollisionClass::Regular => match other
+			{
+				CollisionClass::Regular => true,
+				CollisionClass::Tiny => true,
+			},
+			CollisionClass::Tiny => match other
+			{
+				CollisionClass::Regular => true,
+				CollisionClass::Tiny => false,
+			},
+		}
+	}
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Solid
 {
 	pub size: f32,
 	pub mass: f32,
+	pub collision_class: CollisionClass,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Drawable;
+pub struct Drawable
+{
+	pub size: f32,
+}
 
 #[derive(Debug, Clone)]
 pub struct Weapon

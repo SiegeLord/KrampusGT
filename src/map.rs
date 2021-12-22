@@ -271,8 +271,6 @@ impl Level
 				let cx = map_x as f32 * TILE;
 				let cz = map_z as f32 * TILE;
 
-				dbg!(start, end, cx, cz);
-
 				let rect = spatial_grid::Rect {
 					start: Point2::new(cx - size, cz - size),
 					end: Point2::new(cx + size + TILE, cz + size + TILE),
@@ -299,10 +297,11 @@ pub fn spawn_projectile(
 			vel: speed * utils::dir_vec3(dir),
 			dir_vel: 0.,
 		},
-		components::Drawable,
+		components::Drawable { size: size },
 		components::Solid {
 			size: size,
 			mass: 0.,
+			collision_class: components::CollisionClass::Tiny,
 		},
 		components::TimeToDie {
 			time_to_die: state.time() + lifetime,
@@ -397,13 +396,23 @@ fn segment_check(
 		{
 			false
 		}
-		else if let Ok(other_team) = world.get::<components::Team>(entry.inner.id)
-		{
-			*other_team == team
-		}
 		else
 		{
-			false
+			if let Ok(solid) = world.get::<components::Solid>(entry.inner.id)
+			{
+				if solid.collision_class == components::CollisionClass::Tiny
+				{
+					return false;
+				}
+			}
+			if let Ok(other_team) = world.get::<components::Team>(entry.inner.id)
+			{
+				*other_team == team
+			}
+			else
+			{
+				false
+			}
 		}
 	});
 
@@ -492,10 +501,11 @@ impl Map
 				vel: Vector3::zeros(),
 				dir_vel: 0.,
 			},
-			components::Drawable,
+			components::Drawable { size: TILE / 8. },
 			components::Solid {
 				size: TILE / 8.,
 				mass: 1.,
+				collision_class: components::CollisionClass::Regular,
 			},
 			components::WeaponSet {
 				weapons: vec![components::Weapon {
@@ -526,10 +536,13 @@ impl Map
 						vel: Vector3::zeros(),
 						dir_vel: 0.,
 					},
-					components::Drawable,
+					components::Drawable {
+						size: (z as f32 + 3.) * TILE / 8. / 3.,
+					},
 					components::Solid {
-						size: TILE / 8.,
+						size: (z as f32 + 3.) * TILE / 8. / 3.,
 						mass: 1.,
+						collision_class: components::CollisionClass::Regular,
 					},
 					components::Health { health: 10. },
 					components::Team::Monster,
@@ -646,7 +659,15 @@ impl Map
 
 		for (pos, dir, proj_size) in proj_spawns
 		{
-			spawn_projectile(pos, dir, 256., 2., proj_size, state, &mut self.world);
+			spawn_projectile(
+				pos + Vector3::new(0., 8., 0.),
+				dir,
+				256.,
+				2.,
+				proj_size,
+				state,
+				&mut self.world,
+			);
 		}
 
 		// Velocity handling.
@@ -686,7 +707,13 @@ impl Map
 		}
 
 		let mut colliding_pairs = vec![];
-		for (a, b) in grid.all_pairs()
+		for (a, b) in grid.all_pairs(|a, b| {
+			let a_solid = self.world.get::<components::Solid>(a.inner.id).unwrap();
+			let b_solid = self.world.get::<components::Solid>(b.inner.id).unwrap();
+			a_solid
+				.collision_class
+				.collides_with(b_solid.collision_class)
+		})
 		{
 			colliding_pairs.push((a.inner, b.inner));
 		}
@@ -770,10 +797,10 @@ impl Map
 			)>()
 			.iter()
 		{
-			if id == self.test
-			{
-				println!("s---- {} {:?}", state.time(), ai.status);
-			}
+			//~ if id == self.test
+			//~ {
+			//~ println!("s---- {} {:?}", state.time(), ai.status);
+			//~ }
 			if ai.time_to_check_status < state.time()
 			{
 				let rot_speed = f32::pi();
@@ -871,11 +898,11 @@ impl Map
 										0.,
 										TILE * (2. * rng.gen::<f32>() - 1.),
 									);
-								//~ ai.status = components::Status::Searching(
-								//~ target,
-								//~ pos.pos + offset,
-								//~ state.time() + 2.,
-								//~ );
+									ai.status = components::Status::Searching(
+										target,
+										pos.pos + offset,
+										state.time() + 2.,
+									);
 								}
 								else if new_dir_vel.is_none() && !map_blocked
 								{
@@ -894,7 +921,7 @@ impl Map
 
 						if dist < speed * utils::DT || state.time() > time_to_stop
 						{
-							println!("Switch to attacking timeout");
+							//~ println!("Switch to attacking timeout");
 							ai.status = components::Status::Attacking(target);
 						}
 						else
@@ -919,13 +946,12 @@ impl Map
 									self.level.check_segment(pos.pos, target_pos.pos, 8.);
 								if !blocked && !map_blocked
 								{
-									println!("Switch to attacking not blocked");
+									//~ println!("Switch to attacking not blocked");
 									ai.status = components::Status::Attacking(target);
 								}
 							}
 						}
 					}
-					_ => (),
 				}
 
 				vel.dir_vel = new_dir_vel.unwrap_or(0.);
@@ -938,10 +964,10 @@ impl Map
 					weapon_set.want_to_fire = do_attack;
 				}
 
-				if id == self.test
-				{
-					println!("e---- {}", state.time());
-				}
+				//~ if id == self.test
+				//~ {
+				//~ println!("e---- {}", state.time());
+				//~ }
 				//~ ai.time_to_check_status = state.time() + 1.;
 			}
 		}
@@ -1028,7 +1054,7 @@ impl Map
 
 		self.level.draw(&mut vertices, &mut indices);
 
-		for (_, (pos, _)) in self
+		for (_, (pos, drawable)) in self
 			.world
 			.query::<(&components::Position, &components::Drawable)>()
 			.iter()
@@ -1036,8 +1062,8 @@ impl Map
 			draw_billboard(
 				pos.pos,
 				self.camera_anchor.dir,
-				16.,
-				16.,
+				2. * drawable.size,
+				2. * drawable.size,
 				&mut vertices,
 				&mut indices,
 			);
