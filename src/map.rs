@@ -171,6 +171,7 @@ impl Level
 		let center_z = (loc.z / TILE).floor() as i32;
 
 		let mut res = Vector3::zeros();
+		// TODO: This -1/1 isn't really right
 		for map_z in center_z - 1..=center_z + 1
 		{
 			for map_x in center_x - 1..=center_x + 1
@@ -226,6 +227,64 @@ impl Level
 		{
 			None
 		}
+	}
+
+	pub fn check_segment(&self, start: Point3<f32>, end: Point3<f32>, size: f32) -> bool
+	{
+		let start_x = (start.x / TILE).floor() as i32;
+		let start_z = (start.z / TILE).floor() as i32;
+		let end_x = (end.x / TILE).floor() as i32;
+		let end_z = (end.z / TILE).floor() as i32;
+
+		let (start_x, end_x) = if start_x > end_x
+		{
+			(end_x, start_x)
+		}
+		else
+		{
+			(start_x, end_x)
+		};
+		let (start_z, end_z) = if start_z > end_z
+		{
+			(end_z, start_z)
+		}
+		else
+		{
+			(start_z, end_z)
+		};
+
+		// TODO: This -1/1 isn't really right
+		for map_z in start_z - 1..end_z + 1
+		{
+			for map_x in start_x - 1..end_x + 1
+			{
+				if map_x < 0 || map_x >= self.width || map_z < 0 || map_z >= self.height
+				{
+					continue;
+				}
+				let tile = self.tiles[(map_z * self.width + map_x) as usize];
+				if tile == 0
+				{
+					continue;
+				}
+
+				let cx = map_x as f32 * TILE;
+				let cz = map_z as f32 * TILE;
+
+				dbg!(start, end, cx, cz);
+
+				let rect = spatial_grid::Rect {
+					start: Point2::new(cx - size, cz - size),
+					end: Point2::new(cx + size + TILE, cz + size + TILE),
+				};
+
+				if rect.intersects_with_segment(start.xz(), end.xz())
+				{
+					return true;
+				}
+			}
+		}
+		false
 	}
 }
 
@@ -717,6 +776,12 @@ impl Map
 			}
 			if ai.time_to_check_status < state.time()
 			{
+				let rot_speed = f32::pi();
+				let speed = 50.;
+				let mut new_dir_vel = None;
+				let mut new_vel = None;
+				let mut do_attack = false;
+
 				match ai.status
 				{
 					components::Status::Idle =>
@@ -762,160 +827,115 @@ impl Map
 						}
 						if let Some(id) = best_id
 						{
-							ai.status = components::Status::Pursuing(id);
+							ai.status = components::Status::Attacking(id);
 							break;
 						}
 					}
-					components::Status::Pursuing(target_id) =>
+					components::Status::Attacking(target) =>
 					{
-						if !self.world.contains(target_id)
+						if !self.world.contains(target)
 						{
 							ai.status = components::Status::Idle;
-							vel.dir_vel = 0.;
-							vel.vel = Vector3::zeros();
-						}
-						else if let Ok(target) = self.world.get::<components::Position>(target_id)
-						{
-							let rot_speed = f32::pi();
-							let speed = 50.;
-
-							let dist_sq = (target.pos - pos.pos).norm_squared();
-							let new_dir_vel =
-								turn_towards(pos.pos.xz(), target.pos.xz(), pos.dir, rot_speed);
-
-							if dist_sq > ai.disengage_range * ai.disengage_range
-							{
-								ai.status = components::Status::Idle;
-								vel.dir_vel = 0.;
-								vel.vel = Vector3::zeros();
-							}
-							else if let Some(new_dir_vel) = new_dir_vel
-							{
-								vel.dir_vel = new_dir_vel;
-								if dist_sq < ai.attack_range * ai.attack_range
-								{
-									vel.vel = Vector3::zeros();
-								}
-							}
-							else
-							{
-								vel.dir_vel = 0.;
-								if dist_sq < ai.attack_range * ai.attack_range
-								{
-									let blocked = segment_check(
-										pos.pos.xz(),
-										target.pos.xz(),
-										*team,
-										id,
-										8.,
-										&self.world,
-										&grid,
-									);
-									if blocked
-									{
-										let mut rng = rand::thread_rng();
-										let offset = Vector3::new(
-											TILE * (2. * rng.gen::<f32>() - 1.),
-											0.,
-											TILE * (2. * rng.gen::<f32>() - 1.),
-										);
-										ai.status = components::Status::Moving(
-											pos.pos + offset,
-											state.time() + 2.,
-										);
-									}
-									else
-									{
-										ai.status = components::Status::Attacking(target_id);
-										vel.vel = Vector3::zeros();
-									}
-								}
-								else
-								{
-									vel.vel = utils::dir_vec3(pos.dir) * speed;
-								}
-							}
-						}
-					}
-					components::Status::Moving(target, time_to_stop) =>
-					{
-						let rot_speed = f32::pi();
-						let speed = 50.;
-
-						let dist_sq = (target - pos.pos).norm_squared();
-						let new_dir_vel =
-							turn_towards(pos.pos.xz(), target.xz(), pos.dir, rot_speed);
-
-						if dist_sq < 0.1 || state.time() > time_to_stop
-						{
-							ai.status = components::Status::Idle;
-							vel.dir_vel = 0.;
-							vel.vel = Vector3::zeros();
-						}
-						else if let Some(new_dir_vel) = new_dir_vel
-						{
-							vel.dir_vel = new_dir_vel;
-							if dist_sq < ai.attack_range * ai.attack_range
-							{
-								vel.vel = Vector3::zeros();
-							}
 						}
 						else
 						{
-							vel.dir_vel = 0.;
-							vel.vel = utils::dir_vec3(pos.dir) * speed;
-						}
-					}
-					components::Status::Attacking(target_id) =>
-					{
-						if !self.world.contains(target_id)
-						{
-							ai.status = components::Status::Idle;
-							if let Ok(mut weapon_set) =
-								self.world.get_mut::<components::WeaponSet>(id)
+							let target_pos = self.world.get::<components::Position>(target)?;
+							let dist = (target_pos.pos - pos.pos).norm();
+
+							new_dir_vel =
+								turn_towards(pos.pos.xz(), target_pos.pos.xz(), pos.dir, rot_speed);
+							new_vel = Some(utils::dir_vec3(pos.dir) * speed);
+
+							if dist > ai.disengage_range
 							{
-								weapon_set.want_to_fire = false;
+								ai.status = components::Status::Idle;
+							}
+							else if dist < ai.attack_range
+							{
+								let blocked = segment_check(
+									pos.pos.xz(),
+									target_pos.pos.xz(),
+									*team,
+									id,
+									8.,
+									&self.world,
+									&grid,
+								);
+								let map_blocked =
+									self.level.check_segment(pos.pos, target_pos.pos, 8.);
+								if blocked
+								{
+									let mut rng = rand::thread_rng();
+									let offset = Vector3::new(
+										TILE * (2. * rng.gen::<f32>() - 1.),
+										0.,
+										TILE * (2. * rng.gen::<f32>() - 1.),
+									);
+								//~ ai.status = components::Status::Searching(
+								//~ target,
+								//~ pos.pos + offset,
+								//~ state.time() + 2.,
+								//~ );
+								}
+								else if new_dir_vel.is_none() && !map_blocked
+								{
+									new_vel = None;
+									do_attack = true;
+								}
 							}
 						}
-						else if let Ok(target) = self.world.get::<components::Position>(target_id)
+					}
+					components::Status::Searching(target, search_target, time_to_stop) =>
+					{
+						let dist = (search_target - pos.pos).norm();
+						new_dir_vel =
+							turn_towards(pos.pos.xz(), search_target.xz(), pos.dir, rot_speed);
+						new_vel = Some(utils::dir_vec3(pos.dir) * speed);
+
+						if dist < speed * utils::DT || state.time() > time_to_stop
 						{
-							let dist_sq = (target.pos - pos.pos).norm_squared();
-							let new_dir_vel =
-								turn_towards(pos.pos.xz(), target.pos.xz(), pos.dir, 0.);
-
-							let blocked = segment_check(
-								pos.pos.xz(),
-								target.pos.xz(),
-								*team,
-								id,
-								8.,
-								&self.world,
-								&grid,
-							);
-
-							if new_dir_vel.is_none()
-								&& dist_sq < ai.attack_range * ai.attack_range
-								&& !blocked
+							println!("Switch to attacking timeout");
+							ai.status = components::Status::Attacking(target);
+						}
+						else
+						{
+							if !self.world.contains(target)
 							{
-								if let Ok(mut weapon_set) =
-									self.world.get_mut::<components::WeaponSet>(id)
-								{
-									//~ dbg!("Fire!");
-									weapon_set.want_to_fire = true;
-								}
+								ai.status = components::Status::Idle;
 							}
 							else
 							{
-								if let Ok(mut weapon_set) =
-									self.world.get_mut::<components::WeaponSet>(id)
+								let target_pos = self.world.get::<components::Position>(target)?;
+								let blocked = segment_check(
+									pos.pos.xz(),
+									target_pos.pos.xz(),
+									*team,
+									id,
+									8.,
+									&self.world,
+									&grid,
+								);
+								let map_blocked =
+									self.level.check_segment(pos.pos, target_pos.pos, 8.);
+								if !blocked && !map_blocked
 								{
-									weapon_set.want_to_fire = false;
+									println!("Switch to attacking not blocked");
+									ai.status = components::Status::Attacking(target);
 								}
-								ai.status = components::Status::Pursuing(target_id);
 							}
 						}
 					}
 					_ => (),
+				}
+
+				vel.dir_vel = new_dir_vel.unwrap_or(0.);
+				if new_dir_vel.is_none()
+				{
+					vel.vel = new_vel.unwrap_or(Vector3::zeros());
+				}
+				if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(id)
+				{
+					weapon_set.want_to_fire = do_attack;
 				}
 
 				if id == self.test

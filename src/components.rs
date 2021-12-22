@@ -72,9 +72,8 @@ pub struct Health
 pub enum Status
 {
 	Idle,
-	Pursuing(hecs::Entity),
-	Moving(Point3<f32>, f64),
 	Attacking(hecs::Entity),
+	Searching(hecs::Entity, Point3<f32>, f64),
 }
 
 #[derive(Debug, Copy, Clone)]
