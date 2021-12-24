@@ -1,9 +1,10 @@
 use crate::error::Result;
-use crate::{components, game_state, spatial_grid, utils};
+use crate::{atlas, components, game_state, spatial_grid, utils};
 
 use allegro::*;
 use allegro_font::*;
 use allegro_primitives::*;
+use allegro_sys::*;
 use na::{
 	Isometry3, Matrix4, Perspective3, Point2, Point3, Quaternion, RealField, Rotation2, Rotation3,
 	Unit, Vector2, Vector3, Vector4,
@@ -17,9 +18,69 @@ use std::path::Path;
 
 pub const TILE: f32 = 64.;
 
+struct Bucket
+{
+	vertices: Vec<Vertex>,
+	indices: Vec<i32>,
+}
+
+struct Scene
+{
+	buckets: Vec<Bucket>,
+}
+
+impl Scene
+{
+	fn new() -> Self
+	{
+		Scene { buckets: vec![] }
+	}
+
+	fn ensure_bucket(&mut self, page: usize)
+	{
+		while page >= self.buckets.len()
+		{
+			self.buckets.push(Bucket {
+				vertices: vec![],
+				indices: vec![],
+			});
+		}
+	}
+
+	fn add_vertices(&mut self, vertices: &[Vertex], page: usize)
+	{
+		self.ensure_bucket(page);
+		self.buckets[page].vertices.extend(vertices);
+	}
+
+	fn add_indices(&mut self, indices: &[i32], page: usize)
+	{
+		self.ensure_bucket(page);
+		self.buckets[page].indices.extend(indices);
+	}
+
+	fn add_vertex(&mut self, vertex: Vertex, page: usize)
+	{
+		self.ensure_bucket(page);
+		self.buckets[page].vertices.push(vertex);
+	}
+
+	fn add_index(&mut self, index: i32, page: usize)
+	{
+		self.ensure_bucket(page);
+		self.buckets[page].indices.push(index);
+	}
+
+	fn num_vertices(&mut self, page: usize) -> i32
+	{
+		self.ensure_bucket(page);
+		self.buckets[page].vertices.len() as i32
+	}
+}
+
 fn draw_billboard(
-	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, vertices: &mut Vec<Vertex>,
-	indices: &mut Vec<i32>,
+	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, bitmap: &atlas::AtlasBitmap,
+	scene: &mut Scene,
 )
 {
 	let rot = Rotation2::new(camera_angle);
@@ -32,46 +93,51 @@ fn draw_billboard(
 	let pos3 = pos + horiz_offt;
 	let pos4 = pos - horiz_offt;
 
-	let bmp_width = 256.;
-	let bmp_height = 256.;
-
 	let color = Color::from_rgb_f(1., 1., 1.);
 
-	let idx = vertices.len() as i32;
-	vertices.push(Vertex {
-		x: pos1.x,
-		y: pos1.y,
-		z: pos1.z,
-		u: 0.,
-		v: 0.,
-		color: color,
-	});
-	vertices.push(Vertex {
-		x: pos4.x,
-		y: pos4.y,
-		z: pos4.z,
-		u: 0.,
-		v: bmp_height,
-		color: color,
-	});
-	vertices.push(Vertex {
-		x: pos3.x,
-		y: pos3.y,
-		z: pos3.z,
-		u: bmp_width,
-		v: bmp_height,
-		color: color,
-	});
-	vertices.push(Vertex {
-		x: pos2.x,
-		y: pos2.y,
-		z: pos2.z,
-		u: bmp_width,
-		v: 0.,
-		color: color,
-	});
+	let idx = scene.num_vertices(bitmap.page);
+	scene.add_vertices(
+		&[
+			Vertex {
+				x: pos1.x,
+				y: pos1.y,
+				z: pos1.z,
+				u: bitmap.start.x,
+				v: bitmap.start.y,
+				color: color,
+			},
+			Vertex {
+				x: pos4.x,
+				y: pos4.y,
+				z: pos4.z,
+				u: bitmap.start.x,
+				v: bitmap.end.y,
+				color: color,
+			},
+			Vertex {
+				x: pos3.x,
+				y: pos3.y,
+				z: pos3.z,
+				u: bitmap.end.x,
+				v: bitmap.end.y,
+				color: color,
+			},
+			Vertex {
+				x: pos2.x,
+				y: pos2.y,
+				z: pos2.z,
+				u: bitmap.end.x,
+				v: bitmap.start.y,
+				color: color,
+			},
+		],
+		bitmap.page,
+	);
 
-	indices.extend([idx + 0, idx + 1, idx + 2, idx + 0, idx + 2, idx + 3]);
+	scene.add_indices(
+		&[idx + 0, idx + 1, idx + 2, idx + 0, idx + 2, idx + 3],
+		bitmap.page,
+	);
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -133,8 +199,14 @@ impl Level
 		})
 	}
 
-	pub fn draw(&self, vertices: &mut Vec<Vertex>, indices: &mut Vec<i32>)
+	fn draw(&self, state: &game_state::GameState, scene: &mut Scene)
 	{
+		let bmp = &state
+			.get_sprite_sheet("data/test.cfg")
+			.unwrap()
+			.orientations[0]
+			.idle[0];
+
 		for z in 0..self.height
 		{
 			for x in 0..self.width
@@ -142,24 +214,27 @@ impl Level
 				let shift_x = x as f32 * TILE + TILE / 2.;
 				let shift_z = z as f32 * TILE + TILE / 2.;
 
-				let idx = vertices.len() as i32;
+				let idx = scene.num_vertices(bmp.page);
 
 				let mesh = &self.tile_meshes[self.tiles[(x + z * self.width) as usize] as usize];
 
 				for vtx in &mesh.vtxs
 				{
-					vertices.push(Vertex {
-						x: vtx.x + shift_x,
-						y: vtx.y,
-						z: vtx.z + shift_z,
-						u: vtx.u,
-						v: vtx.v,
-						color: Color::from_rgb_f(vtx.x / 64., vtx.z / 64., vtx.y / 64.),
-					});
+					scene.add_vertex(
+						Vertex {
+							x: vtx.x + shift_x,
+							y: vtx.y,
+							z: vtx.z + shift_z,
+							u: bmp.start.x + (vtx.x + 32.) / 64. * bmp.width(),
+							v: bmp.start.y + (vtx.z + 32.) / 64. * bmp.height(),
+							color: Color::from_rgb_f(1., 1., 1.), //Color::from_rgb_f(vtx.x / 64., vtx.z / 64., vtx.y / 64.),
+						},
+						bmp.page,
+					);
 				}
 				for vec_idx in &mesh.idxs
 				{
-					indices.push(vec_idx + idx);
+					scene.add_index(vec_idx + idx, bmp.page);
 				}
 			}
 		}
@@ -297,7 +372,10 @@ pub fn spawn_projectile(
 			vel: speed * utils::dir_vec3(dir),
 			dir_vel: 0.,
 		},
-		components::Drawable { size: size },
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/test.cfg".into(),
+		},
 		components::Solid {
 			size: size,
 			mass: 0.,
@@ -501,7 +579,10 @@ impl Map
 				vel: Vector3::zeros(),
 				dir_vel: 0.,
 			},
-			components::Drawable { size: TILE / 8. },
+			components::Drawable {
+				size: TILE / 8.,
+				sprite_sheet: "data/santa.cfg".into(),
+			},
 			components::Solid {
 				size: TILE / 8.,
 				mass: 1.,
@@ -537,10 +618,11 @@ impl Map
 						dir_vel: 0.,
 					},
 					components::Drawable {
-						size: (z as f32 + 3.) * TILE / 8. / 3.,
+						size: (z as f32 + 3.) * TILE / 8.,
+						sprite_sheet: "data/santa.cfg".into(),
 					},
 					components::Solid {
-						size: (z as f32 + 3.) * TILE / 8. / 3.,
+						size: (z as f32 + 3.) * TILE / 8.,
 						mass: 1.,
 						collision_class: components::CollisionClass::Regular,
 					},
@@ -564,7 +646,7 @@ impl Map
 						status: components::Status::Idle,
 						time_to_check_status: 0.,
 					},
-				);
+				)?;
 
 				if z == 0
 				{
@@ -574,7 +656,9 @@ impl Map
 			}
 		}
 
-		state.cache_bitmap("data/test.png")?;
+		state.cache_sprite_sheet("data/santa.cfg")?;
+		state.cache_sprite_sheet("data/test.cfg")?;
+		//~ state.atlas.dump_pages();
 
 		Ok(Self {
 			test: test,
@@ -1040,45 +1124,55 @@ impl Map
 		state
 			.core
 			.use_projection_transform(&utils::mat4_to_transform(self.projection.into_inner()));
+		unsafe {
+			al_set_render_state(ALLEGRO_ALPHA_TEST_RS, 1);
+			al_set_render_state(ALLEGRO_ALPHA_TEST_VALUE, 128);
+			al_set_render_state(ALLEGRO_ALPHA_FUNCTION, ALLEGRO_RENDER_GREATER as i32);
+		}
 
 		let camera = self.make_camera();
 
 		state
 			.core
 			.use_transform(&utils::mat4_to_transform(camera.to_homogeneous()));
+		state
+			.core
+			.set_blender(BlendOperation::Add, BlendMode::One, BlendMode::InverseAlpha);
 
-		let bmp = state.get_bitmap("data/test.png").unwrap();
+		let mut scene = Scene::new();
 
-		let mut vertices = vec![];
-		let mut indices = vec![];
-
-		self.level.draw(&mut vertices, &mut indices);
+		self.level.draw(state, &mut scene);
 
 		for (_, (pos, drawable)) in self
 			.world
 			.query::<(&components::Position, &components::Drawable)>()
 			.iter()
 		{
+			let sheet = state.get_sprite_sheet(&drawable.sprite_sheet).unwrap();
+			let bmp = &sheet.orientations[0].idle[0];
 			draw_billboard(
 				pos.pos,
 				self.camera_anchor.dir,
 				2. * drawable.size,
 				2. * drawable.size,
-				&mut vertices,
-				&mut indices,
+				bmp,
+				&mut scene,
 			);
 		}
 
 		//~ println!("{}", indices.len());
 
-		state.prim.draw_indexed_prim(
-			&vertices[..],
-			Some(bmp),
-			&indices[..],
-			0,
-			indices.len() as u32,
-			PrimType::TriangleList,
-		);
+		for (i, bucket) in scene.buckets.iter().enumerate()
+		{
+			state.prim.draw_indexed_prim(
+				&bucket.vertices[..],
+				Some(&state.atlas.pages[i].bitmap),
+				&bucket.indices[..],
+				0,
+				bucket.indices.len() as u32,
+				PrimType::TriangleList,
+			);
+		}
 
 		Ok(())
 	}

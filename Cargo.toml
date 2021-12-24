@@ -29,6 +29,7 @@ gltf = "0.16.0"
 tiled = "0.9.5"
 gl = "0.14.0"
 gl_loader = "0.1.2"
+rect_packer = "0.2.1"
 
 [profile.release]
 debug = true

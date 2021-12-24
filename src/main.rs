@@ -3,6 +3,8 @@
 #![allow(dead_code)]
 #![feature(backtrace)]
 
+mod atlas;
+mod character_sprite_sheet;
 mod components;
 mod error;
 mod game_state;
@@ -11,7 +13,7 @@ mod map;
 mod sfx;
 mod spatial_grid;
 //~ mod speech;
-mod sprite;
+//~ mod sprite;
 mod utils;
 
 use crate::error::Result;

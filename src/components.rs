@@ -50,10 +50,11 @@ pub struct Solid
 	pub collision_class: CollisionClass,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Drawable
 {
 	pub size: f32,
+	pub sprite_sheet: String,
 }
 
 #[derive(Debug, Clone)]
