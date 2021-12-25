@@ -304,12 +304,12 @@ impl Level
 		}
 	}
 
-	pub fn check_segment(&self, start: Point3<f32>, end: Point3<f32>, size: f32) -> bool
+	pub fn check_segment(&self, start: Point2<f32>, end: Point2<f32>, size: f32) -> bool
 	{
 		let start_x = (start.x / TILE).floor() as i32;
-		let start_z = (start.z / TILE).floor() as i32;
+		let start_z = (start.y / TILE).floor() as i32;
 		let end_x = (end.x / TILE).floor() as i32;
-		let end_z = (end.z / TILE).floor() as i32;
+		let end_z = (end.y / TILE).floor() as i32;
 
 		let (start_x, end_x) = if start_x > end_x
 		{
@@ -351,7 +351,7 @@ impl Level
 					end: Point2::new(cx + size + TILE, cz + size + TILE),
 				};
 
-				if rect.intersects_with_segment(start.xz(), end.xz())
+				if rect.intersects_with_segment(start, end)
 				{
 					return true;
 				}
@@ -584,7 +584,7 @@ impl Map
 				sprite_sheet: "data/santa.cfg".into(),
 			},
 			components::Solid {
-				size: TILE / 8.,
+				size: TILE / 8. / 2.,
 				mass: 1.,
 				collision_class: components::CollisionClass::Regular,
 			},
@@ -618,11 +618,11 @@ impl Map
 						dir_vel: 0.,
 					},
 					components::Drawable {
-						size: (z as f32 + 3.) * TILE / 8.,
+						size: (z as f32 + 2.) * TILE / 8.,
 						sprite_sheet: "data/santa.cfg".into(),
 					},
 					components::Solid {
-						size: (z as f32 + 3.) * TILE / 8.,
+						size: (z as f32 + 2.) * TILE / 8. / 2.,
 						mass: 1.,
 						collision_class: components::CollisionClass::Regular,
 					},
@@ -815,7 +815,7 @@ impl Map
 				let solid1 = *self.world.get::<components::Solid>(id1)?;
 				let solid2 = *self.world.get::<components::Solid>(id2)?;
 
-				let diff = pos2 - pos1;
+				let diff = pos2.xz() - pos1.xz();
 				let diff_norm = utils::max(0.1, diff.norm());
 
 				if diff_norm > solid1.size + solid2.size
@@ -824,6 +824,7 @@ impl Map
 				}
 
 				let diff = 0.9 * diff * (solid1.size + solid2.size - diff_norm) / diff_norm;
+				let diff = Vector3::new(diff.x, 0., diff.y);
 
 				let f = 1. - solid1.mass / (solid2.mass + solid1.mass);
 				if f32::is_finite(f)
@@ -951,7 +952,7 @@ impl Map
 						else
 						{
 							let target_pos = self.world.get::<components::Position>(target)?;
-							let dist = (target_pos.pos - pos.pos).norm();
+							let dist = (target_pos.pos.xz() - pos.pos.xz()).norm();
 
 							new_dir_vel =
 								turn_towards(pos.pos.xz(), target_pos.pos.xz(), pos.dir, rot_speed);
@@ -973,7 +974,8 @@ impl Map
 									&grid,
 								);
 								let map_blocked =
-									self.level.check_segment(pos.pos, target_pos.pos, 8.);
+									self.level
+										.check_segment(pos.pos.xz(), target_pos.pos.xz(), 8.);
 								if blocked
 								{
 									let mut rng = rand::thread_rng();
@@ -998,7 +1000,7 @@ impl Map
 					}
 					components::Status::Searching(target, search_target, time_to_stop) =>
 					{
-						let dist = (search_target - pos.pos).norm();
+						let dist = (search_target.xz() - pos.pos.xz()).norm();
 						new_dir_vel =
 							turn_towards(pos.pos.xz(), search_target.xz(), pos.dir, rot_speed);
 						new_vel = Some(utils::dir_vec3(pos.dir) * speed);
@@ -1027,7 +1029,8 @@ impl Map
 									&grid,
 								);
 								let map_blocked =
-									self.level.check_segment(pos.pos, target_pos.pos, 8.);
+									self.level
+										.check_segment(pos.pos.xz(), target_pos.pos.xz(), 8.);
 								if !blocked && !map_blocked
 								{
 									//~ println!("Switch to attacking not blocked");
@@ -1143,13 +1146,21 @@ impl Map
 
 		self.level.draw(state, &mut scene);
 
-		for (_, (pos, drawable)) in self
+		for (id, (pos, drawable)) in self
 			.world
 			.query::<(&components::Position, &components::Drawable)>()
 			.iter()
 		{
 			let sheet = state.get_sprite_sheet(&drawable.sprite_sheet).unwrap();
-			let bmp = &sheet.orientations[0].idle[0];
+			let bmp = &sheet
+				.get_bitmap(
+					state.time(),
+					pos.dir,
+					self.camera_anchor.dir,
+					self.world.get::<components::Velocity>(id).ok().map(|v| *v),
+				)
+				.unwrap();
+
 			draw_billboard(
 				pos.pos,
 				self.camera_anchor.dir,

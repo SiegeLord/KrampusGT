@@ -1,7 +1,8 @@
 use crate::error::Result;
-use crate::{atlas, utils};
+use crate::{atlas, components, utils};
 
 use allegro::*;
+use nalgebra::{RealField, Vector2, Vector3};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -62,5 +63,57 @@ impl CharacterSpriteSheet
 			desc: desc,
 			orientations: orientations,
 		})
+	}
+
+	pub fn get_bitmap(
+		&self, time: f64, dir: f32, camera_dir: f32, vel: Option<components::Velocity>,
+	) -> Option<&atlas::AtlasBitmap>
+	{
+		let num_orientations = self.orientations.len();
+		if num_orientations == 0
+		{
+			return None;
+		}
+
+		let dir = utils::dir_vec3(dir).xz();
+		let camera_front = utils::dir_vec3(camera_dir).xz();
+		let camera_left = Vector2::new(-camera_front.y, camera_front.x);
+
+		let x = dir.dot(&camera_left);
+		let y = dir.dot(&camera_front);
+
+		let rel_dir = x.atan2(y);
+		let window_size = 2. * f32::pi() / num_orientations as f32;
+		let orientation =
+			((rel_dir + f32::pi() + window_size / 2.) / window_size) as usize % num_orientations;
+
+		if let Some(vel) = vel
+		{
+			let walk = &self.orientations[orientation].walk;
+			if !walk.is_empty()
+			{
+				let f = 0.2;
+				let mut eff_vel = 0.;
+				if vel.vel.norm() > 0.
+				{
+					eff_vel = vel.vel.xz().dot(&dir).signum() * vel.vel.norm();
+				}
+				else if vel.dir_vel.abs() > 0.
+				{
+					eff_vel = 5. * vel.dir_vel;
+				}
+
+				let frame = ((time * f * eff_vel.abs() as f64) as usize) % walk.len();
+				if eff_vel > 0.
+				{
+					return Some(&self.orientations[orientation].walk[frame]);
+				}
+				else if eff_vel < 0.
+				{
+					return Some(&self.orientations[orientation].walk[walk.len() - 1 - frame]);
+				}
+			}
+		}
+		Some(&self.orientations[orientation].idle[0])
 	}
 }
