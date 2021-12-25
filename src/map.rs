@@ -619,7 +619,7 @@ impl Map
 					},
 					components::Drawable {
 						size: (z as f32 + 2.) * TILE / 8.,
-						sprite_sheet: "data/santa.cfg".into(),
+						sprite_sheet: "data/cat.cfg".into(),
 					},
 					components::Solid {
 						size: (z as f32 + 2.) * TILE / 8. / 2.,
@@ -656,6 +656,7 @@ impl Map
 			}
 		}
 
+		state.cache_sprite_sheet("data/cat.cfg")?;
 		state.cache_sprite_sheet("data/santa.cfg")?;
 		state.cache_sprite_sheet("data/test.cfg")?;
 		//~ state.atlas.dump_pages();
