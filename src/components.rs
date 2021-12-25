@@ -70,6 +70,7 @@ pub struct WeaponSet
 	pub weapons: Vec<Weapon>,
 	pub want_to_fire: bool,
 	pub cur_weapon: usize,
+	pub last_fire_time: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -94,10 +95,11 @@ pub struct OnContactEffect
 	pub effects: Vec<Effect>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Health
 {
 	pub health: f32,
+	pub corpse_sprite_sheet: String,
 }
 
 #[derive(Debug, Copy, Clone)]

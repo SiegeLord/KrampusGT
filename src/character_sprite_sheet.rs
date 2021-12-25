@@ -12,6 +12,8 @@ struct OrientationDesc
 	idle: Vec<String>,
 	#[serde(default = "Vec::new")]
 	walk: Vec<String>,
+	#[serde(default = "Vec::new")]
+	fire: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -24,6 +26,7 @@ pub struct Orientation
 {
 	pub idle: Vec<atlas::AtlasBitmap>,
 	pub walk: Vec<atlas::AtlasBitmap>,
+	pub fire: Vec<atlas::AtlasBitmap>,
 }
 
 pub struct CharacterSpriteSheet
@@ -53,9 +56,16 @@ impl CharacterSpriteSheet
 				walk.push(atlas.insert(core, bitmap_name)?);
 			}
 
+			let mut fire = Vec::with_capacity(orientation_desc.fire.len());
+			for bitmap_name in &orientation_desc.fire
+			{
+				fire.push(atlas.insert(core, bitmap_name)?);
+			}
+
 			orientations.push(Orientation {
 				idle: idle,
 				walk: walk,
+				fire: fire,
 			});
 		}
 
@@ -66,7 +76,8 @@ impl CharacterSpriteSheet
 	}
 
 	pub fn get_bitmap(
-		&self, time: f64, dir: f32, camera_dir: f32, vel: Option<components::Velocity>,
+		&self, time: f64, dir: f32, camera_dir: f32, last_fire_time: Option<f64>,
+		vel: Option<components::Velocity>,
 	) -> Option<&atlas::AtlasBitmap>
 	{
 		let num_orientations = self.orientations.len();
@@ -84,36 +95,49 @@ impl CharacterSpriteSheet
 
 		let rel_dir = x.atan2(y);
 		let window_size = 2. * f32::pi() / num_orientations as f32;
-		let orientation =
-			((rel_dir + f32::pi() + window_size / 2.) / window_size) as usize % num_orientations;
+		let orientation = &self.orientations
+			[((rel_dir + f32::pi() + window_size / 2.) / window_size) as usize % num_orientations];
+
+		let mut speed = 1.;
+		let mut reverse = false;
+		let mut animation = &orientation.idle;
 
 		if let Some(vel) = vel
 		{
-			let walk = &self.orientations[orientation].walk;
+			let walk = &orientation.walk;
 			if !walk.is_empty()
 			{
 				let f = 0.2;
-				let mut eff_vel = 0.;
+				let eff_vel;
 				if vel.vel.norm() > 0.
 				{
 					eff_vel = vel.vel.xz().dot(&dir).signum() * vel.vel.norm();
+					speed = f * eff_vel.abs();
+					reverse = eff_vel < 0.;
+					animation = walk;
 				}
 				else if vel.dir_vel.abs() > 0.
 				{
-					eff_vel = 5. * vel.dir_vel;
-				}
-
-				let frame = ((time * f * eff_vel.abs() as f64) as usize) % walk.len();
-				if eff_vel > 0.
-				{
-					return Some(&self.orientations[orientation].walk[frame]);
-				}
-				else if eff_vel < 0.
-				{
-					return Some(&self.orientations[orientation].walk[walk.len() - 1 - frame]);
+					eff_vel = 50. * vel.dir_vel;
+					speed = f * eff_vel.abs();
+					reverse = eff_vel < 0.;
+					animation = walk;
 				}
 			}
 		}
-		Some(&self.orientations[orientation].idle[0])
+		if let Some(last_fire_time) = last_fire_time
+		{
+			if (time - last_fire_time) < 0.25 && !orientation.fire.is_empty()
+			{
+				animation = &orientation.fire;
+			}
+		}
+
+		let mut frame = ((time * speed as f64) as usize) % animation.len();
+		if reverse
+		{
+			frame = animation.len() - 1 - frame;
+		}
+		Some(&animation[frame])
 	}
 }

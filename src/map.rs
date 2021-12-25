@@ -393,6 +393,19 @@ pub fn spawn_projectile(
 	))
 }
 
+pub fn spawn_corpse(
+	pos: Point3<f32>, size: f32, sprite_sheet: String, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: 0. },
+		components::Drawable {
+			size: size,
+			sprite_sheet: sprite_sheet,
+		},
+	))
+}
+
 #[derive(Clone)]
 pub struct Mesh
 {
@@ -555,6 +568,7 @@ pub struct Map
 	left_state: bool,
 	right_state: bool,
 	fire_state: bool,
+	clear_rot: bool,
 
 	test: hecs::Entity,
 
@@ -595,8 +609,12 @@ impl Map
 				}],
 				cur_weapon: 0,
 				want_to_fire: false,
+				last_fire_time: -f64::INFINITY,
 			},
-			components::Health { health: 100. },
+			components::Health {
+				health: 100.,
+				corpse_sprite_sheet: "data/santa_corpse.cfg".into(),
+			},
 			components::Team::Player,
 		));
 
@@ -605,6 +623,7 @@ impl Map
 		for z in -1..=1
 		//~ for z in [0, -1]
 		{
+			//~ break;
 			//~ for x in [0]
 			for x in -1..=1
 			{
@@ -626,7 +645,10 @@ impl Map
 						mass: 1.,
 						collision_class: components::CollisionClass::Regular,
 					},
-					components::Health { health: 10. },
+					components::Health {
+						health: 10.,
+						corpse_sprite_sheet: "data/cat_corpse.cfg".into(),
+					},
 					components::Team::Monster,
 					components::WeaponSet {
 						weapons: vec![components::Weapon {
@@ -635,6 +657,7 @@ impl Map
 						}],
 						cur_weapon: 0,
 						want_to_fire: false,
+						last_fire_time: -f64::INFINITY,
 					},
 				));
 				world.insert_one(
@@ -657,7 +680,9 @@ impl Map
 		}
 
 		state.cache_sprite_sheet("data/cat.cfg")?;
+		state.cache_sprite_sheet("data/cat_corpse.cfg")?;
 		state.cache_sprite_sheet("data/santa.cfg")?;
+		state.cache_sprite_sheet("data/santa_corpse.cfg")?;
 		state.cache_sprite_sheet("data/test.cfg")?;
 		//~ state.atlas.dump_pages();
 
@@ -677,6 +702,7 @@ impl Map
 			left_state: false,
 			right_state: false,
 			fire_state: false,
+			clear_rot: false,
 		})
 	}
 
@@ -684,7 +710,7 @@ impl Map
 	{
 		let rot = Rotation2::new(self.camera_anchor.dir);
 		let offt = rot * Vector2::new(0., -TILE / 2.);
-		let height = TILE / 2.;
+		let height = TILE / 2.2;
 
 		utils::camera_project(
 			self.camera_anchor.pos.x + offt.x,
@@ -740,6 +766,7 @@ impl Map
 			let proj_size = 4.;
 			let spawn_pos = pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
 			proj_spawns.push((spawn_pos, pos.dir, proj_size));
+			weapon_set.last_fire_time = state.time();
 		}
 
 		for (pos, dir, proj_size) in proj_spawns
@@ -1082,12 +1109,29 @@ impl Map
 		}
 
 		// Health;
-		for (id, health) in self.world.query_mut::<&components::Health>()
+		let mut new_corpses = vec![];
+		for (id, health) in self.world.query::<&components::Health>().iter()
 		{
 			if health.health < 0.
 			{
+				if !health.corpse_sprite_sheet.is_empty()
+				{
+					if let Ok(pos) = self.world.get::<components::Position>(id)
+					{
+						let mut size = TILE;
+						if let Ok(solid) = self.world.get::<components::Solid>(id)
+						{
+							size = solid.size;
+						}
+						new_corpses.push((pos.pos, size, health.corpse_sprite_sheet.clone()));
+					}
+				}
 				to_die.push(id);
 			}
+		}
+		for (pos, size, sprite_sheet) in new_corpses
+		{
+			spawn_corpse(pos, 2. * size, sprite_sheet, &mut self.world);
 		}
 
 		// Update camera anchor.
@@ -1116,8 +1160,12 @@ impl Map
 		}
 
 		// HACK.
-		self.rot_left_state = 0;
-		self.rot_right_state = 0;
+		if self.clear_rot
+		{
+			self.rot_left_state = 0;
+			self.rot_right_state = 0;
+			self.clear_rot = false;
+		}
 
 		Ok(())
 	}
@@ -1158,6 +1206,10 @@ impl Map
 					state.time(),
 					pos.dir,
 					self.camera_anchor.dir,
+					self.world
+						.get::<components::WeaponSet>(id)
+						.ok()
+						.map(|v| v.last_fire_time),
 					self.world.get::<components::Velocity>(id).ok().map(|v| *v),
 				)
 				.unwrap();
@@ -1205,6 +1257,7 @@ impl Map
 					self.rot_left_state = 0;
 					self.rot_right_state = *dx;
 				}
+				self.clear_rot = true;
 			}
 			Event::MouseButtonDown { button, .. } =>
 			{
@@ -1238,6 +1291,18 @@ impl Map
 				{
 					self.right_state = true;
 				}
+				KeyCode::Left =>
+				{
+					self.rot_left_state = 3;
+				}
+				KeyCode::Right =>
+				{
+					self.rot_right_state = 3;
+				}
+				KeyCode::Space =>
+				{
+					self.fire_state = true;
+				}
 				_ => (),
 			},
 			Event::KeyUp { keycode, .. } => match keycode
@@ -1257,6 +1322,18 @@ impl Map
 				KeyCode::D =>
 				{
 					self.right_state = false;
+				}
+				KeyCode::Left =>
+				{
+					self.rot_left_state = 0;
+				}
+				KeyCode::Right =>
+				{
+					self.rot_right_state = 0;
+				}
+				KeyCode::Space =>
+				{
+					self.fire_state = false;
 				}
 				_ => (),
 			},
