@@ -79,12 +79,15 @@ impl Scene
 }
 
 fn draw_billboard(
-	pos: Point3<f32>, camera_angle: f32, width: f32, height: f32, bitmap: &atlas::AtlasBitmap,
-	scene: &mut Scene,
+	pos: Point3<f32>, camera_angle: f32, size: f32, bitmap: &atlas::AtlasBitmap, scene: &mut Scene,
 )
 {
 	let rot = Rotation2::new(camera_angle);
 	let diff = rot * Vector2::new(0., 1.);
+
+	let width = size;
+	let height = bitmap.height() * size / bitmap.width();
+
 	let horiz_offt = width / 2. * Vector3::new(-diff.y, 0., diff.x);
 	let vert_offt = height * Vector3::new(0., 1., 0.);
 
@@ -679,6 +682,7 @@ impl Map
 			}
 		}
 
+		state.cache_sprite_sheet("data/buggy.cfg")?;
 		state.cache_sprite_sheet("data/cat.cfg")?;
 		state.cache_sprite_sheet("data/cat_corpse.cfg")?;
 		state.cache_sprite_sheet("data/santa.cfg")?;
@@ -1217,7 +1221,6 @@ impl Map
 			draw_billboard(
 				pos.pos,
 				self.camera_anchor.dir,
-				2. * drawable.size,
 				2. * drawable.size,
 				bmp,
 				&mut scene,
