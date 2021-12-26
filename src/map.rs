@@ -409,6 +409,122 @@ pub fn spawn_corpse(
 	))
 }
 
+pub fn spawn_player(
+	pos: Point3<f32>, dir: f32, health_frac: f32, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: Vector3::zeros(),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: TILE / 8.,
+			sprite_sheet: "data/santa.cfg".into(),
+		},
+		components::Solid {
+			size: TILE / 8. / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::WeaponSet {
+			weapons: vec![components::Weapon {
+				delay: 0.25,
+				time_to_fire: 0.,
+			}],
+			cur_weapon: 0,
+			want_to_fire: false,
+			last_fire_time: -f64::INFINITY,
+		},
+		components::Health {
+			health: 100. * health_frac,
+			corpse_sprite_sheet: "data/santa_corpse.cfg".into(),
+		},
+		components::Team::Player,
+	))
+}
+
+pub fn spawn_buggy(
+	pos: Point3<f32>, dir: f32, health_frac: f32, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: Vector3::zeros(),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: 4. * TILE / 8.,
+			sprite_sheet: "data/buggy.cfg".into(),
+		},
+		components::Solid {
+			size: 4. * TILE / 8. / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::Health {
+			health: 200. * health_frac,
+			corpse_sprite_sheet: "".into(),
+		},
+		components::Team::Neutral,
+		components::WeaponSet {
+			weapons: vec![components::Weapon {
+				delay: 0.25,
+				time_to_fire: 0.,
+			}],
+			cur_weapon: 0,
+			want_to_fire: false,
+			last_fire_time: -f64::INFINITY,
+		},
+		components::Vehicle { contents: None },
+	))
+}
+
+pub fn spawn_monster(
+	pos: Point3<f32>, dir: f32, health_frac: f32, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: Vector3::zeros(),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: 2. * TILE / 8.,
+			sprite_sheet: "data/cat.cfg".into(),
+		},
+		components::Solid {
+			size: 2. * TILE / 8. / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::Health {
+			health: 10. * health_frac,
+			corpse_sprite_sheet: "data/cat_corpse.cfg".into(),
+		},
+		components::Team::Monster,
+		components::WeaponSet {
+			weapons: vec![components::Weapon {
+				delay: 0.25,
+				time_to_fire: 0.,
+			}],
+			cur_weapon: 0,
+			want_to_fire: false,
+			last_fire_time: -f64::INFINITY,
+		},
+		components::AI {
+			sense_range: TILE * 4.,
+			attack_range: TILE * 3.,
+			disengage_range: TILE * 5.,
+			status: components::Status::Idle,
+			time_to_check_status: 0.,
+		},
+	))
+}
+
 #[derive(Clone)]
 pub struct Mesh
 {
@@ -501,7 +617,7 @@ fn segment_check(
 			}
 			if let Ok(other_team) = world.get::<components::Team>(entry.inner.id)
 			{
-				*other_team == team
+				team.friendly(&other_team)
 			}
 			else
 			{
@@ -572,6 +688,7 @@ pub struct Map
 	right_state: bool,
 	fire_state: bool,
 	clear_rot: bool,
+	enter_state: bool,
 
 	test: hecs::Entity,
 
@@ -590,37 +707,7 @@ impl Map
 			pos: Point3::new(0., 0., 0.),
 			dir: 0.,
 		};
-		let player = world.spawn((
-			player_pos,
-			components::Velocity {
-				vel: Vector3::zeros(),
-				dir_vel: 0.,
-			},
-			components::Drawable {
-				size: TILE / 8.,
-				sprite_sheet: "data/santa.cfg".into(),
-			},
-			components::Solid {
-				size: TILE / 8. / 2.,
-				mass: 1.,
-				collision_class: components::CollisionClass::Regular,
-			},
-			components::WeaponSet {
-				weapons: vec![components::Weapon {
-					delay: 0.25,
-					time_to_fire: 0.,
-				}],
-				cur_weapon: 0,
-				want_to_fire: false,
-				last_fire_time: -f64::INFINITY,
-			},
-			components::Health {
-				health: 100.,
-				corpse_sprite_sheet: "data/santa_corpse.cfg".into(),
-			},
-			components::Team::Player,
-		));
-
+		let player = spawn_player(player_pos.pos, player_pos.dir, 1., &mut world);
 		let mut test = player;
 		//~ for z in [0]
 		for z in -1..=1
@@ -630,50 +717,8 @@ impl Map
 			//~ for x in [0]
 			for x in -1..=1
 			{
-				let monster = world.spawn((
-					components::Position {
-						pos: Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.),
-						dir: 0.,
-					},
-					components::Velocity {
-						vel: Vector3::zeros(),
-						dir_vel: 0.,
-					},
-					components::Drawable {
-						size: (z as f32 + 2.) * TILE / 8.,
-						sprite_sheet: "data/cat.cfg".into(),
-					},
-					components::Solid {
-						size: (z as f32 + 2.) * TILE / 8. / 2.,
-						mass: 1.,
-						collision_class: components::CollisionClass::Regular,
-					},
-					components::Health {
-						health: 10.,
-						corpse_sprite_sheet: "data/cat_corpse.cfg".into(),
-					},
-					components::Team::Monster,
-					components::WeaponSet {
-						weapons: vec![components::Weapon {
-							delay: 0.25,
-							time_to_fire: 0.,
-						}],
-						cur_weapon: 0,
-						want_to_fire: false,
-						last_fire_time: -f64::INFINITY,
-					},
-				));
-				world.insert_one(
-					monster,
-					components::AI {
-						sense_range: TILE * 4.,
-						attack_range: TILE * 3.,
-						disengage_range: TILE * 5.,
-						status: components::Status::Idle,
-						time_to_check_status: 0.,
-					},
-				)?;
-
+				let pos = Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.);
+				let monster = spawn_monster(pos, 0., 1., &mut world);
 				if z == 0
 				{
 					test = monster;
@@ -681,6 +726,8 @@ impl Map
 				}
 			}
 		}
+
+		spawn_buggy(Point3::new(-512., 0., 512.), 0., 1., &mut world);
 
 		state.cache_sprite_sheet("data/buggy.cfg")?;
 		state.cache_sprite_sheet("data/cat.cfg")?;
@@ -707,6 +754,7 @@ impl Map
 			right_state: false,
 			fire_state: false,
 			clear_rot: false,
+			enter_state: false,
 		})
 	}
 
@@ -727,74 +775,7 @@ impl Map
 
 	pub fn logic(&mut self, state: &mut game_state::GameState) -> Result<()>
 	{
-		// Player controller.
-		if self.world.contains(self.player)
-		{
-			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
-			let left_right = self.left_state as i32 - (self.right_state as i32);
-			let up_down = self.up_state as i32 - (self.down_state as i32);
-
-			let dir = self.world.get::<components::Position>(self.player)?.dir;
-			let rot = Rotation2::new(dir);
-			let speed = 100.;
-			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
-
-			let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
-			player_vel.vel = Vector3::new(vel.x, 0., vel.y);
-			player_vel.dir_vel = rot_left_right as f32 * f32::pi() / 2.;
-
-			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
-			{
-				weapon_set.want_to_fire = self.fire_state;
-			}
-		}
-
-		// Weapon handling.
-		let mut proj_spawns = vec![];
-		for (_, (pos, weapon_set, solid)) in self.world.query_mut::<(
-			&components::Position,
-			&mut components::WeaponSet,
-			&components::Solid,
-		)>()
-		{
-			if !weapon_set.want_to_fire
-				|| weapon_set.weapons.is_empty()
-				|| weapon_set.weapons[weapon_set.cur_weapon].time_to_fire > state.time()
-			{
-				continue;
-			}
-
-			let weapon = &mut weapon_set.weapons[weapon_set.cur_weapon];
-			weapon.time_to_fire = state.time() + weapon.delay;
-
-			let proj_size = 4.;
-			let spawn_pos = pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
-			proj_spawns.push((spawn_pos, pos.dir, proj_size));
-			weapon_set.last_fire_time = state.time();
-		}
-
-		for (pos, dir, proj_size) in proj_spawns
-		{
-			spawn_projectile(
-				pos + Vector3::new(0., 8., 0.),
-				dir,
-				256.,
-				2.,
-				proj_size,
-				state,
-				&mut self.world,
-			);
-		}
-
-		// Velocity handling.
-		for (_, (pos, vel)) in self
-			.world
-			.query_mut::<(&mut components::Position, &components::Velocity)>()
-		{
-			pos.pos += utils::DT * vel.vel;
-			pos.dir += utils::DT * vel.dir_vel;
-			//pos.dir = pos.dir.fmod(2. * f32::pi());
-		}
+		let mut to_die = vec![];
 
 		// Collision detection.
 		let mut grid = spatial_grid::SpatialGrid::new(
@@ -903,6 +884,139 @@ impl Map
 			}
 		}
 
+		// Player controller.
+		if self.world.contains(self.player)
+		{
+			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
+			let left_right = self.left_state as i32 - (self.right_state as i32);
+			let up_down = self.up_state as i32 - (self.down_state as i32);
+
+			let pos = *self.world.get::<components::Position>(self.player)?;
+			let dir = pos.dir;
+			let rot = Rotation2::new(dir);
+			let speed = 100.;
+			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
+
+			{
+				let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
+				player_vel.vel = Vector3::new(vel.x, 0., vel.y);
+				player_vel.dir_vel = rot_left_right as f32 * f32::pi() / 2.;
+			}
+
+			if self.enter_state
+			{
+				let mut spawn_fn = None;
+				if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(self.player)
+				{
+					spawn_fn = vehicle.contents.take();
+					self.enter_state = false;
+
+					let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
+					player_vel.vel = Vector3::zeros();
+					player_vel.dir_vel = 0.;
+				}
+				else
+				{
+					let entries = grid.query_rect(
+						Point2::new(pos.pos.x - 2. * TILE, pos.pos.z - 2. * TILE),
+						Point2::new(pos.pos.x + 2. * TILE, pos.pos.z + 2. * TILE),
+						|entry| {
+							if let (Ok(other_team), Ok(vehicle)) = (
+								self.world.get::<components::Team>(entry.inner.id),
+								self.world.get::<components::Vehicle>(entry.inner.id),
+							)
+							{
+								components::Team::Player.friendly(&other_team)
+									&& vehicle.contents.is_none()
+							}
+							else
+							{
+								false
+							}
+						},
+					);
+					if let Some(entry) = entries.get(0)
+					{
+						let mut vehicle = self
+							.world
+							.get_mut::<components::Vehicle>(entry.inner.id)
+							.unwrap();
+						vehicle.contents = Some(Box::new(move |pos, dir, world| {
+							spawn_player(pos, dir, 1., world)
+						}));
+						to_die.push(self.player);
+						*self
+							.world
+							.get_mut::<components::Team>(entry.inner.id)
+							.unwrap() = components::Team::Player;
+
+						self.player = entry.inner.id;
+						self.enter_state = false;
+					}
+				}
+				if let Some(spawn_fn) = spawn_fn
+				{
+					self.player = spawn_fn(
+						pos.pos - 0.5 * TILE * utils::dir_vec3(dir),
+						dir,
+						&mut self.world,
+					);
+				}
+			}
+
+			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
+			{
+				weapon_set.want_to_fire = self.fire_state;
+			}
+		}
+
+		// Weapon handling.
+		let mut proj_spawns = vec![];
+		for (_, (pos, weapon_set, solid)) in self.world.query_mut::<(
+			&components::Position,
+			&mut components::WeaponSet,
+			&components::Solid,
+		)>()
+		{
+			if !weapon_set.want_to_fire
+				|| weapon_set.weapons.is_empty()
+				|| weapon_set.weapons[weapon_set.cur_weapon].time_to_fire > state.time()
+			{
+				continue;
+			}
+
+			let weapon = &mut weapon_set.weapons[weapon_set.cur_weapon];
+			weapon.time_to_fire = state.time() + weapon.delay;
+
+			let proj_size = 4.;
+			let spawn_pos = pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
+			proj_spawns.push((spawn_pos, pos.dir, proj_size));
+			weapon_set.last_fire_time = state.time();
+		}
+
+		for (pos, dir, proj_size) in proj_spawns
+		{
+			spawn_projectile(
+				pos + Vector3::new(0., 8., 0.),
+				dir,
+				256.,
+				2.,
+				proj_size,
+				state,
+				&mut self.world,
+			);
+		}
+
+		// Velocity handling.
+		for (_, (pos, vel)) in self
+			.world
+			.query_mut::<(&mut components::Position, &components::Velocity)>()
+		{
+			pos.pos += utils::DT * vel.vel;
+			pos.dir += utils::DT * vel.dir_vel;
+			//pos.dir = pos.dir.fmod(2. * f32::pi());
+		}
+
 		// AI
 		for (id, (pos, vel, team, ai)) in self
 			.world
@@ -937,12 +1051,12 @@ impl Map
 								if let Ok(other_team) =
 									self.world.get::<components::Team>(entry.inner.id)
 								{
-									if *other_team == *team
+									if team.friendly(&other_team)
 									{
 										false
 									}
-									else if (entry.inner.pos - pos.pos).norm_squared()
-										< ai.sense_range * ai.sense_range
+									else if (entry.inner.pos.xz() - pos.pos.xz()).norm()
+										< ai.sense_range
 									{
 										true
 									}
@@ -1092,7 +1206,6 @@ impl Map
 		}
 
 		// On contact effects.
-		let mut to_die = vec![];
 		for (id, other_id, effects) in on_contact_effects
 		{
 			for effect in effects
@@ -1113,29 +1226,54 @@ impl Map
 		}
 
 		// Health;
-		let mut new_corpses = vec![];
+		let mut spawn_fns: Vec<(bool, Box<dyn FnOnce(&mut hecs::World) -> hecs::Entity>)> = vec![];
 		for (id, health) in self.world.query::<&components::Health>().iter()
 		{
 			if health.health < 0.
 			{
-				if !health.corpse_sprite_sheet.is_empty()
+				if let Ok(pos) = self.world.get::<components::Position>(id)
 				{
-					if let Ok(pos) = self.world.get::<components::Position>(id)
+					let mut size = TILE;
+					if let Ok(solid) = self.world.get::<components::Solid>(id)
 					{
-						let mut size = TILE;
-						if let Ok(solid) = self.world.get::<components::Solid>(id)
+						size = solid.size;
+					}
+					if !health.corpse_sprite_sheet.is_empty()
+					{
+						let pos = pos.pos.clone();
+						let sprite_sheet = health.corpse_sprite_sheet.clone();
+						spawn_fns.push((
+							false,
+							Box::new(move |world| {
+								spawn_corpse(pos, 2. * size, sprite_sheet, world)
+							}),
+						));
+						//new_corpses.push((pos.pos, size, health.corpse_sprite_sheet.clone()));
+					}
+					if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(id)
+					{
+						if let Some(spawn_fn) = vehicle.contents.take()
 						{
-							size = solid.size;
+							let point_pos = pos.pos.clone();
+							let dir = pos.dir;
+							spawn_fns.push((
+								id == self.player,
+								Box::new(move |world| spawn_fn(point_pos, dir, world)),
+							));
 						}
-						new_corpses.push((pos.pos, size, health.corpse_sprite_sheet.clone()));
 					}
 				}
 				to_die.push(id);
 			}
 		}
-		for (pos, size, sprite_sheet) in new_corpses
+		for (new_player, spawn_fn) in spawn_fns
 		{
-			spawn_corpse(pos, 2. * size, sprite_sheet, &mut self.world);
+			//~ spawn_corpse(pos, 2. * size, sprite_sheet, &mut self.world);
+			let entity = spawn_fn(&mut self.world);
+			if new_player
+			{
+				self.player = entity;
+			}
 		}
 
 		// Update camera anchor.
@@ -1294,6 +1432,10 @@ impl Map
 				{
 					self.right_state = true;
 				}
+				KeyCode::E =>
+				{
+					self.enter_state = true;
+				}
 				KeyCode::Left =>
 				{
 					self.rot_left_state = 3;
@@ -1325,6 +1467,10 @@ impl Map
 				KeyCode::D =>
 				{
 					self.right_state = false;
+				}
+				KeyCode::E =>
+				{
+					self.enter_state = false;
 				}
 				KeyCode::Left =>
 				{

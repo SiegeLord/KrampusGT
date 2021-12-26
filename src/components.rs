@@ -125,4 +125,39 @@ pub enum Team
 {
 	Player,
 	Monster,
+	Neutral,
+}
+
+impl Team
+{
+	pub fn friendly(&self, other: &Self) -> bool
+	{
+		match self
+		{
+			Team::Player => match other
+			{
+				Team::Player => true,
+				Team::Monster => false,
+				Team::Neutral => true,
+			},
+			Team::Monster => match other
+			{
+				Team::Player => false,
+				Team::Monster => true,
+				Team::Neutral => true,
+			},
+			Team::Neutral => match other
+			{
+				Team::Player => true,
+				Team::Monster => true,
+				Team::Neutral => true,
+			},
+		}
+	}
+}
+
+pub struct Vehicle
+{
+	pub contents:
+		Option<Box<dyn FnOnce(Point3<f32>, f32, &mut hecs::World) -> hecs::Entity + Sync + Send>>,
 }
