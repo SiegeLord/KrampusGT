@@ -1,6 +1,10 @@
 use crate::game_state;
 use na::{Point2, Point3, Vector3};
 use nalgebra as na;
+use std::sync::Arc;
+
+#[derive(Debug, Copy, Clone)]
+pub struct AffectedByFriction;
 
 #[derive(Debug, Copy, Clone)]
 pub struct CreationTime
@@ -64,11 +68,25 @@ pub struct Drawable
 	pub sprite_sheet: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum WeaponType
 {
 	SantaGun,
 	BuggyGun,
+	RocketGun,
+}
+
+impl WeaponType
+{
+	pub fn proj_size(&self) -> f32
+	{
+		match self
+		{
+			WeaponType::SantaGun => 4.,
+			WeaponType::BuggyGun => 4.,
+			WeaponType::RocketGun => 8.,
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -96,6 +114,15 @@ impl Weapon
 			delay: 0.2,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::BuggyGun,
+		}
+	}
+
+	pub fn rocket_gun() -> Self
+	{
+		Weapon {
+			delay: 0.75,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::RocketGun,
 		}
 	}
 }
@@ -135,9 +162,10 @@ pub enum DeathEffect
 {
 	Spawn(
 		Box<
-			dyn FnOnce(
+			dyn Fn(
 					Point3<f32>,
 					f32,
+					Vector3<f32>,
 					&mut game_state::GameState,
 					&mut hecs::World,
 				) -> hecs::Entity
@@ -145,11 +173,34 @@ pub enum DeathEffect
 				+ Send,
 		>,
 	),
+	DamageInRadius
+	{
+		damage: f32,
+		radius: f32,
+		push_strength: f32,
+	},
 }
 
 pub struct OnDeathEffect
 {
 	pub effects: Vec<DeathEffect>,
+}
+
+pub struct Spawner
+{
+	pub delay: f64,
+	pub time_to_spawn: f64,
+	pub spawn_fn: Arc<
+		dyn Fn(
+				Point3<f32>,
+				f32,
+				Vector3<f32>,
+				&mut game_state::GameState,
+				&mut hecs::World,
+			) -> hecs::Entity
+			+ Sync
+			+ Send,
+	>,
 }
 
 #[derive(Debug, Clone)]
@@ -215,5 +266,5 @@ impl Team
 pub struct Vehicle
 {
 	pub contents:
-		Option<Box<dyn FnOnce(Point3<f32>, f32, &mut hecs::World) -> hecs::Entity + Sync + Send>>,
+		Option<Box<dyn Fn(Point3<f32>, f32, &mut hecs::World) -> hecs::Entity + Sync + Send>>,
 }

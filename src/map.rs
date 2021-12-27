@@ -15,6 +15,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
 pub const TILE: f32 = 64.;
 
@@ -364,14 +365,14 @@ impl Level
 }
 
 pub fn spawn_projectile(
-	pos: Point3<f32>, dir: f32, speed: f32, lifetime: f64, size: f32,
-	state: &mut game_state::GameState, world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
 ) -> hecs::Entity
 {
-	let id = world.spawn((
+	let size = components::WeaponType::SantaGun.proj_size();
+	world.spawn((
 		components::Position { pos: pos, dir: dir },
 		components::Velocity {
-			vel: speed * utils::dir_vec3(dir),
+			vel: 256. * utils::dir_vec3(dir),
 			dir_vel: 0.,
 		},
 		components::Drawable {
@@ -384,7 +385,7 @@ pub fn spawn_projectile(
 			collision_class: components::CollisionClass::Tiny,
 		},
 		components::TimeToDie {
-			time_to_die: state.time() + lifetime,
+			time_to_die: state.time() + 1.,
 		},
 		components::OnContactEffect {
 			effects: vec![
@@ -394,23 +395,97 @@ pub fn spawn_projectile(
 		},
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
-				move |pos, _, state, world| {
-					spawn_explosion(pos, size, "data/purple_explosion.cfg".into(), state, world)
+				move |pos, _, _, state, world| {
+					spawn_explosion(
+						pos - Vector3::new(0., size, 0.),
+						size,
+						"data/purple_explosion.cfg".into(),
+						state,
+						world,
+					)
 				},
 			))],
 		},
-	));
+	))
+}
 
-	dbg!(id, "spawn_projectile", pos);
-	id
+pub fn spawn_rocket(
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::RocketGun.proj_size();
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 128. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/bullet.cfg".into(),
+		},
+		components::Solid {
+			size: size,
+			mass: 0.,
+			collision_class: components::CollisionClass::Tiny,
+		},
+		components::TimeToDie {
+			time_to_die: state.time() + 4.,
+		},
+		components::OnContactEffect {
+			effects: vec![components::ContactEffect::Die],
+		},
+		components::OnDeathEffect {
+			effects: vec![
+				components::DeathEffect::Spawn(Box::new(move |pos, _, _, state, world| {
+					spawn_explosion(
+						pos - Vector3::new(0., size, 0.),
+						2. * size,
+						"data/purple_explosion.cfg".into(),
+						state,
+						world,
+					)
+				})),
+				components::DeathEffect::DamageInRadius {
+					damage: 12.,
+					radius: TILE,
+					push_strength: 100.,
+				},
+			],
+		},
+		components::Spawner {
+			delay: 0.25,
+			time_to_spawn: 0.,
+			spawn_fn: Arc::new(move |pos, _, _, state, world| {
+				spawn_explosion(
+					pos - Vector3::new(0., -0.25 * size, 0.),
+					2. * 0.25 * size,
+					"data/purple_explosion.cfg".into(),
+					state,
+					world,
+				)
+			}),
+		},
+	))
 }
 
 pub fn spawn_corpse(
-	pos: Point3<f32>, size: f32, sprite_sheet: String, world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, vel: Vector3<f32>, size: f32, sprite_sheet: String,
+	world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	world.spawn((
-		components::Position { pos: pos, dir: 0. },
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: vel,
+			dir_vel: 0.,
+		},
+		components::AffectedByFriction,
+		components::Solid {
+			size: size / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Tiny,
+		},
 		components::Drawable {
 			size: size,
 			sprite_sheet: sprite_sheet,
@@ -457,7 +532,7 @@ pub fn spawn_player(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::WeaponSet {
-			weapons: vec![components::Weapon::buggy_gun()],
+			weapons: vec![components::Weapon::rocket_gun()],
 			cur_weapon: 0,
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
@@ -467,8 +542,8 @@ pub fn spawn_player(
 		},
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
-				move |pos, _, _, world| {
-					spawn_corpse(pos, size, "data/santa_corpse.cfg".into(), world)
+				move |pos, dir, vel, _, world| {
+					spawn_corpse(pos, dir, vel, size, "data/santa_corpse.cfg".into(), world)
 				},
 			))],
 		},
@@ -501,7 +576,7 @@ pub fn spawn_buggy(
 		},
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
-				move |pos, _, state, world| {
+				move |pos, _, _, state, world| {
 					spawn_explosion(pos, size, "data/purple_explosion.cfg".into(), state, world)
 				},
 			))],
@@ -542,8 +617,8 @@ pub fn spawn_monster(
 		},
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
-				move |pos, _, _, world| {
-					spawn_corpse(pos, size, "data/cat_corpse.cfg".into(), world)
+				move |pos, dir, vel, _, world| {
+					spawn_corpse(pos, dir, vel, size, "data/cat_corpse.cfg".into(), world)
 				},
 			))],
 		},
@@ -927,6 +1002,12 @@ impl Map
 
 		// Player controller.
 		if self.world.contains(self.player)
+			&& self.world.get::<components::Team>(self.player).is_ok()
+			&& self
+				.world
+				.get::<components::Health>(self.player)
+				.map(|h| h.health > 0.)
+				.unwrap_or(false)
 		{
 			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
 			let left_right = self.left_state as i32 - (self.right_state as i32);
@@ -1029,15 +1110,20 @@ impl Map
 			let weapon = &mut weapon_set.weapons[weapon_set.cur_weapon];
 			weapon.time_to_fire = state.time() + weapon.delay;
 
-			let proj_size = 4.;
-
+			let proj_size = weapon.weapon_type.proj_size();
 			match weapon.weapon_type
 			{
 				components::WeaponType::SantaGun =>
 				{
 					let spawn_pos =
 						pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
-					proj_spawns.push((spawn_pos, pos.dir, proj_size));
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
+				}
+				components::WeaponType::RocketGun =>
+				{
+					let spawn_pos =
+						pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
 				}
 				components::WeaponType::BuggyGun =>
 				{
@@ -1045,25 +1131,36 @@ impl Map
 					let dir = utils::dir_vec3(pos.dir);
 					let left = 10. * Vector3::new(-dir.z, 0., dir.x);
 					let spawn_pos = pos.pos + forward * dir + left;
-					proj_spawns.push((spawn_pos, pos.dir, proj_size));
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
 					let spawn_pos = pos.pos + forward * dir - left;
-					proj_spawns.push((spawn_pos, pos.dir, proj_size));
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
 				}
 			}
 			weapon_set.last_fire_time = state.time();
 		}
 
-		for (pos, dir, proj_size) in proj_spawns
+		for (pos, dir, weapon_type) in proj_spawns
 		{
-			spawn_projectile(
-				pos + Vector3::new(0., 8., 0.),
-				dir,
-				256.,
-				2.,
-				proj_size,
-				state,
-				&mut self.world,
-			);
+			match weapon_type
+			{
+				components::WeaponType::SantaGun | components::WeaponType::BuggyGun =>
+				{
+					spawn_projectile(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
+				components::WeaponType::RocketGun =>
+				{
+					spawn_rocket(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
+			}
+		}
+
+		// Friction.
+		for (_, (vel, _)) in self
+			.world
+			.query_mut::<(&mut components::Velocity, &components::AffectedByFriction)>()
+		{
+			vel.vel *= 0.25_f32.powf(utils::DT as f32);
+			vel.dir_vel *= 0.25_f32.powf(utils::DT as f32);
 		}
 
 		// Velocity handling.
@@ -1077,16 +1174,22 @@ impl Map
 		}
 
 		// AI
-		for (id, (pos, vel, team, ai)) in self
+		for (id, (pos, vel, team, health, ai)) in self
 			.world
 			.query::<(
 				&components::Position,
 				&mut components::Velocity,
 				&components::Team,
+				&components::Health,
 				&mut components::AI,
 			)>()
 			.iter()
 		{
+			// HACK for explosion pushback...
+			if health.health < 0.
+			{
+				continue;
+			}
 			//~ if id == self.test
 			//~ {
 			//~ println!("s---- {} {:?}", state.time(), ai.status);
@@ -1297,6 +1400,26 @@ impl Map
 			}
 		}
 
+		// Spawner
+		for (_, (pos, spawner)) in self
+			.world
+			.query_mut::<(&components::Position, &mut components::Spawner)>()
+		{
+			if state.time() > spawner.time_to_spawn
+			{
+				spawner.time_to_spawn = state.time() + spawner.delay;
+				let point_pos = pos.pos.clone();
+				let dir = pos.dir;
+				let spawn_fn = spawner.spawn_fn.clone();
+				spawn_fns.push((
+					false,
+					Box::new(move |state, world| {
+						spawn_fn(point_pos, dir, Vector3::zeros(), state, world)
+					}),
+				));
+			}
+		}
+
 		// Time to die
 		for (id, time_to_die) in self.world.query_mut::<&components::TimeToDie>()
 		{
@@ -1317,6 +1440,11 @@ impl Map
 			{
 				let point_pos = pos.pos.clone();
 				let dir = pos.dir;
+				let point_vel = self
+					.world
+					.get::<components::Velocity>(id)
+					.map(|v| v.vel.clone())
+					.unwrap_or(Vector3::zeros());
 
 				if let Ok(mut on_death_effect) = self.world.get_mut::<components::OnDeathEffect>(id)
 				{
@@ -1326,13 +1454,57 @@ impl Map
 						{
 							components::DeathEffect::Spawn(spawn_fn) =>
 							{
-								dbg!(id, "spawning", point_pos);
 								spawn_fns.push((
-									false,
+									id == self.player,
 									Box::new(move |state, world| {
-										spawn_fn(point_pos, dir, state, world)
+										spawn_fn(point_pos, dir, point_vel, state, world)
 									}),
 								));
+							}
+							components::DeathEffect::DamageInRadius {
+								damage,
+								radius,
+								push_strength,
+							} =>
+							{
+								let entries = grid.query_rect(
+									Point2::new(pos.pos.x - radius, pos.pos.z - radius),
+									Point2::new(pos.pos.x + radius, pos.pos.z + radius),
+									|entry| {
+										if entry.inner.id == id
+										{
+											return false;
+										}
+										if let (Ok(_), Ok(other_pos)) = (
+											self.world.get::<components::Health>(entry.inner.id),
+											self.world.get::<components::Position>(entry.inner.id),
+										)
+										{
+											(other_pos.pos.xz() - pos.pos.xz()).norm() < radius
+										}
+										else
+										{
+											false
+										}
+									},
+								);
+
+								for entry in entries
+								{
+									let mut health =
+										self.world.get_mut::<components::Health>(entry.inner.id)?;
+									health.health -= damage;
+									if let (Ok(other_pos), Ok(solid), Ok(mut other_vel)) = (
+										self.world.get::<components::Position>(entry.inner.id),
+										self.world.get::<components::Solid>(entry.inner.id),
+										self.world.get_mut::<components::Velocity>(entry.inner.id),
+									)
+									{
+										let dir = (other_pos.pos.xz() - pos.pos.xz()).normalize();
+										other_vel.vel += Vector3::new(dir.x, 0., dir.y)
+											* push_strength / solid.mass;
+									}
+								}
 							}
 						}
 					}

@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 
 fn default_speed() -> f32
 {
-	100.
+	1.
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
