@@ -365,7 +365,8 @@ impl Level
 }
 
 pub fn spawn_projectile(
-	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, lifetime: f64, state: &mut game_state::GameState,
+	world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	let size = components::WeaponType::SantaGun.proj_size();
@@ -385,7 +386,7 @@ pub fn spawn_projectile(
 			collision_class: components::CollisionClass::Tiny,
 		},
 		components::TimeToDie {
-			time_to_die: state.time() + 1.,
+			time_to_die: state.time() + lifetime,
 		},
 		components::OnContactEffect {
 			effects: vec![
@@ -555,6 +556,36 @@ pub fn spawn_freeze(
 	))
 }
 
+pub fn spawn_orb(
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::FlameGun.proj_size() / 3.;
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 128. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/purple_explosion.cfg".into(),
+		},
+		components::Solid {
+			mass: 0.,
+			size: size / 2.,
+			collision_class: components::CollisionClass::Gas,
+		},
+		components::CreationTime { time: state.time() },
+		components::TimeToDie {
+			time_to_die: state.time() + 0.75,
+		},
+		components::OnDeathEffect {
+			effects: vec![components::DeathEffect::Orb],
+		},
+	))
+}
+
 pub fn spawn_corpse(
 	pos: Point3<f32>, dir: f32, vel: Vector3<f32>, size: f32, sprite_sheet: String,
 	world: &mut hecs::World,
@@ -618,8 +649,29 @@ pub fn spawn_player(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::WeaponSet {
-			weapons: vec![components::Weapon::freeze_gun()],
-			cur_weapon: 0,
+			weapons: HashMap::from([
+				(
+					components::WeaponType::OrbGun,
+					components::Weapon::orb_gun(),
+				),
+				(
+					components::WeaponType::SantaGun,
+					components::Weapon::santa_gun(),
+				),
+				(
+					components::WeaponType::RocketGun,
+					components::Weapon::rocket_gun(),
+				),
+				(
+					components::WeaponType::FlameGun,
+					components::Weapon::flame_gun(),
+				),
+				(
+					components::WeaponType::FreezeGun,
+					components::Weapon::freeze_gun(),
+				),
+			]),
+			cur_weapon: components::WeaponType::SantaGun,
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
@@ -671,8 +723,11 @@ pub fn spawn_buggy(
 		},
 		components::Team::Neutral,
 		components::WeaponSet {
-			weapons: vec![components::Weapon::buggy_gun()],
-			cur_weapon: 0,
+			weapons: HashMap::from([(
+				components::WeaponType::BuggyGun,
+				components::Weapon::buggy_gun(),
+			)]),
+			cur_weapon: components::WeaponType::BuggyGun,
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
@@ -713,8 +768,11 @@ pub fn spawn_monster(
 		},
 		components::Team::Monster,
 		components::WeaponSet {
-			weapons: vec![components::Weapon::flame_gun()],
-			cur_weapon: 0,
+			weapons: HashMap::from([(
+				components::WeaponType::FlameGun,
+				components::Weapon::flame_gun(),
+			)]),
+			cur_weapon: components::WeaponType::FlameGun,
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
@@ -893,6 +951,7 @@ pub struct Map
 	fire_state: bool,
 	clear_rot: bool,
 	enter_state: bool,
+	desired_weapon: i32,
 
 	test: hecs::Entity,
 
@@ -963,6 +1022,7 @@ impl Map
 			fire_state: false,
 			clear_rot: false,
 			enter_state: false,
+			desired_weapon: 0,
 		})
 	}
 
@@ -1238,6 +1298,26 @@ impl Map
 
 			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
 			{
+				if self.desired_weapon != 0
+				{
+					let new_weapon = match self.desired_weapon
+					{
+						1 => Some(components::WeaponType::SantaGun),
+						2 => Some(components::WeaponType::RocketGun),
+						3 => Some(components::WeaponType::FlameGun),
+						4 => Some(components::WeaponType::FreezeGun),
+						5 => Some(components::WeaponType::OrbGun),
+						_ => None,
+					};
+					if let Some(new_weapon) = new_weapon
+					{
+						if weapon_set.weapons.contains_key(&new_weapon)
+						{
+							weapon_set.cur_weapon = new_weapon;
+						}
+					}
+					self.desired_weapon = 0;
+				}
 				weapon_set.want_to_fire = self.fire_state;
 			}
 		}
@@ -1252,12 +1332,12 @@ impl Map
 		{
 			if !weapon_set.want_to_fire
 				|| weapon_set.weapons.is_empty()
-				|| weapon_set.weapons[weapon_set.cur_weapon].time_to_fire > state.time()
+				|| weapon_set.weapons[&weapon_set.cur_weapon].time_to_fire > state.time()
 			{
 				continue;
 			}
 
-			let weapon = &mut weapon_set.weapons[weapon_set.cur_weapon];
+			let weapon = weapon_set.weapons.get_mut(&weapon_set.cur_weapon).unwrap();
 			weapon.time_to_fire = state.time() + weapon.delay;
 
 			let proj_size = weapon.weapon_type.proj_size();
@@ -1266,6 +1346,7 @@ impl Map
 				components::WeaponType::SantaGun
 				| components::WeaponType::FlameGun
 				| components::WeaponType::RocketGun
+				| components::WeaponType::OrbGun
 				| components::WeaponType::FreezeGun =>
 				{
 					let spawn_pos =
@@ -1292,7 +1373,13 @@ impl Map
 			{
 				components::WeaponType::SantaGun | components::WeaponType::BuggyGun =>
 				{
-					spawn_projectile(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+					spawn_projectile(
+						pos + Vector3::new(0., 8., 0.),
+						dir,
+						1.,
+						state,
+						&mut self.world,
+					);
 				}
 				components::WeaponType::RocketGun =>
 				{
@@ -1305,6 +1392,10 @@ impl Map
 				components::WeaponType::FreezeGun =>
 				{
 					spawn_freeze(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
+				components::WeaponType::OrbGun =>
+				{
+					spawn_orb(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
 				}
 			}
 		}
@@ -1689,6 +1780,26 @@ impl Map
 									}
 								}
 							}
+							components::DeathEffect::Orb =>
+							{
+								let n = 13;
+								for i in 0..n
+								{
+									spawn_fns.push((
+										false,
+										Box::new(move |state, world| {
+											spawn_projectile(
+												point_pos,
+												dir + (i as f32 / n as f32 + 1. / n as f32)
+													* 2. * f32::pi(),
+												0.25,
+												state,
+												world,
+											)
+										}),
+									));
+								}
+							}
 						}
 					}
 				}
@@ -1864,6 +1975,26 @@ impl Map
 			}
 			Event::KeyDown { keycode, .. } => match keycode
 			{
+				KeyCode::_1 =>
+				{
+					self.desired_weapon = 1;
+				}
+				KeyCode::_2 =>
+				{
+					self.desired_weapon = 2;
+				}
+				KeyCode::_3 =>
+				{
+					self.desired_weapon = 3;
+				}
+				KeyCode::_4 =>
+				{
+					self.desired_weapon = 4;
+				}
+				KeyCode::_5 =>
+				{
+					self.desired_weapon = 5;
+				}
 				KeyCode::W =>
 				{
 					self.up_state = true;

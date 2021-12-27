@@ -1,6 +1,7 @@
 use crate::game_state;
 use na::{Point2, Point3, Vector3};
 use nalgebra as na;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Copy, Clone)]
@@ -123,7 +124,7 @@ pub struct Drawable
 	pub sprite_sheet: String,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum WeaponType
 {
 	SantaGun,
@@ -131,6 +132,7 @@ pub enum WeaponType
 	RocketGun,
 	FlameGun,
 	FreezeGun,
+	OrbGun,
 }
 
 impl WeaponType
@@ -144,6 +146,7 @@ impl WeaponType
 			WeaponType::RocketGun => 8.,
 			WeaponType::FlameGun => 8.,
 			WeaponType::FreezeGun => 8.,
+			WeaponType::OrbGun => 4.,
 		}
 	}
 }
@@ -202,14 +205,23 @@ impl Weapon
 			weapon_type: WeaponType::FreezeGun,
 		}
 	}
+
+	pub fn orb_gun() -> Self
+	{
+		Weapon {
+			delay: 0.5,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::OrbGun,
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
 pub struct WeaponSet
 {
-	pub weapons: Vec<Weapon>,
+	pub weapons: HashMap<WeaponType, Weapon>,
 	pub want_to_fire: bool,
-	pub cur_weapon: usize,
+	pub cur_weapon: WeaponType,
 	pub last_fire_time: f64,
 }
 
@@ -260,6 +272,7 @@ pub enum DeathEffect
 		radius: f32,
 		push_strength: f32,
 	},
+	Orb,
 }
 
 pub struct OnDeathEffect
