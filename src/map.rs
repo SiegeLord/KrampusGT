@@ -463,6 +463,8 @@ pub fn spawn_rocket(
 			],
 		},
 		components::Spawner {
+			count: 0,
+			max_count: -1,
 			delay: 0.25,
 			time_to_spawn: 0.,
 			spawn_fn: Arc::new(move |pos, _, _, state, world| {
@@ -736,10 +738,22 @@ pub fn spawn_buggy(
 }
 
 pub fn spawn_monster(
-	pos: Point3<f32>, dir: f32, health_frac: f32, world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, health_frac: f32, counter_name: &str, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	let size = 2. * TILE / 8.;
+	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
+		move |pos, dir, vel, _, world| {
+			spawn_corpse(pos, dir, vel, size, "data/cat_corpse.cfg".into(), world)
+		},
+	))];
+	if !counter_name.is_empty()
+	{
+		on_death_effects.push(components::DeathEffect::IncrementCounter {
+			target: counter_name.into(),
+		});
+	}
+
 	world.spawn((
 		components::Position { pos: pos, dir: dir },
 		components::Velocity {
@@ -760,11 +774,7 @@ pub fn spawn_monster(
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
-			effects: vec![components::DeathEffect::Spawn(Box::new(
-				move |pos, dir, vel, _, world| {
-					spawn_corpse(pos, dir, vel, size, "data/cat_corpse.cfg".into(), world)
-				},
-			))],
+			effects: on_death_effects,
 		},
 		components::Team::Monster,
 		components::WeaponSet {
@@ -777,12 +787,74 @@ pub fn spawn_monster(
 			last_fire_time: -f64::INFINITY,
 		},
 		components::AI {
-			sense_range: TILE * 4.,
+			sense_range: TILE * 15.,
 			attack_range: TILE,
 			disengage_range: TILE * 5.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
 		},
+	))
+}
+
+pub fn spawn_spawner(
+	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let counter_name = counter_name.to_string();
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Active { active: false },
+		components::Spawner {
+			count: 0,
+			max_count: 2,
+			delay: 2.,
+			time_to_spawn: 0.,
+			spawn_fn: Arc::new(move |pos, dir, _, state, world| {
+				spawn_explosion(
+					pos,
+					TILE / 4.,
+					"data/purple_explosion.cfg".into(),
+					state,
+					world,
+				);
+				spawn_monster(pos, dir, 1., &counter_name, world)
+			}),
+		},
+	))
+}
+
+pub fn spawn_area_trigger(
+	start: Point2<f32>, end: Point2<f32>, targets: Vec<String>, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Active { active: true },
+		components::AreaTrigger {
+			start: start,
+			end: end,
+			targets: targets,
+		},
+	))
+}
+
+pub fn spawn_counter(max_count: i32, targets: Vec<String>, world: &mut hecs::World)
+	-> hecs::Entity
+{
+	world.spawn((
+		components::Active { active: true },
+		components::Counter {
+			count: 0,
+			max_count: max_count,
+			targets: targets,
+		},
+	))
+}
+
+pub fn spawn_deleter(targets: Vec<String>, world: &mut hecs::World) -> hecs::Entity
+{
+	world.spawn((
+		components::Active { active: false },
+		components::Deleter { targets: targets },
 	))
 }
 
@@ -954,6 +1026,7 @@ pub struct Map
 	desired_weapon: i32,
 
 	test: hecs::Entity,
+	named_entities: HashMap<String, hecs::Entity>,
 
 	world: hecs::World,
 }
@@ -972,16 +1045,16 @@ impl Map
 		};
 		let player = spawn_player(player_pos.pos, player_pos.dir, 1., &mut world);
 		let mut test = player;
-		//~ for z in [0]
-		for z in -1..=1
+		for z in [0]
+		//~ for z in -1..=1
 		//~ for z in [0, -1]
 		{
-			//~ break;
-			//~ for x in [0]
-			for x in -1..=1
+			break;
+			for x in [0]
+			//~ for x in -1..=1
 			{
 				let pos = Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.);
-				let monster = spawn_monster(pos, 0., 1., &mut world);
+				let monster = spawn_monster(pos, 0., 1., "", &mut world);
 				if z == 0
 				{
 					test = monster;
@@ -990,7 +1063,29 @@ impl Map
 			}
 		}
 
-		spawn_buggy(Point3::new(-512., 0., 512.), 0., 1., &mut world);
+		let mut named_entities = HashMap::new();
+
+		spawn_area_trigger(
+			Point2::new(-128., 128.),
+			Point2::new(128., 256.),
+			vec!["spawner".into(), "deleter".into()],
+			&mut world,
+		);
+
+		let spawner = spawn_spawner(Point3::new(0., 0., 256.), 0., "counter", &mut world);
+		named_entities.insert("spawner".into(), spawner);
+
+		let counter = spawn_counter(2, vec!["spawner2".into()], &mut world);
+		named_entities.insert("counter".into(), counter);
+
+		let spawner = spawn_spawner(Point3::new(0., 0., 512.), 0., "", &mut world);
+		named_entities.insert("spawner2".into(), spawner);
+
+		let deleter = spawn_deleter(vec!["buggy".into()], &mut world);
+		named_entities.insert("deleter".into(), deleter);
+
+		let buggy = spawn_buggy(Point3::new(-512., 0., 512.), 0., 1., &mut world);
+		named_entities.insert("buggy".into(), buggy);
 
 		state.cache_sprite_sheet("data/ice_cloud.cfg")?;
 		state.cache_sprite_sheet("data/flame_cloud.cfg")?;
@@ -1023,6 +1118,7 @@ impl Map
 			clear_rot: false,
 			enter_state: false,
 			desired_weapon: 0,
+			named_entities: named_entities,
 		})
 	}
 
@@ -1437,10 +1533,14 @@ impl Map
 		}
 
 		// Velocity handling.
-		for (_, (pos, vel)) in self
+		for (id, (pos, vel)) in self
 			.world
 			.query_mut::<(&mut components::Position, &components::Velocity)>()
 		{
+			if id == self.test
+			{
+				//~ dbg!(pos.clone());
+			}
 			pos.pos += utils::DT * vel.vel;
 			pos.dir += utils::DT * vel.dir_vel;
 			//pos.dir = pos.dir.fmod(2. * f32::pi());
@@ -1661,22 +1761,125 @@ impl Map
 		}
 
 		// Spawner
-		for (_, (pos, spawner)) in self
+		for (id, (pos, spawner)) in self
 			.world
-			.query_mut::<(&components::Position, &mut components::Spawner)>()
+			.query::<(&components::Position, &mut components::Spawner)>()
+			.iter()
 		{
-			if state.time() > spawner.time_to_spawn
+			if self
+				.world
+				.get::<components::Active>(id)
+				.map(|a| a.active)
+				.unwrap_or(true)
 			{
-				spawner.time_to_spawn = state.time() + spawner.delay;
-				let point_pos = pos.pos.clone();
-				let dir = pos.dir;
-				let spawn_fn = spawner.spawn_fn.clone();
-				spawn_fns.push((
-					false,
-					Box::new(move |state, world| {
-						spawn_fn(point_pos, dir, Vector3::zeros(), state, world)
-					}),
-				));
+				if state.time() > spawner.time_to_spawn
+					&& (spawner.count < spawner.max_count || spawner.max_count == -1)
+				{
+					spawner.time_to_spawn = state.time() + spawner.delay;
+					let point_pos = pos.pos.clone();
+					let dir = pos.dir;
+					let spawn_fn = spawner.spawn_fn.clone();
+					spawner.count += 1;
+					spawn_fns.push((
+						false,
+						Box::new(move |state, world| {
+							spawn_fn(point_pos, dir, Vector3::zeros(), state, world)
+						}),
+					));
+				}
+			}
+		}
+
+		// Area trigger
+		for (id, area_trigger) in self.world.query::<&components::AreaTrigger>().iter()
+		{
+			if self
+				.world
+				.get::<components::Active>(id)
+				.map(|a| a.active)
+				.unwrap_or(true)
+			{
+				let entries = grid.query_rect(area_trigger.start, area_trigger.end, |entry| {
+					if let Ok(team) = self.world.get::<components::Team>(entry.inner.id)
+					{
+						*team == components::Team::Player
+					}
+					else
+					{
+						false
+					}
+				});
+				if !entries.is_empty()
+				{
+					for target in &area_trigger.targets
+					{
+						if let Some(&entity) = self.named_entities.get(target)
+						{
+							if self.world.contains(entity)
+							{
+								if let Ok(mut active) =
+									self.world.get_mut::<components::Active>(entity)
+								{
+									active.active = true;
+								}
+							}
+						}
+					}
+					to_die.push((true, id));
+				}
+			}
+		}
+
+		// Counter
+		for (id, counter) in self.world.query::<&components::Counter>().iter()
+		{
+			if self
+				.world
+				.get::<components::Active>(id)
+				.map(|a| a.active)
+				.unwrap_or(true)
+			{
+				if counter.count >= counter.max_count
+				{
+					for target in &counter.targets
+					{
+						if let Some(&entity) = self.named_entities.get(target)
+						{
+							if self.world.contains(entity)
+							{
+								if let Ok(mut active) =
+									self.world.get_mut::<components::Active>(entity)
+								{
+									active.active = true;
+								}
+							}
+						}
+					}
+					to_die.push((true, id));
+				}
+			}
+		}
+
+		// Deleter
+		for (id, deleter) in self.world.query::<&components::Deleter>().iter()
+		{
+			if self
+				.world
+				.get::<components::Active>(id)
+				.map(|a| a.active)
+				.unwrap_or(true)
+			{
+				for target in &deleter.targets
+				{
+					if let Some(&entity) = self.named_entities.get(target)
+					{
+						if self.world.contains(entity)
+						{
+							to_die.push((true, entity));
+						}
+					}
+				}
+				to_die.push((true, id));
 			}
 		}
 
@@ -1798,6 +2001,20 @@ impl Map
 											)
 										}),
 									));
+								}
+							}
+							components::DeathEffect::IncrementCounter { target } =>
+							{
+								if let Some(&entity) = self.named_entities.get(&target)
+								{
+									if self.world.contains(entity)
+									{
+										if let Ok(mut counter) =
+											self.world.get_mut::<components::Counter>(entity)
+										{
+											counter.count += 1;
+										}
+									}
 								}
 							}
 						}

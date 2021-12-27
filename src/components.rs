@@ -273,6 +273,10 @@ pub enum DeathEffect
 		push_strength: f32,
 	},
 	Orb,
+	IncrementCounter
+	{
+		target: String,
+	},
 }
 
 pub struct OnDeathEffect
@@ -280,9 +284,16 @@ pub struct OnDeathEffect
 	pub effects: Vec<DeathEffect>,
 }
 
+pub struct Active
+{
+	pub active: bool,
+}
+
 pub struct Spawner
 {
 	pub delay: f64,
+	pub count: i32,
+	pub max_count: i32,
 	pub time_to_spawn: f64,
 	pub spawn_fn: Arc<
 		dyn Fn(
@@ -295,6 +306,25 @@ pub struct Spawner
 			+ Sync
 			+ Send,
 	>,
+}
+
+pub struct AreaTrigger
+{
+	pub start: Point2<f32>,
+	pub end: Point2<f32>,
+	pub targets: Vec<String>,
+}
+
+pub struct Counter
+{
+	pub count: i32,
+	pub max_count: i32,
+	pub targets: Vec<String>,
+}
+
+pub struct Deleter
+{
+	pub targets: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
