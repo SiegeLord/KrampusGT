@@ -18,6 +18,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub const TILE: f32 = 64.;
+pub const FREEZE_FACTOR: f32 = 0.5;
 
 struct Bucket
 {
@@ -80,7 +81,8 @@ impl Scene
 }
 
 fn draw_billboard(
-	pos: Point3<f32>, camera_angle: f32, size: f32, bitmap: &atlas::AtlasBitmap, scene: &mut Scene,
+	pos: Point3<f32>, camera_angle: f32, size: f32, bitmap: &atlas::AtlasBitmap, color: Color,
+	scene: &mut Scene,
 )
 {
 	let rot = Rotation2::new(camera_angle);
@@ -96,8 +98,6 @@ fn draw_billboard(
 	let pos2 = pos + horiz_offt + vert_offt;
 	let pos3 = pos + horiz_offt;
 	let pos4 = pos - horiz_offt;
-
-	let color = Color::from_rgb_f(1., 1., 1.);
 
 	let idx = scene.num_vertices(bitmap.page);
 	scene.add_vertices(
@@ -380,7 +380,7 @@ pub fn spawn_projectile(
 			sprite_sheet: "data/bullet.cfg".into(),
 		},
 		components::Solid {
-			size: size,
+			size: size / 2.,
 			mass: 0.,
 			collision_class: components::CollisionClass::Tiny,
 		},
@@ -390,7 +390,12 @@ pub fn spawn_projectile(
 		components::OnContactEffect {
 			effects: vec![
 				components::ContactEffect::Die,
-				components::ContactEffect::Hurt { damage: 6. },
+				components::ContactEffect::Hurt {
+					damage: components::Damage {
+						amount: 6.,
+						damage_type: components::DamageType::Regular,
+					},
+				},
 			],
 		},
 		components::OnDeathEffect {
@@ -425,7 +430,7 @@ pub fn spawn_rocket(
 			sprite_sheet: "data/bullet.cfg".into(),
 		},
 		components::Solid {
-			size: size,
+			size: size / 2.,
 			mass: 0.,
 			collision_class: components::CollisionClass::Tiny,
 		},
@@ -447,7 +452,10 @@ pub fn spawn_rocket(
 					)
 				})),
 				components::DeathEffect::DamageInRadius {
-					damage: 12.,
+					damage: components::Damage {
+						amount: 12.,
+						damage_type: components::DamageType::Regular,
+					},
 					radius: TILE,
 					push_strength: 100.,
 				},
@@ -465,6 +473,84 @@ pub fn spawn_rocket(
 					world,
 				)
 			}),
+		},
+	))
+}
+
+pub fn spawn_flame(
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::FlameGun.proj_size() / 3.;
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 64. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/flame_cloud.cfg".into(),
+		},
+		components::Solid {
+			mass: 0.,
+			size: size / 2.,
+			collision_class: components::CollisionClass::Gas,
+		},
+		components::GasCloud {
+			base_size: size,
+			growth_rate: 32.,
+		},
+		components::CreationTime { time: state.time() },
+		components::TimeToDie {
+			time_to_die: state.time() + 0.75,
+		},
+		components::OnContactEffect {
+			effects: vec![components::ContactEffect::DamageOverTime {
+				damage_rate: components::Damage {
+					amount: 4.,
+					damage_type: components::DamageType::Flame,
+				},
+			}],
+		},
+	))
+}
+
+pub fn spawn_freeze(
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::FlameGun.proj_size() / 3.;
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 64. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/ice_cloud.cfg".into(),
+		},
+		components::Solid {
+			mass: 0.,
+			size: size / 2.,
+			collision_class: components::CollisionClass::Gas,
+		},
+		components::GasCloud {
+			base_size: size,
+			growth_rate: 32.,
+		},
+		components::CreationTime { time: state.time() },
+		components::TimeToDie {
+			time_to_die: state.time() + 0.75,
+		},
+		components::OnContactEffect {
+			effects: vec![components::ContactEffect::DamageOverTime {
+				damage_rate: components::Damage {
+					amount: 2.,
+					damage_type: components::DamageType::Cold,
+				},
+			}],
 		},
 	))
 }
@@ -532,7 +618,7 @@ pub fn spawn_player(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::WeaponSet {
-			weapons: vec![components::Weapon::rocket_gun()],
+			weapons: vec![components::Weapon::freeze_gun()],
 			cur_weapon: 0,
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
@@ -540,6 +626,7 @@ pub fn spawn_player(
 		components::Health {
 			health: 100. * health_frac,
 		},
+		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
 				move |pos, dir, vel, _, world| {
@@ -574,6 +661,7 @@ pub fn spawn_buggy(
 		components::Health {
 			health: 50. * health_frac,
 		},
+		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
 				move |pos, _, _, state, world| {
@@ -615,6 +703,7 @@ pub fn spawn_monster(
 		components::Health {
 			health: 10. * health_frac,
 		},
+		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
 				move |pos, dir, vel, _, world| {
@@ -624,14 +713,14 @@ pub fn spawn_monster(
 		},
 		components::Team::Monster,
 		components::WeaponSet {
-			weapons: vec![components::Weapon::santa_gun()],
+			weapons: vec![components::Weapon::flame_gun()],
 			cur_weapon: 0,
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
 		components::AI {
 			sense_range: TILE * 4.,
-			attack_range: TILE * 3.,
+			attack_range: TILE,
 			disengage_range: TILE * 5.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
@@ -725,6 +814,7 @@ fn segment_check(
 			if let Ok(solid) = world.get::<components::Solid>(entry.inner.id)
 			{
 				if solid.collision_class == components::CollisionClass::Tiny
+					|| solid.collision_class == components::CollisionClass::Gas
 				{
 					return false;
 				}
@@ -843,6 +933,8 @@ impl Map
 
 		spawn_buggy(Point3::new(-512., 0., 512.), 0., 1., &mut world);
 
+		state.cache_sprite_sheet("data/ice_cloud.cfg")?;
+		state.cache_sprite_sheet("data/flame_cloud.cfg")?;
 		state.cache_sprite_sheet("data/purple_explosion.cfg")?;
 		state.cache_sprite_sheet("data/buggy.cfg")?;
 		state.cache_sprite_sheet("data/cat.cfg")?;
@@ -952,14 +1044,17 @@ impl Map
 					continue;
 				}
 
-				let diff = 0.9 * diff * (solid1.size + solid2.size - diff_norm) / diff_norm;
-				let diff = Vector3::new(diff.x, 0., diff.y);
-
-				let f = 1. - solid1.mass / (solid2.mass + solid1.mass);
-				if f32::is_finite(f)
+				if solid1.collision_class.interacts() && solid2.collision_class.interacts()
 				{
-					self.world.get_mut::<components::Position>(id1)?.pos -= diff * f;
-					self.world.get_mut::<components::Position>(id2)?.pos += diff * (1. - f);
+					let diff = 0.9 * diff * (solid1.size + solid2.size - diff_norm) / diff_norm;
+					let diff = Vector3::new(diff.x, 0., diff.y);
+
+					let f = 1. - solid1.mass / (solid2.mass + solid1.mass);
+					if f32::is_finite(f)
+					{
+						self.world.get_mut::<components::Position>(id1)?.pos -= diff * f;
+						self.world.get_mut::<components::Position>(id2)?.pos += diff * (1. - f);
+					}
 				}
 
 				if pass == 0
@@ -1000,6 +1095,56 @@ impl Map
 			}
 		}
 
+		// On contact effects.
+		for (id, other_id, effects) in on_contact_effects
+		{
+			for effect in effects
+			{
+				match (effect, other_id)
+				{
+					(components::ContactEffect::Die, _) => to_die.push((true, id)),
+					(components::ContactEffect::Hurt { damage }, Some(other_id)) =>
+					{
+						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
+						{
+							health.health -= damage.amount;
+						}
+						if damage.damage_type == components::DamageType::Cold
+						{
+							if let Ok(mut freezable) =
+								self.world.get_mut::<components::Freezable>(other_id)
+							{
+								freezable.amount = utils::min(
+									2.,
+									freezable.amount + FREEZE_FACTOR * damage.amount,
+								);
+							}
+						}
+					}
+					(components::ContactEffect::DamageOverTime { damage_rate }, Some(other_id)) =>
+					{
+						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
+						{
+							health.health -= damage_rate.amount * utils::DT;
+						}
+						if damage_rate.damage_type == components::DamageType::Cold
+						{
+							if let Ok(mut freezable) =
+								self.world.get_mut::<components::Freezable>(other_id)
+							{
+								freezable.amount = utils::min(
+									2.,
+									freezable.amount
+										+ FREEZE_FACTOR * damage_rate.amount * utils::DT,
+								);
+							}
+						}
+					}
+					_ => (),
+				}
+			}
+		}
+
 		// Player controller.
 		if self.world.contains(self.player)
 			&& self.world.get::<components::Team>(self.player).is_ok()
@@ -1008,6 +1153,11 @@ impl Map
 				.get::<components::Health>(self.player)
 				.map(|h| h.health > 0.)
 				.unwrap_or(false)
+			&& self
+				.world
+				.get::<components::Freezable>(self.player)
+				.map(|f| !f.is_frozen())
+				.unwrap_or(true)
 		{
 			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
 			let left_right = self.left_state as i32 - (self.right_state as i32);
@@ -1113,13 +1263,10 @@ impl Map
 			let proj_size = weapon.weapon_type.proj_size();
 			match weapon.weapon_type
 			{
-				components::WeaponType::SantaGun =>
-				{
-					let spawn_pos =
-						pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
-					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
-				}
-				components::WeaponType::RocketGun =>
+				components::WeaponType::SantaGun
+				| components::WeaponType::FlameGun
+				| components::WeaponType::RocketGun
+				| components::WeaponType::FreezeGun =>
 				{
 					let spawn_pos =
 						pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
@@ -1150,6 +1297,41 @@ impl Map
 				components::WeaponType::RocketGun =>
 				{
 					spawn_rocket(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
+				components::WeaponType::FlameGun =>
+				{
+					spawn_flame(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
+				components::WeaponType::FreezeGun =>
+				{
+					spawn_freeze(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
+			}
+		}
+
+		// Gas cloud.
+		for (_, (gas_cloud, creation_time, solid, drawable)) in self.world.query_mut::<(
+			&components::GasCloud,
+			&components::CreationTime,
+			&mut components::Solid,
+			&mut components::Drawable,
+		)>()
+		{
+			let size = gas_cloud.base_size
+				+ gas_cloud.growth_rate * (state.time() - creation_time.time) as f32;
+			solid.size = size / 2.;
+			drawable.size = size / 2.;
+		}
+
+		// Freezable
+		for (id, freezable) in self.world.query::<&mut components::Freezable>().iter()
+		{
+			freezable.amount = utils::max(0., freezable.amount - 0.25 * utils::DT);
+			if freezable.is_frozen()
+			{
+				if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(id)
+				{
+					weapon_set.want_to_fire = false;
 				}
 			}
 		}
@@ -1189,6 +1371,13 @@ impl Map
 			if health.health < 0.
 			{
 				continue;
+			}
+			if let Ok(freezable) = self.world.get::<components::Freezable>(id)
+			{
+				if freezable.is_frozen()
+				{
+					continue;
+				}
 			}
 			//~ if id == self.test
 			//~ {
@@ -1367,26 +1556,6 @@ impl Map
 			}
 		}
 
-		// On contact effects.
-		for (id, other_id, effects) in on_contact_effects
-		{
-			for effect in effects
-			{
-				match (effect, other_id)
-				{
-					(components::ContactEffect::Die, _) => to_die.push((true, id)),
-					(components::ContactEffect::Hurt { damage }, Some(other_id)) =>
-					{
-						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
-						{
-							health.health -= damage;
-						}
-					}
-					_ => (),
-				}
-			}
-		}
-
 		// Health
 		let mut spawn_fns: Vec<(
 			bool,
@@ -1493,7 +1662,21 @@ impl Map
 								{
 									let mut health =
 										self.world.get_mut::<components::Health>(entry.inner.id)?;
-									health.health -= damage;
+									health.health -= damage.amount;
+
+									if damage.damage_type == components::DamageType::Cold
+									{
+										if let Ok(mut freezable) = self
+											.world
+											.get_mut::<components::Freezable>(entry.inner.id)
+										{
+											freezable.amount = utils::min(
+												2.,
+												freezable.amount + FREEZE_FACTOR * damage.amount,
+											);
+										}
+									}
+
 									if let (Ok(other_pos), Ok(solid), Ok(mut other_vel)) = (
 										self.world.get::<components::Position>(entry.inner.id),
 										self.world.get::<components::Solid>(entry.inner.id),
@@ -1595,10 +1778,21 @@ impl Map
 				.map(|v| v.time)
 				.unwrap_or(0.);
 
+			let mut color = Color::from_rgb_f(1., 1., 1.);
+			let mut f = 1.;
+			if let Ok(freezable) = self.world.get::<components::Freezable>(id)
+			{
+				if freezable.is_frozen()
+				{
+					color = Color::from_rgb_f(0.5, 0.5, 1.);
+					f = 0.;
+				}
+			}
+
 			let sheet = state.get_sprite_sheet(&drawable.sprite_sheet).unwrap();
 			let bmp = &sheet
 				.get_bitmap(
-					state.time() - time_offset,
+					f * (state.time() - time_offset),
 					pos.dir,
 					self.camera_anchor.dir,
 					self.world
@@ -1614,6 +1808,7 @@ impl Map
 				self.camera_anchor.dir,
 				2. * drawable.size,
 				bmp,
+				color,
 				&mut scene,
 			);
 		}

@@ -26,11 +26,48 @@ pub struct Velocity
 	pub dir_vel: f32,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct GasCloud
+{
+	pub base_size: f32,
+	pub growth_rate: f32,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Freezable
+{
+	pub amount: f32,
+}
+
+impl Freezable
+{
+	pub fn is_frozen(&self) -> bool
+	{
+		self.amount > 1.
+	}
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum DamageType
+{
+	Regular,
+	Flame,
+	Cold,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Damage
+{
+	pub amount: f32,
+	pub damage_type: DamageType,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CollisionClass
 {
 	Regular,
 	Tiny,
+	Gas,
 }
 
 impl CollisionClass
@@ -43,12 +80,30 @@ impl CollisionClass
 			{
 				CollisionClass::Regular => true,
 				CollisionClass::Tiny => true,
+				CollisionClass::Gas => true,
 			},
 			CollisionClass::Tiny => match other
 			{
 				CollisionClass::Regular => true,
 				CollisionClass::Tiny => false,
+				CollisionClass::Gas => false,
 			},
+			CollisionClass::Gas => match other
+			{
+				CollisionClass::Regular => false,
+				CollisionClass::Tiny => false,
+				CollisionClass::Gas => false,
+			},
+		}
+	}
+
+	pub fn interacts(&self) -> bool
+	{
+		match self
+		{
+			CollisionClass::Regular => true,
+			CollisionClass::Tiny => true,
+			CollisionClass::Gas => false,
 		}
 	}
 }
@@ -74,6 +129,8 @@ pub enum WeaponType
 	SantaGun,
 	BuggyGun,
 	RocketGun,
+	FlameGun,
+	FreezeGun,
 }
 
 impl WeaponType
@@ -85,6 +142,8 @@ impl WeaponType
 			WeaponType::SantaGun => 4.,
 			WeaponType::BuggyGun => 4.,
 			WeaponType::RocketGun => 8.,
+			WeaponType::FlameGun => 8.,
+			WeaponType::FreezeGun => 8.,
 		}
 	}
 }
@@ -125,6 +184,24 @@ impl Weapon
 			weapon_type: WeaponType::RocketGun,
 		}
 	}
+
+	pub fn flame_gun() -> Self
+	{
+		Weapon {
+			delay: 0.125,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::FlameGun,
+		}
+	}
+
+	pub fn freeze_gun() -> Self
+	{
+		Weapon {
+			delay: 0.125,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::FreezeGun,
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -148,7 +225,11 @@ pub enum ContactEffect
 	Die,
 	Hurt
 	{
-		damage: f32,
+		damage: Damage,
+	},
+	DamageOverTime
+	{
+		damage_rate: Damage,
 	},
 }
 
@@ -175,7 +256,7 @@ pub enum DeathEffect
 	),
 	DamageInRadius
 	{
-		damage: f32,
+		damage: Damage,
 		radius: f32,
 		push_strength: f32,
 	},
