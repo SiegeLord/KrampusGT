@@ -1,5 +1,12 @@
+use crate::game_state;
 use na::{Point2, Point3, Vector3};
 use nalgebra as na;
+
+#[derive(Debug, Copy, Clone)]
+pub struct CreationTime
+{
+	pub time: f64,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Position
@@ -58,10 +65,39 @@ pub struct Drawable
 }
 
 #[derive(Debug, Clone)]
+pub enum WeaponType
+{
+	SantaGun,
+	BuggyGun,
+}
+
+#[derive(Debug, Clone)]
 pub struct Weapon
 {
 	pub delay: f64,
 	pub time_to_fire: f64,
+	pub weapon_type: WeaponType,
+}
+
+impl Weapon
+{
+	pub fn santa_gun() -> Self
+	{
+		Weapon {
+			delay: 0.2,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::SantaGun,
+		}
+	}
+
+	pub fn buggy_gun() -> Self
+	{
+		Weapon {
+			delay: 0.2,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::BuggyGun,
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -80,7 +116,7 @@ pub struct TimeToDie
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum Effect
+pub enum ContactEffect
 {
 	Die,
 	Hurt
@@ -92,14 +128,34 @@ pub enum Effect
 #[derive(Debug, Clone)]
 pub struct OnContactEffect
 {
-	pub effects: Vec<Effect>,
+	pub effects: Vec<ContactEffect>,
+}
+
+pub enum DeathEffect
+{
+	Spawn(
+		Box<
+			dyn FnOnce(
+					Point3<f32>,
+					f32,
+					&mut game_state::GameState,
+					&mut hecs::World,
+				) -> hecs::Entity
+				+ Sync
+				+ Send,
+		>,
+	),
+}
+
+pub struct OnDeathEffect
+{
+	pub effects: Vec<DeathEffect>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Health
 {
 	pub health: f32,
-	pub corpse_sprite_sheet: String,
 }
 
 #[derive(Debug, Copy, Clone)]

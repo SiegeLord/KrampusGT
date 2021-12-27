@@ -5,6 +5,11 @@ use allegro::*;
 use nalgebra::{RealField, Vector2, Vector3};
 use serde_derive::{Deserialize, Serialize};
 
+fn default_speed() -> f32
+{
+	100.
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 struct OrientationDesc
 {
@@ -19,6 +24,8 @@ struct OrientationDesc
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 struct CharacterSpriteSheetDesc
 {
+	#[serde(default = "default_speed")]
+	speed: f32,
 	orientations: Vec<OrientationDesc>,
 }
 
@@ -98,7 +105,7 @@ impl CharacterSpriteSheet
 		let orientation = &self.orientations
 			[((rel_dir + f32::pi() + window_size / 2.) / window_size) as usize % num_orientations];
 
-		let mut speed = 1.;
+		let mut speed = self.desc.speed * 100.;
 		let mut reverse = false;
 		let mut animation = &orientation.idle;
 
@@ -112,14 +119,14 @@ impl CharacterSpriteSheet
 				if vel.vel.norm() > 0.
 				{
 					eff_vel = vel.vel.xz().dot(&dir).signum() * vel.vel.norm();
-					speed = f * eff_vel.abs();
+					speed = self.desc.speed * f * eff_vel.abs();
 					reverse = eff_vel < 0.;
 					animation = walk;
 				}
 				else if vel.dir_vel.abs() > 0.
 				{
 					eff_vel = 50. * vel.dir_vel;
-					speed = f * eff_vel.abs();
+					speed = self.desc.speed * f * eff_vel.abs();
 					reverse = eff_vel < 0.;
 					animation = walk;
 				}
