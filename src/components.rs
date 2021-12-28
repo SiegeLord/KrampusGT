@@ -435,4 +435,6 @@ pub struct Vehicle
 {
 	pub contents:
 		Option<Box<dyn Fn(Point3<f32>, f32, &mut hecs::World) -> hecs::Entity + Sync + Send>>,
+	pub health: Option<Health>,
+	pub weapon_set: Option<WeaponSet>,
 }

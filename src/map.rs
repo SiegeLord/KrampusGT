@@ -913,7 +913,11 @@ pub fn spawn_buggy(
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
-		components::Vehicle { contents: None },
+		components::Vehicle {
+			contents: None,
+			weapon_set: None,
+			health: None,
+		},
 	))
 }
 
@@ -1541,14 +1545,21 @@ impl Map
 			if self.enter_state
 			{
 				let mut spawn_fn = None;
+				let mut restore_health = None;
+				let mut restore_weapon_set = None;
 				if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(self.player)
 				{
+					restore_health = vehicle.health.take();
+					restore_weapon_set = vehicle.weapon_set.take();
 					spawn_fn = vehicle.contents.take();
 					self.enter_state = false;
 
 					let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
 					player_vel.vel = Vector3::zeros();
 					player_vel.dir_vel = 0.;
+
+					*self.world.get_mut::<components::Team>(self.player)? =
+						components::Team::Neutral;
 				}
 				else
 				{
@@ -1579,6 +1590,17 @@ impl Map
 						vehicle.contents = Some(Box::new(move |pos, dir, world| {
 							spawn_player(pos, dir, 1., world)
 						}));
+						vehicle.health = self
+							.world
+							.get::<components::Health>(self.player)
+							.ok()
+							.map(|h| (*h).clone());
+						vehicle.weapon_set = self
+							.world
+							.get::<components::WeaponSet>(self.player)
+							.ok()
+							.map(|w| (*w).clone());
+
 						to_die.push((false, self.player));
 						*self
 							.world
@@ -1596,6 +1618,21 @@ impl Map
 						dir,
 						&mut self.world,
 					);
+					if let Ok(mut health) = self.world.get_mut::<components::Health>(self.player)
+					{
+						if let Some(restore_health) = restore_health
+						{
+							*health = restore_health;
+						}
+					}
+					if let Ok(mut weapon_set) =
+						self.world.get_mut::<components::WeaponSet>(self.player)
+					{
+						if let Some(restore_weapon_set) = restore_weapon_set
+						{
+							*weapon_set = restore_weapon_set
+						}
+					}
 				}
 			}
 
@@ -1859,6 +1896,14 @@ impl Map
 					components::Status::Attacking(target) =>
 					{
 						if !self.world.contains(target)
+						{
+							ai.status = components::Status::Idle;
+						}
+						else if self
+							.world
+							.get::<components::Team>(target)
+							.map(|other_team| team.friendly(&other_team))
+							.unwrap_or(true)
 						{
 							ai.status = components::Status::Idle;
 						}
