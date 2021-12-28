@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objecttypes>
+ <objecttype name="area trigger" color="#55ff7f">
+  <property name="active" type="bool" default="true"/>
+  <property name="target0" type="object" default="0"/>
+  <property name="target1" type="object" default="0"/>
+  <property name="target2" type="object" default="0"/>
+  <property name="target3" type="object" default="0"/>
+ </objecttype>
+ <objecttype name="counter" color="#ffaa00">
+  <property name="active" type="bool" default="true"/>
+  <property name="max_count" type="int" default="0"/>
+  <property name="target0" type="object" default="0"/>
+  <property name="target1" type="object" default="0"/>
+  <property name="target2" type="object" default="0"/>
+  <property name="target4" type="object" default="0"/>
+ </objecttype>
+ <objecttype name="deleter" color="#ff0000">
+  <property name="active" type="bool" default="false"/>
+  <property name="target0" type="object" default="0"/>
+  <property name="target1" type="object" default="0"/>
+  <property name="target2" type="object" default="0"/>
+  <property name="target3" type="object" default="0"/>
+  <property name="target4" type="object" default="0"/>
+ </objecttype>
+ <objecttype name="object" color="#00aa7f">
+  <property name="counter" type="object" default="0"/>
+  <property name="dir" type="float" default="0"/>
+  <property name="spawn" type="string"/>
+ </objecttype>
+ <objecttype name="spawner" color="#aa55ff">
+  <property name="active" type="bool" default="false"/>
+  <property name="counter" type="object" default="0"/>
+  <property name="delay" type="float" default="0"/>
+  <property name="dir" type="float" default="0"/>
+  <property name="max_count" type="int" default="0"/>
+  <property name="spawn" type="string"/>
+ </objecttype>
+ <objecttype name="start" color="#ffff7f">
+  <property name="active" type="bool" default="false"/>
+  <property name="dir" type="float" default="0"/>
+ </objecttype>
+</objecttypes>

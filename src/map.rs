@@ -144,6 +144,101 @@ fn draw_billboard(
 	);
 }
 
+fn get_float_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<f32>>
+{
+	obj.properties.get(property).map(|p| match p
+	{
+		tiled::properties::PropertyValue::FloatValue(v) => Ok(*v),
+		other => Err(format!(
+			"Invalid value for '{}' in object {:?}: {:?}",
+			property, obj, other
+		)
+		.into()),
+	})
+}
+
+fn get_int_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<i32>>
+{
+	obj.properties.get(property).map(|p| match p
+	{
+		tiled::properties::PropertyValue::IntValue(v) => Ok(*v),
+		other => Err(format!(
+			"Invalid value for '{}' in object {:?}: {:?}",
+			property, obj, other
+		)
+		.into()),
+	})
+}
+
+fn get_bool_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<bool>>
+{
+	obj.properties.get(property).map(|p| match p
+	{
+		tiled::properties::PropertyValue::BoolValue(v) => Ok(*v),
+		other => Err(format!(
+			"Invalid value for '{}' in object {:?}: {:?}",
+			property, obj, other
+		)
+		.into()),
+	})
+}
+
+fn get_target_property(
+	property: &str, obj: &tiled::objects::Object, id_to_name: &HashMap<u32, String>,
+) -> Option<Result<String>>
+{
+	obj.properties.get(property).and_then(|p| match p
+	{
+		tiled::properties::PropertyValue::ObjectValue(v) =>
+		{
+			if *v == 0
+			{
+				return None;
+			}
+			else
+			{
+				Some(Ok(id_to_name[&v].clone()))
+			}
+		}
+		other => Some(Err(format!(
+			"Invalid value for '{}' in object {:?}: {:?}",
+			property, obj, other
+		)
+		.into())),
+	})
+}
+
+fn get_string_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<String>>
+{
+	obj.properties.get(property).map(|p| match p
+	{
+		tiled::properties::PropertyValue::StringValue(v) => Ok(v.clone()),
+		other => Err(format!(
+			"Invalid value for '{}' in object {:?}: {:?}",
+			property, obj, other
+		)
+		.into()),
+	})
+}
+
+fn get_targets_property(
+	obj: &tiled::objects::Object, id_to_name: &HashMap<u32, String>,
+) -> Result<Vec<String>>
+{
+	let mut ret = vec![];
+	for i in 0..10
+	{
+		let property = format!("target{}", i);
+		let value = get_target_property(&property, obj, id_to_name);
+		if value.is_none()
+		{
+			break;
+		}
+		ret.push(value.unwrap()?);
+	}
+	Ok(ret)
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct LevelDesc
 {
@@ -161,17 +256,22 @@ pub struct Level
 
 impl Level
 {
-	pub fn new(filename: &str) -> Result<Self>
+	pub fn new(
+		filename: &str, named_entities: &mut HashMap<String, hecs::Entity>,
+		state: &mut game_state::GameState, world: &mut hecs::World,
+	) -> Result<Self>
 	{
 		let desc: LevelDesc = utils::load_config(filename)?;
 
 		let tile_meshes = load_meshes(&desc.meshes);
 
 		let map = tiled::parse_file(&Path::new(&desc.level))?;
+		let tile_width = map.tile_width as f32;
+
 		let layer_tiles = &map.layers[0].tiles;
 		let layer_tiles = match layer_tiles
 		{
-			tiled::LayerData::Finite(layer_tiles) => layer_tiles,
+			tiled::layers::LayerData::Finite(layer_tiles) => layer_tiles,
 			_ => return Err("Bad map!".to_string().into()),
 		};
 
@@ -193,6 +293,81 @@ impl Level
 		for i in 0..tile_meshes.len()
 		{
 			tile_meshes_vec.push(tile_meshes[&i.to_string()].clone())
+		}
+
+		let mut id_to_name = HashMap::new();
+		let objects = &map.object_groups[0].objects;
+		for obj in objects
+		{
+			id_to_name.insert(obj.id, obj.name.clone());
+		}
+		for obj in objects
+		{
+			let start = Point3::new(obj.x, 0., obj.y) / tile_width * TILE;
+			let end = Point3::new(obj.x + obj.width, 0., obj.y + obj.height) / tile_width * TILE;
+			let center = start + (end - start) / 2.;
+			dbg!(obj, start, tile_width, TILE, center);
+
+			let entity = match &obj.obj_type[..]
+			{
+				"start" => spawn_player_start(
+					center,
+					get_float_property("dir", obj).unwrap_or(Ok(0.))?,
+					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					world,
+				),
+				"area trigger" => spawn_area_trigger(
+					start.xz(),
+					end.xz(),
+					get_targets_property(obj, &id_to_name)?,
+					get_bool_property("active", obj).unwrap_or(Ok(true))?,
+					world,
+				),
+				"spawner" => spawn_spawner(
+					center,
+					get_float_property("dir", obj).unwrap_or(Ok(0.))?,
+					&get_target_property("counter", obj, &id_to_name)
+						.unwrap_or(Ok("".to_string()))?,
+					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					str_to_spawn_fn(&get_string_property("spawn", obj).unwrap_or(Err(
+						format!("Spawner {:?} needs 'spawn' specified.", obj).into(),
+					))?)?,
+					get_int_property("max_count", obj).unwrap_or(Ok(1))?,
+					get_float_property("delay", obj).unwrap_or(Ok(0.1))?,
+					world,
+				),
+				"counter" => spawn_counter(
+					get_int_property("max_count", obj).unwrap_or(Err(format!(
+						"Counter {:?} needs 'max_count' specified.",
+						obj
+					)
+					.into()))?,
+					get_targets_property(obj, &id_to_name)?,
+					get_bool_property("active", obj).unwrap_or(Ok(true))?,
+					world,
+				),
+				"deleter" => spawn_deleter(
+					get_targets_property(obj, &id_to_name)?,
+					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					world,
+				),
+				"object" =>
+				{
+					let spawn_fn = str_to_spawn_fn(&get_string_property("spawn", obj).unwrap_or(
+						Err(format!("Object {:?} needs 'spawn' specified.", obj).into()),
+					)?)?;
+					spawn_fn(
+						center,
+						get_float_property("dir", obj).unwrap_or(Ok(0.))?,
+						&get_target_property("counter", obj, &id_to_name)
+							.unwrap_or(Ok("".to_string()))?,
+						state,
+						world,
+					)
+				}
+				other => return Err(format!("Unknown object type '{}'", other).into()),
+			};
+			named_entities.insert(obj.name.clone(), entity);
 		}
 
 		Ok(Level {
@@ -797,17 +972,23 @@ pub fn spawn_monster(
 }
 
 pub fn spawn_spawner(
-	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, counter_name: &str, active: bool,
+	spawn_fn: Arc<
+		dyn Fn(Point3<f32>, f32, &str, &mut game_state::GameState, &mut hecs::World) -> hecs::Entity
+			+ Sync
+			+ Send,
+	>,
+	max_count: i32, delay: f32, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	let counter_name = counter_name.to_string();
 	world.spawn((
 		components::Position { pos: pos, dir: dir },
-		components::Active { active: false },
+		components::Active { active: active },
 		components::Spawner {
 			count: 0,
-			max_count: 2,
-			delay: 2.,
+			max_count: max_count,
+			delay: delay as f64,
 			time_to_spawn: 0.,
 			spawn_fn: Arc::new(move |pos, dir, _, state, world| {
 				spawn_explosion(
@@ -817,18 +998,19 @@ pub fn spawn_spawner(
 					state,
 					world,
 				);
-				spawn_monster(pos, dir, 1., &counter_name, world)
+				spawn_fn(pos, dir, &counter_name, state, world)
 			}),
 		},
 	))
 }
 
 pub fn spawn_area_trigger(
-	start: Point2<f32>, end: Point2<f32>, targets: Vec<String>, world: &mut hecs::World,
+	start: Point2<f32>, end: Point2<f32>, targets: Vec<String>, active: bool,
+	world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	world.spawn((
-		components::Active { active: true },
+		components::Active { active: active },
 		components::AreaTrigger {
 			start: start,
 			end: end,
@@ -837,11 +1019,12 @@ pub fn spawn_area_trigger(
 	))
 }
 
-pub fn spawn_counter(max_count: i32, targets: Vec<String>, world: &mut hecs::World)
-	-> hecs::Entity
+pub fn spawn_counter(
+	max_count: i32, targets: Vec<String>, active: bool, world: &mut hecs::World,
+) -> hecs::Entity
 {
 	world.spawn((
-		components::Active { active: true },
+		components::Active { active: active },
 		components::Counter {
 			count: 0,
 			max_count: max_count,
@@ -850,12 +1033,44 @@ pub fn spawn_counter(max_count: i32, targets: Vec<String>, world: &mut hecs::Wor
 	))
 }
 
-pub fn spawn_deleter(targets: Vec<String>, world: &mut hecs::World) -> hecs::Entity
+pub fn spawn_deleter(targets: Vec<String>, active: bool, world: &mut hecs::World) -> hecs::Entity
 {
 	world.spawn((
-		components::Active { active: false },
+		components::Active { active: active },
 		components::Deleter { targets: targets },
 	))
+}
+
+pub fn spawn_player_start(
+	pos: Point3<f32>, dir: f32, active: bool, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Active { active: active },
+		components::PlayerStart,
+	))
+}
+
+fn str_to_spawn_fn(
+	name: &str,
+) -> Result<
+	Arc<
+		dyn Fn(Point3<f32>, f32, &str, &mut game_state::GameState, &mut hecs::World) -> hecs::Entity
+			+ Sync
+			+ Send,
+	>,
+>
+{
+	Ok(match name
+	{
+		"monster" =>
+		{
+			Arc::new(|pos, dir, counter, _, world| spawn_monster(pos, dir, 1., counter, world))
+		}
+		"buggy" => Arc::new(|pos, dir, _, _, world| spawn_buggy(pos, dir, 1., world)),
+		other => return Err(format!("Unknown spawn type '{}'", other).into()),
+	})
 }
 
 #[derive(Clone)]
@@ -1024,6 +1239,7 @@ pub struct Map
 	clear_rot: bool,
 	enter_state: bool,
 	desired_weapon: i32,
+	want_spawn: bool,
 
 	test: hecs::Entity,
 	named_entities: HashMap<String, hecs::Entity>,
@@ -1038,54 +1254,34 @@ impl Map
 	) -> Result<Self>
 	{
 		let mut world = hecs::World::default();
+		let mut named_entities = HashMap::new();
 
-		let player_pos = components::Position {
+		let level = Level::new("data/level.cfg", &mut named_entities, state, &mut world)?;
+
+		let mut camera_anchor = components::Position {
 			pos: Point3::new(0., 0., 0.),
 			dir: 0.,
 		};
-		let player = spawn_player(player_pos.pos, player_pos.dir, 1., &mut world);
-		let mut test = player;
-		for z in [0]
-		//~ for z in -1..=1
-		//~ for z in [0, -1]
+		let mut player_start_entity = None;
+		for (id, (active, pos, _)) in world.query_mut::<(
+			&components::Active,
+			&components::Position,
+			&components::PlayerStart,
+		)>()
 		{
-			break;
-			for x in [0]
-			//~ for x in -1..=1
+			if active.active
 			{
-				let pos = Point3::new(x as f32 * 32., 0., 256. + z as f32 * 32.);
-				let monster = spawn_monster(pos, 0., 1., "", &mut world);
-				if z == 0
-				{
-					test = monster;
-					dbg!(test);
-				}
+				camera_anchor = *pos;
+				player_start_entity = Some(id);
+				break;
 			}
 		}
-
-		let mut named_entities = HashMap::new();
-
-		spawn_area_trigger(
-			Point2::new(-128., 128.),
-			Point2::new(128., 256.),
-			vec!["spawner".into(), "deleter".into()],
-			&mut world,
-		);
-
-		let spawner = spawn_spawner(Point3::new(0., 0., 256.), 0., "counter", &mut world);
-		named_entities.insert("spawner".into(), spawner);
-
-		let counter = spawn_counter(2, vec!["spawner2".into()], &mut world);
-		named_entities.insert("counter".into(), counter);
-
-		let spawner = spawn_spawner(Point3::new(0., 0., 512.), 0., "", &mut world);
-		named_entities.insert("spawner2".into(), spawner);
-
-		let deleter = spawn_deleter(vec!["buggy".into()], &mut world);
-		named_entities.insert("deleter".into(), deleter);
-
-		let buggy = spawn_buggy(Point3::new(-512., 0., 512.), 0., 1., &mut world);
-		named_entities.insert("buggy".into(), buggy);
+		if player_start_entity.is_none()
+		{
+			return Err("Map has no start".to_string().into());
+		}
+		let player_start = player_start_entity.unwrap();
+		let test = player_start;
 
 		state.cache_sprite_sheet("data/ice_cloud.cfg")?;
 		state.cache_sprite_sheet("data/flame_cloud.cfg")?;
@@ -1104,9 +1300,9 @@ impl Map
 			projection: utils::projection_transform(display_width, display_height),
 			display_width: display_width,
 			display_height: display_height,
-			level: Level::new("data/level.cfg")?,
-			player: player,
-			camera_anchor: player_pos,
+			level: level,
+			player: player_start,
+			camera_anchor: camera_anchor,
 			world: world,
 			rot_left_state: 0,
 			rot_right_state: 0,
@@ -1118,6 +1314,7 @@ impl Map
 			clear_rot: false,
 			enter_state: false,
 			desired_weapon: 0,
+			want_spawn: true,
 			named_entities: named_entities,
 		})
 	}
@@ -1788,6 +1985,29 @@ impl Map
 					));
 				}
 			}
+		}
+
+		// Player start
+		if self.want_spawn
+		{
+			for (_, (active, pos, _)) in self.world.query_mut::<(
+				&components::Active,
+				&components::Position,
+				&components::PlayerStart,
+			)>()
+			{
+				if active.active
+				{
+					let point_pos = pos.pos.clone();
+					println!("point_pos {:?}", point_pos);
+					let dir = pos.dir;
+					spawn_fns.push((
+						true,
+						Box::new(move |_, world| spawn_player(point_pos, dir, 1., world)),
+					));
+				}
+			}
+			self.want_spawn = false;
 		}
 
 		// Area trigger

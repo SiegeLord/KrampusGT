@@ -327,6 +327,8 @@ pub struct Deleter
 	pub targets: Vec<String>,
 }
 
+pub struct PlayerStart;
+
 #[derive(Debug, Clone)]
 pub struct Health
 {
