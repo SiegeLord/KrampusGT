@@ -1,4 +1,4 @@
-use crate::game_state;
+use crate::{game_state, utils};
 use na::{Point2, Point3, Vector3};
 use nalgebra as na;
 use std::collections::HashMap;
@@ -375,6 +375,19 @@ pub struct PlayerStart;
 pub struct Health
 {
 	pub health: f32,
+	pub armour: f32,
+}
+
+impl Health
+{
+	pub fn damage(&mut self, damage: Damage, factor: f32)
+	{
+		let mut amount = damage.amount * factor;
+		let prevented_by_armor = utils::min(self.armour, amount / 3.);
+		self.armour -= prevented_by_armor;
+		amount -= prevented_by_armor;
+		self.health -= amount;
+	}
 }
 
 #[derive(Debug, Copy, Clone)]

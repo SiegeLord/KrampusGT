@@ -854,6 +854,7 @@ pub fn spawn_player(
 		},
 		components::Health {
 			health: 100. * health_frac,
+			armour: 100. * health_frac,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -894,6 +895,7 @@ pub fn spawn_buggy(
 		},
 		components::Health {
 			health: 50. * health_frac,
+			armour: 100. * health_frac,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -955,6 +957,7 @@ pub fn spawn_monster(
 		},
 		components::Health {
 			health: 10. * health_frac,
+			armour: 5. * health_frac,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -1474,7 +1477,7 @@ impl Map
 					{
 						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
 						{
-							health.health -= damage.amount;
+							health.damage(damage, 1.);
 						}
 						if damage.damage_type == components::DamageType::Cold
 						{
@@ -1492,7 +1495,7 @@ impl Map
 					{
 						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
 						{
-							health.health -= damage_rate.amount * utils::DT;
+							health.damage(damage_rate, utils::DT);
 						}
 						if damage_rate.damage_type == components::DamageType::Cold
 						{
@@ -2316,11 +2319,32 @@ impl Map
 
 				if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(id)
 				{
+					let restore_health = vehicle.health.take();
+					let restore_weapon_set = vehicle.weapon_set.take();
 					if let Some(spawn_fn) = vehicle.contents.take()
 					{
 						spawn_fns.push((
 							id == self.player,
-							Box::new(move |_, world| spawn_fn(point_pos, dir, world)),
+							Box::new(move |_, world| {
+								let entity = spawn_fn(point_pos, dir, world);
+								if let Ok(mut health) = world.get_mut::<components::Health>(entity)
+								{
+									if let Some(restore_health) = restore_health
+									{
+										*health = restore_health;
+									}
+								}
+								if let Ok(mut weapon_set) =
+									world.get_mut::<components::WeaponSet>(entity)
+								{
+									if let Some(restore_weapon_set) = restore_weapon_set
+									{
+										*weapon_set = restore_weapon_set
+									}
+								}
+
+								entity
+							}),
 						));
 					}
 				}
@@ -2509,7 +2533,7 @@ impl Map
 				dw + 48.,
 				self.display_height - 64.,
 				FontAlign::Centre,
-				&format!("{:.0}", health.health),
+				&format!("{:.0}", health.armour),
 			);
 
 			state.core.draw_text(
