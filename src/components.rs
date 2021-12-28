@@ -364,6 +364,14 @@ pub struct Counter
 	pub targets: Vec<String>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct Moveable
+{
+	pub speed: f32,
+	pub rot_speed: f32,
+	pub can_strafe: bool,
+}
+
 pub struct Deleter
 {
 	pub targets: Vec<String>,
@@ -448,6 +456,4 @@ pub struct Vehicle
 {
 	pub contents:
 		Option<Box<dyn Fn(Point3<f32>, f32, &mut hecs::World) -> hecs::Entity + Sync + Send>>,
-	pub health: Option<Health>,
-	pub weapon_set: Option<WeaponSet>,
 }

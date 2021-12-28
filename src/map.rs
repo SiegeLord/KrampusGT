@@ -807,7 +807,8 @@ pub fn spawn_explosion(
 }
 
 pub fn spawn_player(
-	pos: Point3<f32>, dir: f32, health_frac: f32, world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, health: components::Health, weapon_set: components::WeaponSet,
+	world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	let size = TILE / 8.;
@@ -826,37 +827,8 @@ pub fn spawn_player(
 			mass: 1.,
 			collision_class: components::CollisionClass::Regular,
 		},
-		components::WeaponSet {
-			weapons: HashMap::from([
-				(
-					components::WeaponType::OrbGun,
-					components::Weapon::orb_gun(),
-				),
-				(
-					components::WeaponType::SantaGun,
-					components::Weapon::santa_gun(),
-				),
-				(
-					components::WeaponType::RocketGun,
-					components::Weapon::rocket_gun(),
-				),
-				(
-					components::WeaponType::FlameGun,
-					components::Weapon::flame_gun(),
-				),
-				(
-					components::WeaponType::FreezeGun,
-					components::Weapon::freeze_gun(),
-				),
-			]),
-			cur_weapon: components::WeaponType::SantaGun,
-			want_to_fire: false,
-			last_fire_time: -f64::INFINITY,
-		},
-		components::Health {
-			health: 10. * health_frac,
-			armour: 10. * health_frac,
-		},
+		weapon_set,
+		health,
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
@@ -879,12 +851,15 @@ pub fn spawn_player(
 			ammount: 5,
 			time_to_regen: 0.,
 		},
+		components::Moveable {
+			speed: 100.,
+			rot_speed: f32::pi(),
+			can_strafe: true,
+		},
 	))
 }
 
-pub fn spawn_buggy(
-	pos: Point3<f32>, dir: f32, health_frac: f32, world: &mut hecs::World,
-) -> hecs::Entity
+pub fn spawn_buggy(pos: Point3<f32>, dir: f32, world: &mut hecs::World) -> hecs::Entity
 {
 	let size = 4. * TILE / 8.;
 	world.spawn((
@@ -903,8 +878,8 @@ pub fn spawn_buggy(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::Health {
-			health: 50. * health_frac,
-			armour: 100. * health_frac,
+			health: 50.,
+			armour: 100.,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -924,16 +899,17 @@ pub fn spawn_buggy(
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
-		components::Vehicle {
-			contents: None,
-			weapon_set: None,
-			health: None,
+		components::Vehicle { contents: None },
+		components::Moveable {
+			speed: 200.,
+			rot_speed: f32::pi(),
+			can_strafe: false,
 		},
 	))
 }
 
 pub fn spawn_monster(
-	pos: Point3<f32>, dir: f32, health_frac: f32, counter_name: &str, world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	let size = 2. * TILE / 8.;
@@ -973,8 +949,8 @@ pub fn spawn_monster(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::Health {
-			health: 10. * health_frac,
-			armour: 5. * health_frac,
+			health: 10.,
+			armour: 5.,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -1001,6 +977,11 @@ pub fn spawn_monster(
 			weapon_type: components::WeaponType::FlameGun,
 			ammount: 30,
 			time_to_regen: 0.,
+		},
+		components::Moveable {
+			speed: 50.,
+			rot_speed: f32::pi(),
+			can_strafe: true,
 		},
 	))
 }
@@ -1100,9 +1081,9 @@ fn str_to_spawn_fn(
 	{
 		"monster" =>
 		{
-			Arc::new(|pos, dir, counter, _, world| spawn_monster(pos, dir, 1., counter, world))
+			Arc::new(|pos, dir, counter, _, world| spawn_monster(pos, dir, counter, world))
 		}
-		"buggy" => Arc::new(|pos, dir, _, _, world| spawn_buggy(pos, dir, 1., world)),
+		"buggy" => Arc::new(|pos, dir, _, _, world| spawn_buggy(pos, dir, world)),
 		other => return Err(format!("Unknown spawn type '{}'", other).into()),
 	})
 }
@@ -1261,6 +1242,7 @@ pub struct Map
 	level: Level,
 
 	player: hecs::Entity,
+	lifes: i32,
 	camera_anchor: components::Position,
 
 	rot_left_state: i32,
@@ -1274,6 +1256,9 @@ pub struct Map
 	enter_state: bool,
 	desired_weapon: i32,
 	want_spawn: bool,
+
+	saved_health: components::Health,
+	saved_weapon_set: components::WeaponSet,
 
 	test: hecs::Entity,
 	named_entities: HashMap<String, hecs::Entity>,
@@ -1349,7 +1334,39 @@ impl Map
 			enter_state: false,
 			desired_weapon: 0,
 			want_spawn: true,
+			saved_health: components::Health {
+				health: 100.,
+				armour: 0.,
+			},
+			saved_weapon_set: components::WeaponSet {
+				weapons: HashMap::from([
+					(
+						components::WeaponType::OrbGun,
+						components::Weapon::orb_gun(),
+					),
+					(
+						components::WeaponType::SantaGun,
+						components::Weapon::santa_gun(),
+					),
+					(
+						components::WeaponType::RocketGun,
+						components::Weapon::rocket_gun(),
+					),
+					(
+						components::WeaponType::FlameGun,
+						components::Weapon::flame_gun(),
+					),
+					(
+						components::WeaponType::FreezeGun,
+						components::Weapon::freeze_gun(),
+					),
+				]),
+				cur_weapon: components::WeaponType::SantaGun,
+				want_to_fire: false,
+				last_fire_time: -f64::INFINITY,
+			},
 			named_entities: named_entities,
+			lifes: 3,
 		})
 	}
 
@@ -1546,14 +1563,22 @@ impl Map
 				.map(|f| !f.is_frozen())
 				.unwrap_or(true)
 		{
+			let moveable = *self.world.get::<components::Moveable>(self.player)?;
 			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
-			let left_right = self.left_state as i32 - (self.right_state as i32);
+			let left_right = if moveable.can_strafe
+			{
+				self.left_state as i32 - (self.right_state as i32)
+			}
+			else
+			{
+				0
+			};
 			let up_down = self.up_state as i32 - (self.down_state as i32);
 
 			let pos = *self.world.get::<components::Position>(self.player)?;
 			let dir = pos.dir;
 			let rot = Rotation2::new(dir);
-			let speed = 100.;
+			let speed = moveable.speed;
 			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
 
 			{
@@ -1565,12 +1590,8 @@ impl Map
 			if self.enter_state
 			{
 				let mut spawn_fn = None;
-				let mut restore_health = None;
-				let mut restore_weapon_set = None;
 				if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(self.player)
 				{
-					restore_health = vehicle.health.take();
-					restore_weapon_set = vehicle.weapon_set.take();
 					spawn_fn = vehicle.contents.take();
 					self.enter_state = false;
 
@@ -1607,19 +1628,15 @@ impl Map
 							.world
 							.get_mut::<components::Vehicle>(entry.inner.id)
 							.unwrap();
+
+						let health = (*self.world.get::<components::Health>(self.player)?).clone();
+						let weapon_set =
+							(*self.world.get::<components::WeaponSet>(self.player)?).clone();
+
+						// Why do I need to clone twice here.
 						vehicle.contents = Some(Box::new(move |pos, dir, world| {
-							spawn_player(pos, dir, 1., world)
+							spawn_player(pos, dir, health.clone(), weapon_set.clone(), world)
 						}));
-						vehicle.health = self
-							.world
-							.get::<components::Health>(self.player)
-							.ok()
-							.map(|h| (*h).clone());
-						vehicle.weapon_set = self
-							.world
-							.get::<components::WeaponSet>(self.player)
-							.ok()
-							.map(|w| (*w).clone());
 
 						to_die.push((false, self.player));
 						*self
@@ -1638,21 +1655,6 @@ impl Map
 						dir,
 						&mut self.world,
 					);
-					if let Ok(mut health) = self.world.get_mut::<components::Health>(self.player)
-					{
-						if let Some(restore_health) = restore_health
-						{
-							*health = restore_health;
-						}
-					}
-					if let Ok(mut weapon_set) =
-						self.world.get_mut::<components::WeaponSet>(self.player)
-					{
-						if let Some(restore_weapon_set) = restore_weapon_set
-						{
-							*weapon_set = restore_weapon_set
-						}
-					}
 				}
 			}
 
@@ -1829,10 +1831,11 @@ impl Map
 		}
 
 		// AI
-		for (id, (pos, vel, team, health, ai)) in self
+		for (id, (pos, moveable, vel, team, health, ai)) in self
 			.world
 			.query::<(
 				&components::Position,
+				&components::Moveable,
 				&mut components::Velocity,
 				&components::Team,
 				&components::Health,
@@ -1858,8 +1861,8 @@ impl Map
 			//~ }
 			if ai.time_to_check_status < state.time()
 			{
-				let rot_speed = f32::pi();
-				let speed = 50.;
+				let rot_speed = moveable.rot_speed;
+				let speed = moveable.speed;
 				let mut new_dir_vel = None;
 				let mut new_vel = None;
 				let mut do_attack = false;
@@ -2098,11 +2101,14 @@ impl Map
 				if active.active
 				{
 					let point_pos = pos.pos.clone();
-					println!("point_pos {:?}", point_pos);
+					let health = self.saved_health.clone();
+					let weapon_set = self.saved_weapon_set.clone();
 					let dir = pos.dir;
 					spawn_fns.push((
 						true,
-						Box::new(move |_, world| spawn_player(point_pos, dir, 1., world)),
+						Box::new(move |_, world| {
+							spawn_player(point_pos, dir, health, weapon_set, world)
+						}),
 					));
 				}
 			}
@@ -2110,6 +2116,7 @@ impl Map
 		}
 
 		// Area trigger
+		let mut save = false;
 		for (id, area_trigger) in self.world.query::<&components::AreaTrigger>().iter()
 		{
 			if self
@@ -2140,6 +2147,12 @@ impl Map
 									self.world.get_mut::<components::Active>(entity)
 								{
 									active.active = !active.active;
+
+									if active.active
+										&& self.world.get::<components::PlayerStart>(entity).is_ok()
+									{
+										save = true;
+									}
 								}
 							}
 						}
@@ -2170,12 +2183,29 @@ impl Map
 									self.world.get_mut::<components::Active>(entity)
 								{
 									active.active = !active.active;
+									if active.active
+										&& self.world.get::<components::PlayerStart>(entity).is_ok()
+									{
+										save = true;
+									}
 								}
 							}
 						}
 					}
 					to_die.push((true, id));
 				}
+			}
+		}
+
+		if save
+		{
+			if let Ok(health) = self.world.get::<components::Health>(self.player)
+			{
+				self.saved_health = (*health).clone();
+			}
+			if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+			{
+				self.saved_weapon_set = (*weapon_set).clone();
 			}
 		}
 
@@ -2342,32 +2372,11 @@ impl Map
 
 				if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(id)
 				{
-					let restore_health = vehicle.health.take();
-					let restore_weapon_set = vehicle.weapon_set.take();
 					if let Some(spawn_fn) = vehicle.contents.take()
 					{
 						spawn_fns.push((
 							id == self.player,
-							Box::new(move |_, world| {
-								let entity = spawn_fn(point_pos, dir, world);
-								if let Ok(mut health) = world.get_mut::<components::Health>(entity)
-								{
-									if let Some(restore_health) = restore_health
-									{
-										*health = restore_health;
-									}
-								}
-								if let Ok(mut weapon_set) =
-									world.get_mut::<components::WeaponSet>(entity)
-								{
-									if let Some(restore_weapon_set) = restore_weapon_set
-									{
-										*weapon_set = restore_weapon_set
-									}
-								}
-
-								entity
-							}),
+							Box::new(move |_, world| spawn_fn(point_pos, dir, world)),
 						));
 					}
 				}
@@ -2565,7 +2574,7 @@ impl Map
 				2. * dw + 48.,
 				self.display_height - 72.,
 				FontAlign::Centre,
-				"LIVES",
+				"LIFES",
 			);
 
 			state.core.draw_text(
@@ -2574,8 +2583,42 @@ impl Map
 				2. * dw + 48.,
 				self.display_height - 64.,
 				FontAlign::Centre,
-				"100",
+				&format!("{}", self.lifes),
 			);
+		}
+		else
+		{
+			state.core.draw_text(
+				&state.ui_font,
+				c_ui,
+				self.display_width / 2.,
+				self.display_height / 2. - 16.,
+				FontAlign::Centre,
+				"YOU HAVE DIED",
+			);
+
+			if self.lifes > 0
+			{
+				state.core.draw_text(
+					&state.ui_font,
+					c_ui,
+					self.display_width / 2.,
+					self.display_height / 2. + 16.,
+					FontAlign::Centre,
+					"PRESS (R) TO RESPAWN",
+				);
+			}
+			else
+			{
+				state.core.draw_text(
+					&state.ui_font,
+					c_ui,
+					self.display_width / 2.,
+					self.display_height / 2. + 16.,
+					FontAlign::Centre,
+					"PRESS (Q) TO QUIT",
+				);
+			}
 		}
 
 		if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
@@ -2744,8 +2787,9 @@ impl Map
 				}
 				KeyCode::R =>
 				{
-					if self.world.get::<components::Health>(self.player).is_err()
+					if self.world.get::<components::Health>(self.player).is_err() && self.lifes > 0
 					{
+						self.lifes -= 1;
 						self.want_spawn = true;
 					}
 				}
