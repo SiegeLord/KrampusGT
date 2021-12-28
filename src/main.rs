@@ -117,10 +117,6 @@ fn real_main() -> Result<()>
 			state.core.set_target_bitmap(Some(display.get_backbuffer()));
 			state.core.clear_to_color(Color::from_rgb_f(0., 0.2, 0.));
 			state.core.clear_depth_buffer(1.);
-			unsafe {
-				gl::Enable(gl::CULL_FACE);
-				gl::CullFace(gl::BACK);
-			}
 
 			if options.vsync_method == 2
 			{

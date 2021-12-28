@@ -124,6 +124,14 @@ pub struct Drawable
 	pub sprite_sheet: String,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct AmmoRegen
+{
+	pub weapon_type: WeaponType,
+	pub ammount: i32,
+	pub time_to_regen: f64,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum WeaponType
 {
@@ -149,6 +157,19 @@ impl WeaponType
 			WeaponType::OrbGun => 4.,
 		}
 	}
+
+	pub fn ammo_usage(&self) -> i32
+	{
+		match self
+		{
+			WeaponType::SantaGun => 1,
+			WeaponType::BuggyGun => 2,
+			WeaponType::RocketGun => 1,
+			WeaponType::FlameGun => 1,
+			WeaponType::FreezeGun => 1,
+			WeaponType::OrbGun => 1,
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -157,6 +178,9 @@ pub struct Weapon
 	pub delay: f64,
 	pub time_to_fire: f64,
 	pub weapon_type: WeaponType,
+	pub ammo: i32,
+	pub max_ammo: i32,
+	pub selectable: bool,
 }
 
 impl Weapon
@@ -167,6 +191,9 @@ impl Weapon
 			delay: 0.2,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::SantaGun,
+			ammo: 50,
+			max_ammo: 200,
+			selectable: true,
 		}
 	}
 
@@ -176,15 +203,21 @@ impl Weapon
 			delay: 0.2,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::BuggyGun,
+			ammo: 300,
+			max_ammo: 300,
+			selectable: true,
 		}
 	}
 
 	pub fn rocket_gun() -> Self
 	{
 		Weapon {
-			delay: 0.75,
+			delay: 1.5,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::RocketGun,
+			ammo: 25,
+			max_ammo: 100,
+			selectable: true,
 		}
 	}
 
@@ -194,6 +227,9 @@ impl Weapon
 			delay: 0.125,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::FlameGun,
+			ammo: 100,
+			max_ammo: 300,
+			selectable: false,
 		}
 	}
 
@@ -203,6 +239,9 @@ impl Weapon
 			delay: 0.125,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::FreezeGun,
+			ammo: 100,
+			max_ammo: 300,
+			selectable: false,
 		}
 	}
 
@@ -212,6 +251,9 @@ impl Weapon
 			delay: 0.5,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::OrbGun,
+			ammo: 20,
+			max_ammo: 50,
+			selectable: false,
 		}
 	}
 }

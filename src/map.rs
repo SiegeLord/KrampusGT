@@ -864,6 +864,11 @@ pub fn spawn_player(
 			))],
 		},
 		components::Team::Player,
+		components::AmmoRegen {
+			weapon_type: components::WeaponType::SantaGun,
+			ammount: 5,
+			time_to_regen: 0.,
+		},
 	))
 }
 
@@ -967,6 +972,11 @@ pub fn spawn_monster(
 			disengage_range: TILE * 5.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
+		},
+		components::AmmoRegen {
+			weapon_type: components::WeaponType::FlameGun,
+			ammount: 30,
+			time_to_regen: 0.,
 		},
 	))
 }
@@ -1596,10 +1606,8 @@ impl Map
 					let new_weapon = match self.desired_weapon
 					{
 						1 => Some(components::WeaponType::SantaGun),
-						2 => Some(components::WeaponType::RocketGun),
-						3 => Some(components::WeaponType::FlameGun),
-						4 => Some(components::WeaponType::FreezeGun),
-						5 => Some(components::WeaponType::OrbGun),
+						2 => Some(components::WeaponType::FreezeGun),
+						3 => Some(components::WeaponType::OrbGun),
 						_ => None,
 					};
 					if let Some(new_weapon) = new_weapon
@@ -1623,15 +1631,20 @@ impl Map
 			&components::Solid,
 		)>()
 		{
-			if !weapon_set.want_to_fire
-				|| weapon_set.weapons.is_empty()
-				|| weapon_set.weapons[&weapon_set.cur_weapon].time_to_fire > state.time()
+			if !weapon_set.want_to_fire || weapon_set.weapons.is_empty()
 			{
 				continue;
 			}
 
 			let weapon = weapon_set.weapons.get_mut(&weapon_set.cur_weapon).unwrap();
+
+			if weapon.time_to_fire > state.time() || weapon.ammo == 0
+			{
+				continue;
+			}
+
 			weapon.time_to_fire = state.time() + weapon.delay;
+			weapon.ammo -= weapon.weapon_type.ammo_usage();
 
 			let proj_size = weapon.weapon_type.proj_size();
 			match weapon.weapon_type
@@ -1690,6 +1703,21 @@ impl Map
 				{
 					spawn_orb(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
 				}
+			}
+		}
+
+		// Ammo regen
+		for (_, (ammo_regen, weapon_set)) in self
+			.world
+			.query_mut::<(&mut components::AmmoRegen, &mut components::WeaponSet)>()
+		{
+			if state.time() > ammo_regen.time_to_regen
+			{
+				if let Some(mut weapon) = weapon_set.weapons.get_mut(&ammo_regen.weapon_type)
+				{
+					weapon.ammo = utils::min(weapon.ammo + ammo_regen.ammount, weapon.max_ammo);
+				}
+				ammo_regen.time_to_regen = state.time() + 5.;
 			}
 		}
 
@@ -2363,6 +2391,11 @@ impl Map
 
 		//~ println!("{}", indices.len());
 
+		unsafe {
+			gl::Enable(gl::CULL_FACE);
+			gl::CullFace(gl::BACK);
+		}
+
 		for (i, bucket) in scene.buckets.iter().enumerate()
 		{
 			state.prim.draw_indexed_prim(
@@ -2373,6 +2406,171 @@ impl Map
 				bucket.indices.len() as u32,
 				PrimType::TriangleList,
 			);
+		}
+
+		let ortho_mat = Matrix4::new_orthographic(
+			0.,
+			self.display_width as f32,
+			self.display_height as f32,
+			0.,
+			-1.,
+			1.,
+		);
+
+		unsafe {
+			gl::Disable(gl::CULL_FACE);
+		}
+
+		state
+			.core
+			.use_projection_transform(&utils::mat4_to_transform(ortho_mat));
+		state.core.use_transform(&Transform::identity());
+
+		let c_ui = Color::from_rgb_f(0.5, 0.5, 0.2);
+		let dw = 96.;
+
+		if let Ok(health) = self.world.get::<components::Health>(self.player)
+		{
+			state.core.draw_text(
+				&state.ui_font,
+				c_ui,
+				48.,
+				self.display_height - 72.,
+				FontAlign::Centre,
+				"HEALTH",
+			);
+
+			state.core.draw_text(
+				&state.number_font,
+				Color::from_rgb_f(0.4, 0.6, 0.4),
+				48.,
+				self.display_height - 64.,
+				FontAlign::Centre,
+				&format!("{:.0}", health.health),
+			);
+
+			state.core.draw_text(
+				&state.ui_font,
+				c_ui,
+				dw + 48.,
+				self.display_height - 72.,
+				FontAlign::Centre,
+				"ARMOUR",
+			);
+
+			state.core.draw_text(
+				&state.number_font,
+				Color::from_rgb_f(0.4, 0.4, 0.6),
+				dw + 48.,
+				self.display_height - 64.,
+				FontAlign::Centre,
+				&format!("{:.0}", health.health),
+			);
+
+			state.core.draw_text(
+				&state.ui_font,
+				c_ui,
+				2. * dw + 48.,
+				self.display_height - 72.,
+				FontAlign::Centre,
+				"LIVES",
+			);
+
+			state.core.draw_text(
+				&state.number_font,
+				Color::from_rgb_f(0.6, 0.4, 0.4),
+				2. * dw + 48.,
+				self.display_height - 64.,
+				FontAlign::Centre,
+				"100",
+			);
+		}
+
+		if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+		{
+			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::OrbGun)
+			{
+				state.core.draw_text(
+					&state.ui_font,
+					c_ui,
+					self.display_width - 48.,
+					self.display_height - 72.,
+					FontAlign::Centre,
+					"STARS",
+				);
+
+				state.core.draw_text(
+					&state.number_font,
+					Color::from_rgb_f(0.6, 0.6, 0.6),
+					self.display_width - 48.,
+					self.display_height - 64.,
+					FontAlign::Centre,
+					&format!("{}", weapon.ammo),
+				);
+			}
+
+			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::BuggyGun)
+			{
+				state.core.draw_text(
+					&state.ui_font,
+					c_ui,
+					self.display_width - 48.,
+					self.display_height - 72.,
+					FontAlign::Centre,
+					"BULLETS",
+				);
+
+				state.core.draw_text(
+					&state.number_font,
+					Color::from_rgb_f(0.6, 0.6, 0.6),
+					self.display_width - 48.,
+					self.display_height - 64.,
+					FontAlign::Centre,
+					&format!("{}", weapon.ammo),
+				);
+			}
+
+			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::FreezeGun)
+			{
+				state.core.draw_text(
+					&state.ui_font,
+					c_ui,
+					self.display_width - 48. - dw,
+					self.display_height - 72.,
+					FontAlign::Centre,
+					"FUEL",
+				);
+
+				state.core.draw_text(
+					&state.number_font,
+					Color::from_rgb_f(0.6, 0.6, 0.6),
+					self.display_width - 48. - dw,
+					self.display_height - 64.,
+					FontAlign::Centre,
+					&format!("{}", weapon.ammo),
+				);
+			}
+
+			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::SantaGun)
+			{
+				state.core.draw_text(
+					&state.ui_font,
+					c_ui,
+					self.display_width - 48. - 2. * dw,
+					self.display_height - 72.,
+					FontAlign::Centre,
+					"BULLETS",
+				);
+
+				state.core.draw_text(
+					&state.number_font,
+					Color::from_rgb_f(0.6, 0.6, 0.6),
+					self.display_width - 48. - 2. * dw,
+					self.display_height - 64.,
+					FontAlign::Centre,
+					&format!("{}", weapon.ammo),
+				);
+			}
 		}
 
 		Ok(())

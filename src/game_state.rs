@@ -30,6 +30,8 @@ pub struct GameState
 	pub sfx: Sfx,
 	pub hide_mouse: bool,
 	pub atlas: atlas::Atlas,
+	pub ui_font: Font,
+	pub number_font: Font,
 
 	bitmaps: HashMap<String, Bitmap>,
 	character_sheets: HashMap<String, character_sprite_sheet::CharacterSpriteSheet>,
@@ -51,6 +53,13 @@ impl GameState
 
 		let sfx = Sfx::new(&core)?;
 
+		let ui_font = ttf
+			.load_ttf_font("data/GAMEPLAY-1987.ttf", 16, TtfFlags::zero())
+			.map_err(|_| "Couldn't load 'data/GAMEPLAY-1987.ttf'".to_string())?;
+		let number_font = ttf
+			.load_ttf_font("data/Open 24 Display St.ttf", -48, TtfFlags::zero())
+			.map_err(|_| "Couldn't load 'data/Open 24 Display St.ttf'".to_string())?;
+
 		Ok(GameState {
 			core: core,
 			prim: prim,
@@ -64,6 +73,8 @@ impl GameState
 			paused: false,
 			hide_mouse: true,
 			atlas: atlas::Atlas::new(4096),
+			ui_font: ui_font,
+			number_font: number_font,
 		})
 	}
 
