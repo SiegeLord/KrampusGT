@@ -765,7 +765,7 @@ pub fn spawn_orb(
 
 pub fn spawn_corpse(
 	pos: Point3<f32>, dir: f32, vel: Vector3<f32>, size: f32, sprite_sheet: String,
-	world: &mut hecs::World,
+	team: components::Team, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	world.spawn((
@@ -784,6 +784,7 @@ pub fn spawn_corpse(
 			size: size,
 			sprite_sheet: sprite_sheet,
 		},
+		team,
 	))
 }
 
@@ -853,14 +854,22 @@ pub fn spawn_player(
 			last_fire_time: -f64::INFINITY,
 		},
 		components::Health {
-			health: 100. * health_frac,
-			armour: 100. * health_frac,
+			health: 10. * health_frac,
+			armour: 10. * health_frac,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
 			effects: vec![components::DeathEffect::Spawn(Box::new(
 				move |pos, dir, vel, _, world| {
-					spawn_corpse(pos, dir, vel, size, "data/santa_corpse.cfg".into(), world)
+					spawn_corpse(
+						pos,
+						dir,
+						vel,
+						size,
+						"data/santa_corpse.cfg".into(),
+						components::Team::Player,
+						world,
+					)
 				},
 			))],
 		},
@@ -930,7 +939,15 @@ pub fn spawn_monster(
 	let size = 2. * TILE / 8.;
 	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
 		move |pos, dir, vel, _, world| {
-			spawn_corpse(pos, dir, vel, size, "data/cat_corpse.cfg".into(), world)
+			spawn_corpse(
+				pos,
+				dir,
+				vel,
+				size,
+				"data/cat_corpse.cfg".into(),
+				components::Team::Neutral,
+				world,
+			)
 		},
 	))];
 	if !counter_name.is_empty()
@@ -976,7 +993,7 @@ pub fn spawn_monster(
 		components::AI {
 			sense_range: TILE * 15.,
 			attack_range: TILE,
-			disengage_range: TILE * 5.,
+			disengage_range: TILE * 16.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
 		},
@@ -2066,6 +2083,12 @@ impl Map
 		// Player start
 		if self.want_spawn
 		{
+			if let Ok(mut team) = self.world.get_mut::<components::Team>(self.player)
+			{
+				// To get enemies to stop attacking corpses.
+				*team = components::Team::Neutral;
+			}
+
 			for (_, (active, pos, _)) in self.world.query_mut::<(
 				&components::Active,
 				&components::Position,
@@ -2116,7 +2139,7 @@ impl Map
 								if let Ok(mut active) =
 									self.world.get_mut::<components::Active>(entity)
 								{
-									active.active = true;
+									active.active = !active.active;
 								}
 							}
 						}
@@ -2146,7 +2169,7 @@ impl Map
 								if let Ok(mut active) =
 									self.world.get_mut::<components::Active>(entity)
 								{
-									active.active = true;
+									active.active = !active.active;
 								}
 							}
 						}
@@ -2718,6 +2741,13 @@ impl Map
 				KeyCode::E =>
 				{
 					self.enter_state = true;
+				}
+				KeyCode::R =>
+				{
+					if self.world.get::<components::Health>(self.player).is_err()
+					{
+						self.want_spawn = true;
+					}
 				}
 				KeyCode::Left =>
 				{
