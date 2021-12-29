@@ -381,6 +381,13 @@ pub struct Counter
 	pub targets: Vec<String>,
 }
 
+pub struct Trigger
+{
+	pub delay: f64,
+	pub time_to_trigger: f64,
+	pub targets: Vec<String>,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Moveable
 {
@@ -516,6 +523,7 @@ pub enum ItemType
 	OrbAmmo,
 	ExtraLife,
 	FreezeGun,
+	OrbGun,
 }
 
 impl ItemType
@@ -533,6 +541,7 @@ impl ItemType
 			ItemType::OrbAmmo => "data/star_ammo.cfg",
 			ItemType::ExtraLife => "data/extra_life.cfg",
 			ItemType::FreezeGun => "data/freeze_gun.cfg",
+			ItemType::OrbGun => "data/orb_gun.cfg",
 		}
 	}
 
@@ -549,6 +558,7 @@ impl ItemType
 			ItemType::OrbAmmo => 4.,
 			ItemType::ExtraLife => 10.,
 			ItemType::FreezeGun => 10.,
+			ItemType::OrbGun => 10.,
 		}
 	}
 }

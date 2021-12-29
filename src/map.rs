@@ -346,6 +346,12 @@ impl Level
 					get_bool_property("active", obj).unwrap_or(Ok(true))?,
 					world,
 				),
+				"trigger" => spawn_trigger(
+					get_float_property("delay", obj).unwrap_or(Ok(0.))? as f64,
+					get_targets_property(obj, &id_to_name)?,
+					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					world,
+				),
 				"deleter" => spawn_deleter(
 					get_targets_property(obj, &id_to_name)?,
 					get_bool_property("active", obj).unwrap_or(Ok(false))?,
@@ -977,6 +983,32 @@ pub fn spawn_buggy(
 	))
 }
 
+pub fn spawn_doodad(
+	pos: Point3<f32>, dir: f32, draw_size: f32, solid_size: f32, sprite_sheet: &str,
+	world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Drawable {
+			size: draw_size,
+			sprite_sheet: sprite_sheet.into(),
+		},
+		components::Solid {
+			size: solid_size,
+			mass: f32::INFINITY,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::OnDeathEffect {
+			effects: vec![components::DeathEffect::Spawn(Box::new(
+				move |pos, _, _, state, world| {
+					spawn_explosion(pos, draw_size, "data/smoke.cfg".into(), 0.25, state, world)
+				},
+			))],
+		},
+	))
+}
+
 pub fn spawn_item(
 	pos: Point3<f32>, item_type: components::ItemType, counter_name: &str, world: &mut hecs::World,
 ) -> hecs::Entity
@@ -1157,6 +1189,20 @@ pub fn spawn_counter(
 	))
 }
 
+pub fn spawn_trigger(
+	delay: f64, targets: Vec<String>, active: bool, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Active { active: active },
+		components::Trigger {
+			delay: delay,
+			time_to_trigger: 0.,
+			targets: targets,
+		},
+	))
+}
+
 pub fn spawn_deleter(targets: Vec<String>, active: bool, world: &mut hecs::World) -> hecs::Entity
 {
 	world.spawn((
@@ -1219,6 +1265,25 @@ fn str_to_spawn_fn(
 		}),
 		"freeze_gun" => Arc::new(|pos, _, counter, _, world| {
 			spawn_item(pos, components::ItemType::FreezeGun, counter, world)
+		}),
+		"orb_gun" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::OrbGun, counter, world)
+		}),
+		"rock" => Arc::new(|pos, dir, _, _, world| {
+			spawn_doodad(pos, dir, 0.55 * TILE, 0.55 * TILE, "data/rock.cfg", world)
+		}),
+		"tree" => Arc::new(|pos, dir, _, _, world| {
+			spawn_doodad(pos, dir, 0.55 * TILE, 0.1 * TILE, "data/tree.cfg", world)
+		}),
+		"blocker" => Arc::new(|pos, dir, _, _, world| {
+			spawn_doodad(
+				pos,
+				dir,
+				0.55 * TILE,
+				0.55 * TILE,
+				"data/blocker.cfg",
+				world,
+			)
 		}),
 		other => return Err(format!("Unknown spawn type '{}'", other).into()),
 	})
@@ -1438,6 +1503,9 @@ impl Map
 		let player_start = player_start_entity.unwrap();
 		let test = player_start;
 
+		state.cache_sprite_sheet("data/rock.cfg")?;
+		state.cache_sprite_sheet("data/tree.cfg")?;
+		state.cache_sprite_sheet("data/blocker.cfg")?;
 		state.cache_sprite_sheet("data/ice_cloud.cfg")?;
 		state.cache_sprite_sheet("data/orb.cfg")?;
 		state.cache_sprite_sheet("data/flame_cloud.cfg")?;
@@ -1460,6 +1528,7 @@ impl Map
 		state.cache_sprite_sheet("data/orb_shard.cfg")?;
 		state.cache_sprite_sheet("data/rocket.cfg")?;
 		state.cache_sprite_sheet("data/freeze_gun.cfg")?;
+		state.cache_sprite_sheet("data/orb_gun.cfg")?;
 		state.cache_sprite_sheet("data/test.cfg")?;
 		state.cache_sprite_sheet("data/smoke.cfg")?;
 		//~ state.atlas.dump_pages();
@@ -1605,11 +1674,15 @@ impl Map
 					let diff = 0.9 * diff * (solid1.size + solid2.size - diff_norm) / diff_norm;
 					let diff = Vector3::new(diff.x, 0., diff.y);
 
-					let f = 1. - solid1.mass / (solid2.mass + solid1.mass);
-					if f32::is_finite(f)
+					let f1 = 1. - solid1.mass / (solid2.mass + solid1.mass);
+					let f2 = 1. - solid2.mass / (solid2.mass + solid1.mass);
+					if f32::is_finite(f1)
 					{
-						self.world.get_mut::<components::Position>(id1)?.pos -= diff * f;
-						self.world.get_mut::<components::Position>(id2)?.pos += diff * (1. - f);
+						self.world.get_mut::<components::Position>(id1)?.pos -= diff * f1;
+					}
+					if f32::is_finite(f2)
+					{
+						self.world.get_mut::<components::Position>(id2)?.pos += diff * f2;
 					}
 				}
 
@@ -1767,6 +1840,24 @@ impl Map
 												{
 													new_weapon =
 														Some(components::WeaponType::FreezeGun);
+												}
+												w.selectable = true;
+												w.add_ammo(10) || !old_selectable
+											})
+											.unwrap_or(false)
+									})
+									.unwrap_or(false),
+								components::ItemType::OrbGun => weapon_set
+									.as_mut()
+									.map(|w| {
+										w.weapons
+											.get_mut(&components::WeaponType::OrbGun)
+											.map(|w| {
+												let old_selectable = w.selectable;
+												if !old_selectable
+												{
+													new_weapon =
+														Some(components::WeaponType::OrbGun);
 												}
 												w.selectable = true;
 												w.add_ammo(10) || !old_selectable
@@ -2359,14 +2450,10 @@ impl Map
 		}
 
 		// Area trigger
-		let mut save = false;
+		let mut activate = vec![];
 		for (id, area_trigger) in self.world.query::<&components::AreaTrigger>().iter()
 		{
-			if self
-				.world
-				.get::<components::Active>(id)
-				.map(|a| a.active)
-				.unwrap_or(true)
+			if self.world.get::<components::Active>(id).map(|a| a.active)?
 			{
 				let entries = grid.query_rect(area_trigger.start, area_trigger.end, |entry| {
 					if let Ok(team) = self.world.get::<components::Team>(entry.inner.id)
@@ -2386,17 +2473,7 @@ impl Map
 						{
 							if self.world.contains(entity)
 							{
-								if let Ok(mut active) =
-									self.world.get_mut::<components::Active>(entity)
-								{
-									active.active = !active.active;
-
-									if active.active
-										&& self.world.get::<components::PlayerStart>(entity).is_ok()
-									{
-										save = true;
-									}
-								}
+								activate.push(entity);
 							}
 						}
 					}
@@ -2408,11 +2485,7 @@ impl Map
 		// Counter
 		for (id, counter) in self.world.query::<&components::Counter>().iter()
 		{
-			if self
-				.world
-				.get::<components::Active>(id)
-				.map(|a| a.active)
-				.unwrap_or(true)
+			if self.world.get::<components::Active>(id).map(|a| a.active)?
 			{
 				if counter.count >= counter.max_count
 				{
@@ -2422,20 +2495,54 @@ impl Map
 						{
 							if self.world.contains(entity)
 							{
-								if let Ok(mut active) =
-									self.world.get_mut::<components::Active>(entity)
-								{
-									active.active = !active.active;
-									if active.active
-										&& self.world.get::<components::PlayerStart>(entity).is_ok()
-									{
-										save = true;
-									}
-								}
+								activate.push(entity);
 							}
 						}
 					}
 					to_die.push((true, id));
+				}
+			}
+		}
+
+		// Trigger
+		for (id, trigger) in self.world.query::<&components::Trigger>().iter()
+		{
+			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			{
+				if state.time() > trigger.time_to_trigger
+				{
+					for target in &trigger.targets
+					{
+						if let Some(&entity) = self.named_entities.get(target)
+						{
+							if self.world.contains(entity)
+							{
+								activate.push(entity);
+							}
+						}
+					}
+					to_die.push((true, id));
+				}
+			}
+		}
+
+		let mut save = false;
+		for entity in activate
+		{
+			if let Ok(mut active) = self.world.get_mut::<components::Active>(entity)
+			{
+				active.active = !active.active;
+
+				if active.active
+				{
+					if self.world.get::<components::PlayerStart>(entity).is_ok()
+					{
+						save = true;
+					}
+					if let Ok(mut trigger) = self.world.get_mut::<components::Trigger>(entity)
+					{
+						trigger.time_to_trigger = state.time() + trigger.delay;
+					}
 				}
 			}
 		}

@@ -40,4 +40,14 @@
   <property name="active" type="bool" default="false"/>
   <property name="dir" type="float" default="0"/>
  </objecttype>
+ <objecttype name="trigger" color="#aa5500">
+  <property name="active" type="bool" default="false"/>
+  <property name="delay" type="float" default="0"/>
+  <property name="target0" type="object" default="0"/>
+  <property name="target1" type="object" default="0"/>
+  <property name="target2" type="object" default="0"/>
+  <property name="target3" type="object" default="0"/>
+  <property name="target4" type="object" default="0"/>
+  <property name="target5" type="object" default="0"/>
+ </objecttype>
 </objecttypes>

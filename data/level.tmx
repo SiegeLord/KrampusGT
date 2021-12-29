@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="64" height="64" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="28">
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="64" height="64" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="40">
  <tileset firstgid="1" source="Tileset1.tsx"/>
  <layer id="1" name="Tile Layer 1" width="64" height="64">
   <data encoding="csv">
@@ -95,6 +95,7 @@
     <property name="max_count" type="int" value="2"/>
     <property name="target0" type="object" value="10"/>
     <property name="target1" type="object" value="14"/>
+    <property name="target2" type="object" value="33"/>
    </properties>
   </object>
   <object id="10" name="buggy spawner" type="spawner" x="192" y="160" width="32" height="32">
@@ -107,6 +108,9 @@
    <properties>
     <property name="target0" type="object" value="15"/>
     <property name="target1" type="object" value="0"/>
+    <property name="target2" type="object" value="0"/>
+    <property name="target3" type="object" value="0"/>
+    <property name="target4" type="object" value="0"/>
    </properties>
   </object>
   <object id="15" name="buggy" type="object" x="32" y="224" width="32" height="32">
@@ -174,6 +178,56 @@
   <object id="27" name="freeze_gun" type="object" x="96" y="384" width="32" height="32">
    <properties>
     <property name="spawn" value="freeze_gun"/>
+   </properties>
+  </object>
+  <object id="28" name="orb_gun" type="object" x="96" y="416" width="32" height="32">
+   <properties>
+    <property name="spawn" value="orb_gun"/>
+   </properties>
+  </object>
+  <object id="31" name="rock" type="object" x="128" y="32" width="32" height="32">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="32" name="blocker" type="object" x="288" y="64" width="32" height="32">
+   <properties>
+    <property name="spawn" value="blocker"/>
+   </properties>
+  </object>
+  <object id="33" name="trigger" type="trigger" x="192" y="32" width="32" height="32">
+   <properties>
+    <property name="delay" type="float" value="5"/>
+    <property name="target0" type="object" value="35"/>
+   </properties>
+  </object>
+  <object id="35" name="deleter" type="deleter" x="256" y="160" width="32" height="32">
+   <properties>
+    <property name="target0" type="object" value="39"/>
+    <property name="target1" type="object" value="38"/>
+    <property name="target2" type="object" value="32"/>
+    <property name="target3" type="object" value="0"/>
+    <property name="target4" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="36" name="tree" type="object" x="32" y="448" width="32" height="32">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="37" name="tree" type="object" x="64" y="480" width="32" height="32">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="38" name="blocker" type="object" x="288" y="96" width="32" height="32">
+   <properties>
+    <property name="spawn" value="blocker"/>
+   </properties>
+  </object>
+  <object id="39" name="blocker" type="object" x="288" y="32" width="32" height="32">
+   <properties>
+    <property name="spawn" value="blocker"/>
    </properties>
   </object>
  </objectgroup>
