@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="64" height="64" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="17">
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="64" height="64" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="28">
  <tileset firstgid="1" source="Tileset1.tsx"/>
  <layer id="1" name="Tile Layer 1" width="64" height="64">
   <data encoding="csv">
@@ -97,7 +97,7 @@
     <property name="target1" type="object" value="14"/>
    </properties>
   </object>
-  <object id="10" name="buggy spawner" type="spawner" x="183.5" y="160.5" width="32" height="32">
+  <object id="10" name="buggy spawner" type="spawner" x="192" y="160" width="32" height="32">
    <properties>
     <property name="active" type="bool" value="false"/>
     <property name="spawn" value="buggy"/>
@@ -115,5 +115,66 @@
    </properties>
   </object>
   <object id="16" name="start 2" type="start" x="160" y="224" width="32" height="32"/>
+  <object id="17" name="shard" type="object" x="64" y="288" width="32" height="32">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="18" name="suit" type="object" x="96" y="288" width="32" height="32">
+   <properties>
+    <property name="spawn" value="suit"/>
+   </properties>
+  </object>
+  <object id="19" name="heart" type="object" x="64" y="320" width="32" height="32">
+   <properties>
+    <property name="counter" type="object" value="22"/>
+    <property name="spawn" value="heart"/>
+   </properties>
+  </object>
+  <object id="20" name="flask" type="object" x="96" y="320" width="32" height="32">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="21" name="spawner 1" type="spawner" x="64" y="384" width="32" height="32">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="2"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="monster"/>
+   </properties>
+  </object>
+  <object id="22" name="counter" type="counter" x="0" y="352" width="32" height="32">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="21"/>
+    <property name="target1" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="23" name="bullet ammo" type="object" x="32" y="288" width="32" height="32">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="24" name="freeze ammo" type="object" x="32" y="320" width="32" height="32">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="25" name="orb ammo" type="object" x="64" y="352" width="32" height="32">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="26" name="extra_life" type="object" x="96" y="352" width="32" height="32">
+   <properties>
+    <property name="spawn" value="extra_life"/>
+   </properties>
+  </object>
+  <object id="27" name="freeze_gun" type="object" x="96" y="384" width="32" height="32">
+   <properties>
+    <property name="spawn" value="freeze_gun"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>

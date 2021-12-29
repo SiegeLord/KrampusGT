@@ -239,7 +239,7 @@ impl Weapon
 			delay: 0.125,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::FreezeGun,
-			ammo: 100,
+			ammo: 0,
 			max_ammo: 300,
 			selectable: false,
 		}
@@ -251,9 +251,22 @@ impl Weapon
 			delay: 0.5,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::OrbGun,
-			ammo: 20,
+			ammo: 0,
 			max_ammo: 50,
 			selectable: false,
+		}
+	}
+
+	pub fn add_ammo(&mut self, ammount: i32) -> bool
+	{
+		if self.ammo >= self.max_ammo
+		{
+			false
+		}
+		else
+		{
+			self.ammo = utils::min(self.max_ammo, self.ammo + ammount);
+			true
 		}
 	}
 }
@@ -284,6 +297,10 @@ pub enum ContactEffect
 	DamageOverTime
 	{
 		damage_rate: Damage,
+	},
+	Item
+	{
+		item_type: ItemType,
 	},
 }
 
@@ -384,6 +401,9 @@ pub struct Health
 {
 	pub health: f32,
 	pub armour: f32,
+
+	pub max_health: f32,
+	pub max_armour: f32,
 }
 
 impl Health
@@ -395,6 +415,32 @@ impl Health
 		self.armour -= prevented_by_armor;
 		amount -= prevented_by_armor;
 		self.health -= amount;
+	}
+
+	pub fn add_armour(&mut self, amount: f32) -> bool
+	{
+		if self.armour >= self.max_armour
+		{
+			false
+		}
+		else
+		{
+			self.armour = utils::min(self.max_armour, self.armour + amount);
+			true
+		}
+	}
+
+	pub fn add_health(&mut self, amount: f32) -> bool
+	{
+		if self.health >= self.max_health
+		{
+			false
+		}
+		else
+		{
+			self.health = utils::min(self.max_health, self.health + amount);
+			true
+		}
 	}
 }
 
@@ -456,4 +502,53 @@ pub struct Vehicle
 {
 	pub contents:
 		Option<Box<dyn Fn(Point3<f32>, f32, &mut hecs::World) -> hecs::Entity + Sync + Send>>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ItemType
+{
+	Shard,
+	Suit,
+	Flask,
+	Heart,
+	BulletAmmo,
+	FreezeAmmo,
+	OrbAmmo,
+	ExtraLife,
+	FreezeGun,
+}
+
+impl ItemType
+{
+	pub fn sprite_sheet(&self) -> &str
+	{
+		match self
+		{
+			ItemType::Shard => "data/armor_shard.cfg",
+			ItemType::Suit => "data/armor_suit.cfg",
+			ItemType::Flask => "data/flask.cfg",
+			ItemType::Heart => "data/heart.cfg",
+			ItemType::BulletAmmo => "data/bullet_ammo.cfg",
+			ItemType::FreezeAmmo => "data/freeze_ammo.cfg",
+			ItemType::OrbAmmo => "data/star_ammo.cfg",
+			ItemType::ExtraLife => "data/extra_life.cfg",
+			ItemType::FreezeGun => "data/freeze_gun.cfg",
+		}
+	}
+
+	pub fn size(&self) -> f32
+	{
+		match self
+		{
+			ItemType::Shard => 6.,
+			ItemType::Suit => 8.,
+			ItemType::Flask => 6.,
+			ItemType::Heart => 8.,
+			ItemType::BulletAmmo => 4.,
+			ItemType::FreezeAmmo => 4.,
+			ItemType::OrbAmmo => 4.,
+			ItemType::ExtraLife => 10.,
+			ItemType::FreezeGun => 10.,
+		}
+	}
 }

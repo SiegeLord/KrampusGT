@@ -299,7 +299,7 @@ impl Level
 		let objects = &map.object_groups[0].objects;
 		for obj in objects
 		{
-			id_to_name.insert(obj.id, obj.name.clone());
+			id_to_name.insert(obj.id, format!("{}|{}", obj.name, obj.id));
 		}
 		for obj in objects
 		{
@@ -367,7 +367,7 @@ impl Level
 				}
 				other => return Err(format!("Unknown object type '{}'", other).into()),
 			};
-			named_entities.insert(obj.name.clone(), entity);
+			named_entities.insert(format!("{}|{}", obj.name, obj.id), entity);
 		}
 
 		Ok(Level {
@@ -581,6 +581,59 @@ pub fn spawn_projectile(
 						pos - Vector3::new(0., size, 0.),
 						size,
 						"data/purple_explosion.cfg".into(),
+						0.25,
+						state,
+						world,
+					)
+				},
+			))],
+		},
+	))
+}
+
+pub fn spawn_orb_shard(
+	pos: Point3<f32>, dir: f32, lifetime: f64, state: &mut game_state::GameState,
+	world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::SantaGun.proj_size();
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 256. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/orb_shard.cfg".into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 0.,
+			collision_class: components::CollisionClass::Tiny,
+		},
+		components::TimeToDie {
+			time_to_die: state.time() + lifetime,
+		},
+		components::OnContactEffect {
+			effects: vec![
+				components::ContactEffect::Die,
+				components::ContactEffect::Hurt {
+					damage: components::Damage {
+						amount: 6.,
+						damage_type: components::DamageType::Regular,
+					},
+				},
+			],
+		},
+		components::OnDeathEffect {
+			effects: vec![components::DeathEffect::Spawn(Box::new(
+				move |pos, _, _, state, world| {
+					spawn_explosion(
+						pos - Vector3::new(0., size, 0.),
+						size,
+						"data/green_explosion.cfg".into(),
+						0.25,
 						state,
 						world,
 					)
@@ -603,7 +656,7 @@ pub fn spawn_rocket(
 		},
 		components::Drawable {
 			size: size,
-			sprite_sheet: "data/bullet.cfg".into(),
+			sprite_sheet: "data/rocket.cfg".into(),
 		},
 		components::Solid {
 			size: size / 2.,
@@ -622,7 +675,8 @@ pub fn spawn_rocket(
 					spawn_explosion(
 						pos - Vector3::new(0., size, 0.),
 						2. * size,
-						"data/purple_explosion.cfg".into(),
+						"data/smoke.cfg".into(),
+						0.25,
 						state,
 						world,
 					)
@@ -640,13 +694,14 @@ pub fn spawn_rocket(
 		components::Spawner {
 			count: 0,
 			max_count: -1,
-			delay: 0.25,
+			delay: 0.1,
 			time_to_spawn: 0.,
-			spawn_fn: Arc::new(move |pos, _, _, state, world| {
+			spawn_fn: Arc::new(move |pos, dir, _, state, world| {
 				spawn_explosion(
-					pos - Vector3::new(0., -0.25 * size, 0.),
+					pos - Vector3::new(0., -0.22 * size, 0.) - 8. * utils::dir_vec3(dir),
 					2. * 0.25 * size,
-					"data/purple_explosion.cfg".into(),
+					"data/smoke.cfg".into(),
+					0.25,
 					state,
 					world,
 				)
@@ -737,7 +792,7 @@ pub fn spawn_orb(
 	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
 ) -> hecs::Entity
 {
-	let size = components::WeaponType::FlameGun.proj_size() / 3.;
+	let size = components::WeaponType::OrbGun.proj_size();
 	world.spawn((
 		components::Position { pos: pos, dir: dir },
 		components::Velocity {
@@ -746,7 +801,7 @@ pub fn spawn_orb(
 		},
 		components::Drawable {
 			size: size,
-			sprite_sheet: "data/purple_explosion.cfg".into(),
+			sprite_sheet: "data/orb.cfg".into(),
 		},
 		components::Solid {
 			mass: 0.,
@@ -789,8 +844,8 @@ pub fn spawn_corpse(
 }
 
 pub fn spawn_explosion(
-	pos: Point3<f32>, size: f32, sprite_sheet: String, state: &mut game_state::GameState,
-	world: &mut hecs::World,
+	pos: Point3<f32>, size: f32, sprite_sheet: String, lifetime: f64,
+	state: &mut game_state::GameState, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	world.spawn((
@@ -800,7 +855,7 @@ pub fn spawn_explosion(
 			sprite_sheet: sprite_sheet,
 		},
 		components::TimeToDie {
-			time_to_die: state.time() + 0.25,
+			time_to_die: state.time() + lifetime,
 		},
 		components::CreationTime { time: state.time() },
 	))
@@ -859,9 +914,24 @@ pub fn spawn_player(
 	))
 }
 
-pub fn spawn_buggy(pos: Point3<f32>, dir: f32, world: &mut hecs::World) -> hecs::Entity
+pub fn spawn_buggy(
+	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
+) -> hecs::Entity
 {
 	let size = 4. * TILE / 8.;
+
+	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
+		move |pos, _, _, state, world| {
+			spawn_explosion(pos, size, "data/smoke.cfg".into(), 0.25, state, world)
+		},
+	))];
+	if !counter_name.is_empty()
+	{
+		on_death_effects.push(components::DeathEffect::IncrementCounter {
+			target: counter_name.into(),
+		});
+	}
+
 	world.spawn((
 		components::Position { pos: pos, dir: dir },
 		components::Velocity {
@@ -880,14 +950,12 @@ pub fn spawn_buggy(pos: Point3<f32>, dir: f32, world: &mut hecs::World) -> hecs:
 		components::Health {
 			health: 50.,
 			armour: 100.,
+			max_health: 50.,
+			max_armour: 50.,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
-			effects: vec![components::DeathEffect::Spawn(Box::new(
-				move |pos, _, _, state, world| {
-					spawn_explosion(pos, size, "data/purple_explosion.cfg".into(), state, world)
-				},
-			))],
+			effects: on_death_effects,
 		},
 		components::Team::Neutral,
 		components::WeaponSet {
@@ -905,6 +973,44 @@ pub fn spawn_buggy(pos: Point3<f32>, dir: f32, world: &mut hecs::World) -> hecs:
 			rot_speed: f32::pi(),
 			can_strafe: false,
 		},
+		components::AffectedByFriction,
+	))
+}
+
+pub fn spawn_item(
+	pos: Point3<f32>, item_type: components::ItemType, counter_name: &str, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = item_type.size();
+
+	let mut on_death_effects = vec![];
+	if !counter_name.is_empty()
+	{
+		on_death_effects.push(components::DeathEffect::IncrementCounter {
+			target: counter_name.into(),
+		});
+	}
+
+	world.spawn((
+		components::Position { pos: pos, dir: 0. },
+		components::Drawable {
+			size: size,
+			sprite_sheet: item_type.sprite_sheet().into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 5.,
+			collision_class: components::CollisionClass::Gas,
+		},
+		components::OnDeathEffect {
+			effects: on_death_effects,
+		},
+		components::OnContactEffect {
+			effects: vec![components::ContactEffect::Item {
+				item_type: item_type,
+			}],
+		},
+		components::Team::Neutral,
 	))
 }
 
@@ -951,6 +1057,8 @@ pub fn spawn_monster(
 		components::Health {
 			health: 10.,
 			armour: 5.,
+			max_health: 10.,
+			max_armour: 5.,
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -1010,6 +1118,7 @@ pub fn spawn_spawner(
 					pos,
 					TILE / 4.,
 					"data/purple_explosion.cfg".into(),
+					0.25,
 					state,
 					world,
 				);
@@ -1083,7 +1192,34 @@ fn str_to_spawn_fn(
 		{
 			Arc::new(|pos, dir, counter, _, world| spawn_monster(pos, dir, counter, world))
 		}
-		"buggy" => Arc::new(|pos, dir, _, _, world| spawn_buggy(pos, dir, world)),
+		"buggy" => Arc::new(|pos, dir, counter, _, world| spawn_buggy(pos, dir, counter, world)),
+		"suit" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::Suit, counter, world)
+		}),
+		"shard" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::Shard, counter, world)
+		}),
+		"flask" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::Flask, counter, world)
+		}),
+		"heart" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::Heart, counter, world)
+		}),
+		"bullet_ammo" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::BulletAmmo, counter, world)
+		}),
+		"orb_ammo" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::OrbAmmo, counter, world)
+		}),
+		"freeze_ammo" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::FreezeAmmo, counter, world)
+		}),
+		"extra_life" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::ExtraLife, counter, world)
+		}),
+		"freeze_gun" => Arc::new(|pos, _, counter, _, world| {
+			spawn_item(pos, components::ItemType::FreezeGun, counter, world)
+		}),
 		other => return Err(format!("Unknown spawn type '{}'", other).into()),
 	})
 }
@@ -1303,15 +1439,29 @@ impl Map
 		let test = player_start;
 
 		state.cache_sprite_sheet("data/ice_cloud.cfg")?;
+		state.cache_sprite_sheet("data/orb.cfg")?;
 		state.cache_sprite_sheet("data/flame_cloud.cfg")?;
 		state.cache_sprite_sheet("data/purple_explosion.cfg")?;
+		state.cache_sprite_sheet("data/green_explosion.cfg")?;
 		state.cache_sprite_sheet("data/buggy.cfg")?;
 		state.cache_sprite_sheet("data/cat.cfg")?;
 		state.cache_sprite_sheet("data/cat_corpse.cfg")?;
 		state.cache_sprite_sheet("data/santa.cfg")?;
 		state.cache_sprite_sheet("data/santa_corpse.cfg")?;
 		state.cache_sprite_sheet("data/bullet.cfg")?;
+		state.cache_sprite_sheet("data/armor_shard.cfg")?;
+		state.cache_sprite_sheet("data/armor_suit.cfg")?;
+		state.cache_sprite_sheet("data/flask.cfg")?;
+		state.cache_sprite_sheet("data/heart.cfg")?;
+		state.cache_sprite_sheet("data/bullet_ammo.cfg")?;
+		state.cache_sprite_sheet("data/freeze_ammo.cfg")?;
+		state.cache_sprite_sheet("data/star_ammo.cfg")?;
+		state.cache_sprite_sheet("data/extra_life.cfg")?;
+		state.cache_sprite_sheet("data/orb_shard.cfg")?;
+		state.cache_sprite_sheet("data/rocket.cfg")?;
+		state.cache_sprite_sheet("data/freeze_gun.cfg")?;
 		state.cache_sprite_sheet("data/test.cfg")?;
+		state.cache_sprite_sheet("data/smoke.cfg")?;
 		//~ state.atlas.dump_pages();
 
 		Ok(Self {
@@ -1337,6 +1487,8 @@ impl Map
 			saved_health: components::Health {
 				health: 100.,
 				armour: 0.,
+				max_health: 100.,
+				max_armour: 100.,
 			},
 			saved_weapon_set: components::WeaponSet {
 				weapons: HashMap::from([
@@ -1544,6 +1696,95 @@ impl Map
 							}
 						}
 					}
+					(components::ContactEffect::Item { item_type }, Some(other_id)) =>
+					{
+						let team = self.world.get::<components::Team>(other_id);
+						let vehicle = self.world.get::<components::Vehicle>(other_id);
+						let health = self.world.get_mut::<components::Health>(other_id);
+						let mut weapon_set = self.world.get_mut::<components::WeaponSet>(other_id);
+
+						let mut new_weapon = None;
+						if team.map(|t| *t) == Ok(components::Team::Player) && vehicle.is_err()
+						{
+							let picked_up = match item_type
+							{
+								components::ItemType::Shard =>
+								{
+									health.map(|mut h| h.add_armour(5.)).unwrap_or(false)
+								}
+								components::ItemType::Suit =>
+								{
+									health.map(|mut h| h.add_armour(50.)).unwrap_or(false)
+								}
+								components::ItemType::Flask =>
+								{
+									health.map(|mut h| h.add_health(5.)).unwrap_or(false)
+								}
+								components::ItemType::Heart =>
+								{
+									health.map(|mut h| h.add_health(50.)).unwrap_or(false)
+								}
+								components::ItemType::ExtraLife =>
+								{
+									self.lifes += 1;
+									true
+								}
+								components::ItemType::BulletAmmo => weapon_set
+									.as_mut()
+									.map(|w| {
+										w.weapons
+											.get_mut(&components::WeaponType::SantaGun)
+											.map(|w| w.add_ammo(10))
+											.unwrap_or(false)
+									})
+									.unwrap_or(false),
+								components::ItemType::OrbAmmo => weapon_set
+									.as_mut()
+									.map(|w| {
+										w.weapons
+											.get_mut(&components::WeaponType::OrbGun)
+											.map(|w| w.add_ammo(10))
+											.unwrap_or(false)
+									})
+									.unwrap_or(false),
+								components::ItemType::FreezeAmmo => weapon_set
+									.as_mut()
+									.map(|w| {
+										w.weapons
+											.get_mut(&components::WeaponType::FreezeGun)
+											.map(|w| w.add_ammo(10))
+											.unwrap_or(false)
+									})
+									.unwrap_or(false),
+								components::ItemType::FreezeGun => weapon_set
+									.as_mut()
+									.map(|w| {
+										w.weapons
+											.get_mut(&components::WeaponType::FreezeGun)
+											.map(|w| {
+												let old_selectable = w.selectable;
+												if !old_selectable
+												{
+													new_weapon =
+														Some(components::WeaponType::FreezeGun);
+												}
+												w.selectable = true;
+												w.add_ammo(10) || !old_selectable
+											})
+											.unwrap_or(false)
+									})
+									.unwrap_or(false),
+							};
+							if let Some(new_weapon) = new_weapon
+							{
+								weapon_set.map(|mut w| w.cur_weapon = new_weapon).ok();
+							}
+							if picked_up
+							{
+								to_die.push((true, id));
+							}
+						}
+					}
 					_ => (),
 				}
 			}
@@ -1633,7 +1874,6 @@ impl Map
 						let weapon_set =
 							(*self.world.get::<components::WeaponSet>(self.player)?).clone();
 
-						// Why do I need to clone twice here.
 						vehicle.contents = Some(Box::new(move |pos, dir, world| {
 							spawn_player(pos, dir, health.clone(), weapon_set.clone(), world)
 						}));
@@ -1673,7 +1913,10 @@ impl Map
 					{
 						if weapon_set.weapons.contains_key(&new_weapon)
 						{
-							weapon_set.cur_weapon = new_weapon;
+							if weapon_set.weapons[&new_weapon].selectable
+							{
+								weapon_set.cur_weapon = new_weapon;
+							}
 						}
 					}
 					self.desired_weapon = 0;
@@ -2340,7 +2583,7 @@ impl Map
 									spawn_fns.push((
 										false,
 										Box::new(move |state, world| {
-											spawn_projectile(
+											spawn_orb_shard(
 												point_pos,
 												dir + (i as f32 / n as f32 + 1. / n as f32)
 													* 2. * f32::pi(),
@@ -2625,86 +2868,98 @@ impl Map
 		{
 			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::OrbGun)
 			{
-				state.core.draw_text(
-					&state.ui_font,
-					c_ui,
-					self.display_width - 48.,
-					self.display_height - 72.,
-					FontAlign::Centre,
-					"STARS",
-				);
+				if weapon.selectable
+				{
+					state.core.draw_text(
+						&state.ui_font,
+						c_ui,
+						self.display_width - 48.,
+						self.display_height - 72.,
+						FontAlign::Centre,
+						"STARS",
+					);
 
-				state.core.draw_text(
-					&state.number_font,
-					Color::from_rgb_f(0.6, 0.6, 0.6),
-					self.display_width - 48.,
-					self.display_height - 64.,
-					FontAlign::Centre,
-					&format!("{}", weapon.ammo),
-				);
+					state.core.draw_text(
+						&state.number_font,
+						Color::from_rgb_f(0.6, 0.6, 0.6),
+						self.display_width - 48.,
+						self.display_height - 64.,
+						FontAlign::Centre,
+						&format!("{}", weapon.ammo),
+					);
+				}
 			}
 
 			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::BuggyGun)
 			{
-				state.core.draw_text(
-					&state.ui_font,
-					c_ui,
-					self.display_width - 48.,
-					self.display_height - 72.,
-					FontAlign::Centre,
-					"BULLETS",
-				);
+				if weapon.selectable
+				{
+					state.core.draw_text(
+						&state.ui_font,
+						c_ui,
+						self.display_width - 48.,
+						self.display_height - 72.,
+						FontAlign::Centre,
+						"BULLETS",
+					);
 
-				state.core.draw_text(
-					&state.number_font,
-					Color::from_rgb_f(0.6, 0.6, 0.6),
-					self.display_width - 48.,
-					self.display_height - 64.,
-					FontAlign::Centre,
-					&format!("{}", weapon.ammo),
-				);
+					state.core.draw_text(
+						&state.number_font,
+						Color::from_rgb_f(0.6, 0.6, 0.6),
+						self.display_width - 48.,
+						self.display_height - 64.,
+						FontAlign::Centre,
+						&format!("{}", weapon.ammo),
+					);
+				}
 			}
 
 			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::FreezeGun)
 			{
-				state.core.draw_text(
-					&state.ui_font,
-					c_ui,
-					self.display_width - 48. - dw,
-					self.display_height - 72.,
-					FontAlign::Centre,
-					"FUEL",
-				);
+				if weapon.selectable
+				{
+					state.core.draw_text(
+						&state.ui_font,
+						c_ui,
+						self.display_width - 48. - dw,
+						self.display_height - 72.,
+						FontAlign::Centre,
+						"FUEL",
+					);
 
-				state.core.draw_text(
-					&state.number_font,
-					Color::from_rgb_f(0.6, 0.6, 0.6),
-					self.display_width - 48. - dw,
-					self.display_height - 64.,
-					FontAlign::Centre,
-					&format!("{}", weapon.ammo),
-				);
+					state.core.draw_text(
+						&state.number_font,
+						Color::from_rgb_f(0.6, 0.6, 0.6),
+						self.display_width - 48. - dw,
+						self.display_height - 64.,
+						FontAlign::Centre,
+						&format!("{}", weapon.ammo),
+					);
+				}
 			}
 
 			if let Some(weapon) = weapon_set.weapons.get(&components::WeaponType::SantaGun)
 			{
-				state.core.draw_text(
-					&state.ui_font,
-					c_ui,
-					self.display_width - 48. - 2. * dw,
-					self.display_height - 72.,
-					FontAlign::Centre,
-					"BULLETS",
-				);
+				if weapon.selectable
+				{
+					state.core.draw_text(
+						&state.ui_font,
+						c_ui,
+						self.display_width - 48. - 2. * dw,
+						self.display_height - 72.,
+						FontAlign::Centre,
+						"BULLETS",
+					);
 
-				state.core.draw_text(
-					&state.number_font,
-					Color::from_rgb_f(0.6, 0.6, 0.6),
-					self.display_width - 48. - 2. * dw,
-					self.display_height - 64.,
-					FontAlign::Centre,
-					&format!("{}", weapon.ammo),
-				);
+					state.core.draw_text(
+						&state.number_font,
+						Color::from_rgb_f(0.6, 0.6, 0.6),
+						self.display_width - 48. - 2. * dw,
+						self.display_height - 64.,
+						FontAlign::Centre,
+						&format!("{}", weapon.ammo),
+					);
+				}
 			}
 		}
 
