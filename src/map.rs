@@ -630,7 +630,7 @@ pub fn spawn_orb_shard(
 				components::ContactEffect::Die,
 				components::ContactEffect::Hurt {
 					damage: components::Damage {
-						amount: 6.,
+						amount: 12.,
 						damage_type: components::DamageType::Regular,
 					},
 				},
@@ -841,7 +841,7 @@ pub fn spawn_freeze(
 		components::OnContactEffect {
 			effects: vec![components::ContactEffect::DamageOverTime {
 				damage_rate: components::Damage {
-					amount: 2.,
+					amount: 20.,
 					damage_type: components::DamageType::Cold(1.),
 				},
 			}],
