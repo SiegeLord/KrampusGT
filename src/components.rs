@@ -48,12 +48,12 @@ impl Freezable
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone)]
 pub enum DamageType
 {
 	Regular,
 	Flame,
-	Cold,
+	Cold(f32),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -141,6 +141,7 @@ pub enum WeaponType
 	FlameGun,
 	FreezeGun,
 	OrbGun,
+	SnowmanGun,
 }
 
 impl WeaponType
@@ -155,6 +156,7 @@ impl WeaponType
 			WeaponType::FlameGun => 8.,
 			WeaponType::FreezeGun => 8.,
 			WeaponType::OrbGun => 4.,
+			WeaponType::SnowmanGun => 12.,
 		}
 	}
 
@@ -168,6 +170,7 @@ impl WeaponType
 			WeaponType::FlameGun => 1,
 			WeaponType::FreezeGun => 1,
 			WeaponType::OrbGun => 1,
+			WeaponType::SnowmanGun => 2,
 		}
 	}
 }
@@ -193,6 +196,18 @@ impl Weapon
 			weapon_type: WeaponType::SantaGun,
 			ammo: 50,
 			max_ammo: 200,
+			selectable: true,
+		}
+	}
+
+	pub fn grinch_gun() -> Self
+	{
+		Weapon {
+			delay: 0.2,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::SantaGun,
+			ammo: 5,
+			max_ammo: 5,
 			selectable: true,
 		}
 	}
@@ -227,8 +242,8 @@ impl Weapon
 			delay: 0.125,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::FlameGun,
-			ammo: 100,
-			max_ammo: 300,
+			ammo: 20,
+			max_ammo: 20,
 			selectable: false,
 		}
 	}
@@ -253,6 +268,18 @@ impl Weapon
 			weapon_type: WeaponType::OrbGun,
 			ammo: 0,
 			max_ammo: 50,
+			selectable: false,
+		}
+	}
+
+	pub fn snowman_gun() -> Self
+	{
+		Weapon {
+			delay: 1.,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::SnowmanGun,
+			ammo: 0,
+			max_ammo: 2,
 			selectable: false,
 		}
 	}
@@ -421,7 +448,7 @@ impl Health
 		let prevented_by_armor = utils::min(self.armour, amount / 3.);
 		self.armour -= prevented_by_armor;
 		amount -= prevented_by_armor;
-		self.health -= amount;
+		self.health = utils::max(0., self.health - amount);
 	}
 
 	pub fn add_armour(&mut self, amount: f32) -> bool
