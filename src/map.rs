@@ -285,7 +285,7 @@ impl Level
 		{
 			for tile in row
 			{
-				tiles.push((tile.gid - tileset.first_gid) as i32);
+				tiles.push((utils::max(tile.gid, tileset.first_gid) - tileset.first_gid) as i32);
 			}
 		}
 
@@ -387,7 +387,7 @@ impl Level
 	fn draw(&self, state: &game_state::GameState, scene: &mut Scene)
 	{
 		let bmp = &state
-			.get_sprite_sheet("data/test.cfg")
+			.get_sprite_sheet("data/terrain.cfg")
 			.unwrap()
 			.orientations[0]
 			.idle[0];
@@ -410,8 +410,8 @@ impl Level
 							x: vtx.x + shift_x,
 							y: vtx.y,
 							z: vtx.z + shift_z,
-							u: bmp.start.x + (vtx.x + 32.) / 64. * bmp.width(),
-							v: bmp.start.y + (vtx.z + 32.) / 64. * bmp.height(),
+							u: bmp.start.x + bmp.width() * vtx.u,
+							v: bmp.start.y + bmp.height() * vtx.v,
 							color: Color::from_rgb_f(1., 1., 1.), //Color::from_rgb_f(vtx.x / 64., vtx.z / 64., vtx.y / 64.),
 						},
 						bmp.page,
@@ -423,6 +423,11 @@ impl Level
 				}
 			}
 		}
+	}
+
+	pub fn tile_is_empty(&self, tile: i32) -> bool
+	{
+		tile <= 2 || tile >= 24
 	}
 
 	pub fn check_collision(&self, loc: Point3<f32>, size: f32) -> Option<Vector3<f32>>
@@ -441,7 +446,7 @@ impl Level
 					continue;
 				}
 				let tile = self.tiles[(map_z * self.width + map_x) as usize];
-				if tile == 0
+				if self.tile_is_empty(tile)
 				{
 					continue;
 				}
@@ -522,7 +527,7 @@ impl Level
 					continue;
 				}
 				let tile = self.tiles[(map_z * self.width + map_x) as usize];
-				if tile == 0
+				if self.tile_is_empty(tile)
 				{
 					continue;
 				}
@@ -1314,17 +1319,17 @@ fn load_meshes(gltf_file: &str) -> HashMap<String, Mesh>
 			for prim in mesh.primitives()
 			{
 				let reader = prim.reader(|buffer| Some(&buffers[buffer.index()]));
-				if let (Some(pos_iter), Some(norm_iter)) =
-					(reader.read_positions(), reader.read_normals())
+				if let (Some(pos_iter), Some(gltf::mesh::util::ReadTexCoords::F32(uv_iter))) =
+					(reader.read_positions(), reader.read_tex_coords(0))
 				{
-					for (pos, _) in pos_iter.zip(norm_iter)
+					for (pos, uv) in pos_iter.zip(uv_iter)
 					{
 						vtxs.push(Vertex {
 							x: pos[0],
 							y: pos[1] + dy,
 							z: pos[2],
-							u: 0.,
-							v: 0.,
+							u: uv[0],
+							v: uv[1],
 							color: Color::from_rgb_f(1., 1., 1.),
 						})
 					}
@@ -1503,6 +1508,7 @@ impl Map
 		let player_start = player_start_entity.unwrap();
 		let test = player_start;
 
+		state.cache_sprite_sheet("data/terrain.cfg")?;
 		state.cache_sprite_sheet("data/rock.cfg")?;
 		state.cache_sprite_sheet("data/tree.cfg")?;
 		state.cache_sprite_sheet("data/blocker.cfg")?;

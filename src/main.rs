@@ -115,7 +115,7 @@ fn real_main() -> Result<()>
 		{
 			//~ let frame_start = state.core.get_time();
 			state.core.set_target_bitmap(Some(display.get_backbuffer()));
-			state.core.clear_to_color(Color::from_rgb_f(0., 0.2, 0.));
+			state.core.clear_to_color(Color::from_rgb_f(0.1, 0.15, 0.4));
 			state.core.clear_depth_buffer(1.);
 
 			if options.vsync_method == 2
