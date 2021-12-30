@@ -1051,11 +1051,11 @@ pub fn spawn_item(
 	))
 }
 
-pub fn spawn_monster(
+pub fn spawn_cat(
 	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
 ) -> hecs::Entity
 {
-	let size = 2. * TILE / 8.;
+	let size = 4. * TILE / 8.;
 	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
 		move |pos, dir, vel, _, world| {
 			spawn_corpse(
@@ -1126,6 +1126,86 @@ pub fn spawn_monster(
 		components::Moveable {
 			speed: 50.,
 			rot_speed: f32::pi(),
+			can_strafe: true,
+		},
+	))
+}
+
+pub fn spawn_grinch(
+	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = 2. * TILE / 8.;
+	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
+		move |pos, dir, vel, _, world| {
+			spawn_corpse(
+				pos,
+				dir,
+				vel,
+				size,
+				"data/grinch_corpse.cfg".into(),
+				components::Team::Neutral,
+				world,
+			)
+		},
+	))];
+	if !counter_name.is_empty()
+	{
+		on_death_effects.push(components::DeathEffect::IncrementCounter {
+			target: counter_name.into(),
+		});
+	}
+
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: Vector3::zeros(),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/grinch.cfg".into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::Health {
+			health: 10.,
+			armour: 5.,
+			max_health: 10.,
+			max_armour: 5.,
+		},
+		components::Freezable { amount: 0. },
+		components::OnDeathEffect {
+			effects: on_death_effects,
+		},
+		components::Team::Monster,
+		components::WeaponSet {
+			weapons: HashMap::from([(
+				components::WeaponType::SantaGun,
+				components::Weapon::santa_gun(),
+			)]),
+			cur_weapon: components::WeaponType::SantaGun,
+			want_to_fire: false,
+			last_fire_time: -f64::INFINITY,
+		},
+		components::AI {
+			sense_range: TILE * 15.,
+			attack_range: TILE * 5.,
+			disengage_range: TILE * 16.,
+			status: components::Status::Idle,
+			time_to_check_status: 0.,
+		},
+		components::AmmoRegen {
+			weapon_type: components::WeaponType::SantaGun,
+			ammount: 30,
+			time_to_regen: 0.,
+		},
+		components::Moveable {
+			speed: 30.,
+			rot_speed: 2. * f32::pi(),
 			can_strafe: true,
 		},
 	))
@@ -1239,10 +1319,8 @@ fn str_to_spawn_fn(
 {
 	Ok(match name
 	{
-		"monster" =>
-		{
-			Arc::new(|pos, dir, counter, _, world| spawn_monster(pos, dir, counter, world))
-		}
+		"cat" => Arc::new(|pos, dir, counter, _, world| spawn_cat(pos, dir, counter, world)),
+		"grinch" => Arc::new(|pos, dir, counter, _, world| spawn_grinch(pos, dir, counter, world)),
 		"buggy" => Arc::new(|pos, dir, counter, _, world| spawn_buggy(pos, dir, counter, world)),
 		"suit" => Arc::new(|pos, _, counter, _, world| {
 			spawn_item(pos, components::ItemType::Suit, counter, world)
@@ -1520,6 +1598,8 @@ impl Map
 		state.cache_sprite_sheet("data/buggy.cfg")?;
 		state.cache_sprite_sheet("data/cat.cfg")?;
 		state.cache_sprite_sheet("data/cat_corpse.cfg")?;
+		state.cache_sprite_sheet("data/grinch.cfg")?;
+		state.cache_sprite_sheet("data/grinch_corpse.cfg")?;
 		state.cache_sprite_sheet("data/santa.cfg")?;
 		state.cache_sprite_sheet("data/santa_corpse.cfg")?;
 		state.cache_sprite_sheet("data/bullet.cfg")?;
