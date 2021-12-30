@@ -23,6 +23,10 @@
   <property name="target3" type="object" default="0"/>
   <property name="target4" type="object" default="0"/>
  </objecttype>
+ <objecttype name="message" color="#aa557f">
+  <property name="active" type="bool" default="false"/>
+  <property name="message" type="string"/>
+ </objecttype>
  <objecttype name="object" color="#ffffff">
   <property name="counter" type="object" default="0"/>
   <property name="dir" type="float" default="0"/>

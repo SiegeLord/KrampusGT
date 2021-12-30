@@ -345,10 +345,16 @@ impl Level
 					get_bool_property("active", obj).unwrap_or(Ok(true))?,
 					world,
 				),
+				"message" => spawn_message(
+					get_string_property("message", obj).unwrap_or(Ok("".to_string()))?,
+					get_bool_property("active", obj).unwrap_or(Ok(true))?,
+					world,
+				),
 				"trigger" => spawn_trigger(
 					get_float_property("delay", obj).unwrap_or(Ok(0.))? as f64,
 					get_targets_property(obj, &id_to_name)?,
 					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					state,
 					world,
 				),
 				"deleter" => spawn_deleter(
@@ -630,7 +636,7 @@ pub fn spawn_orb_shard(
 				components::ContactEffect::Die,
 				components::ContactEffect::Hurt {
 					damage: components::Damage {
-						amount: 12.,
+						amount: 8.,
 						damage_type: components::DamageType::Regular,
 					},
 				},
@@ -724,7 +730,7 @@ pub fn spawn_snowball(
 	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
 ) -> hecs::Entity
 {
-	let size = components::WeaponType::RocketGun.proj_size();
+	let size = components::WeaponType::SnowmanGun.proj_size();
 	world.spawn((
 		components::Position { pos: pos, dir: dir },
 		components::Velocity {
@@ -771,6 +777,57 @@ pub fn spawn_snowball(
 	))
 }
 
+pub fn spawn_big_snowball(
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::BigSnowmanGun.proj_size();
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 192. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/snowball.cfg".into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 0.,
+			collision_class: components::CollisionClass::Tiny,
+		},
+		components::TimeToDie {
+			time_to_die: state.time() + 4.,
+		},
+		components::OnContactEffect {
+			effects: vec![components::ContactEffect::Die],
+		},
+		components::OnDeathEffect {
+			effects: vec![
+				components::DeathEffect::Spawn(Box::new(move |pos, _, _, state, world| {
+					spawn_explosion(
+						pos - Vector3::new(0., size, 0.),
+						2. * size,
+						"data/snowball_explosion.cfg".into(),
+						0.25,
+						state,
+						world,
+					)
+				})),
+				components::DeathEffect::DamageInRadius {
+					damage: components::Damage {
+						amount: 50.,
+						damage_type: components::DamageType::Cold(0.9),
+					},
+					radius: TILE,
+					push_strength: 100.,
+				},
+			],
+		},
+	))
+}
+
 pub fn spawn_flame(
 	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
 ) -> hecs::Entity
@@ -803,6 +860,45 @@ pub fn spawn_flame(
 			effects: vec![components::ContactEffect::DamageOverTime {
 				damage_rate: components::Damage {
 					amount: 20.,
+					damage_type: components::DamageType::Flame,
+				},
+			}],
+		},
+	))
+}
+
+pub fn spawn_big_flame(
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::BigFlameGun.proj_size() / 3.;
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 128. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/flame_cloud.cfg".into(),
+		},
+		components::Solid {
+			mass: 0.,
+			size: size / 2.,
+			collision_class: components::CollisionClass::Gas,
+		},
+		components::GasCloud {
+			base_size: size,
+			growth_rate: 32.,
+		},
+		components::CreationTime { time: state.time() },
+		components::TimeToDie {
+			time_to_die: state.time() + 0.75,
+		},
+		components::OnContactEffect {
+			effects: vec![components::ContactEffect::DamageOverTime {
+				damage_rate: components::Damage {
+					amount: 30.,
 					damage_type: components::DamageType::Flame,
 				},
 			}],
@@ -1009,10 +1105,11 @@ pub fn spawn_buggy(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::Health {
-			health: 50.,
+			health: 200.,
 			armour: 100.,
-			max_health: 50.,
-			max_armour: 50.,
+			max_health: 200.,
+			max_armour: 100.,
+			immunities: vec![],
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -1146,6 +1243,7 @@ pub fn spawn_cat(
 			armour: 5.,
 			max_health: 100.,
 			max_armour: 5.,
+			immunities: vec![components::DamageType::Flame],
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -1170,6 +1268,87 @@ pub fn spawn_cat(
 		},
 		components::AmmoRegen {
 			weapon_type: components::WeaponType::FlameGun,
+			ammount: 30,
+			time_to_regen: 0.,
+		},
+		components::Moveable {
+			speed: 50.,
+			rot_speed: f32::pi(),
+			can_strafe: true,
+		},
+	))
+}
+
+pub fn spawn_big_cat(
+	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = 8. * TILE / 8.;
+	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
+		move |pos, dir, vel, _, world| {
+			spawn_corpse(
+				pos,
+				dir,
+				vel,
+				size,
+				"data/cat_corpse.cfg".into(),
+				components::Team::Neutral,
+				world,
+			)
+		},
+	))];
+	if !counter_name.is_empty()
+	{
+		on_death_effects.push(components::DeathEffect::IncrementCounter {
+			target: counter_name.into(),
+		});
+	}
+
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: Vector3::zeros(),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/cat.cfg".into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::Health {
+			health: 500.,
+			armour: 5.,
+			max_health: 100.,
+			max_armour: 5.,
+			immunities: vec![components::DamageType::Flame],
+		},
+		components::Freezable { amount: 0. },
+		components::OnDeathEffect {
+			effects: on_death_effects,
+		},
+		components::Team::Monster,
+		components::WeaponSet {
+			weapons: HashMap::from([(
+				components::WeaponType::BigFlameGun,
+				components::Weapon::big_flame_gun(),
+			)]),
+			cur_weapon: components::WeaponType::BigFlameGun,
+			want_to_fire: false,
+			last_fire_time: -f64::INFINITY,
+		},
+		components::AI {
+			sense_range: TILE * 15.,
+			attack_range: TILE * 2.,
+			disengage_range: TILE * 16.,
+			status: components::Status::Idle,
+			time_to_check_status: 0.,
+		},
+		components::AmmoRegen {
+			weapon_type: components::WeaponType::BigFlameGun,
 			ammount: 30,
 			time_to_regen: 0.,
 		},
@@ -1226,6 +1405,7 @@ pub fn spawn_grinch(
 			armour: 5.,
 			max_health: 30.,
 			max_armour: 5.,
+			immunities: vec![],
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -1298,6 +1478,7 @@ pub fn spawn_snowman(
 			armour: 5.,
 			max_health: 150.,
 			max_armour: 5.,
+			immunities: vec![components::DamageType::Cold(0.)],
 		},
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
@@ -1322,6 +1503,79 @@ pub fn spawn_snowman(
 		},
 		components::AmmoRegen {
 			weapon_type: components::WeaponType::SnowmanGun,
+			ammount: 2,
+			time_to_regen: 0.,
+		},
+		components::Moveable {
+			speed: 20.,
+			rot_speed: 0.5 * f32::pi(),
+			can_strafe: true,
+		},
+	))
+}
+
+pub fn spawn_big_snowman(
+	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = 8. * TILE / 8.;
+	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
+		move |pos, _, _, state, world| {
+			spawn_explosion(pos, size, "data/smoke.cfg".into(), 0.25, state, world)
+		},
+	))];
+	if !counter_name.is_empty()
+	{
+		on_death_effects.push(components::DeathEffect::IncrementCounter {
+			target: counter_name.into(),
+		});
+	}
+
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: Vector3::zeros(),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/snowman.cfg".into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::Health {
+			health: 1000.,
+			armour: 5.,
+			max_health: 1000.,
+			max_armour: 5.,
+			immunities: vec![components::DamageType::Cold(0.)],
+		},
+		components::Freezable { amount: 0. },
+		components::OnDeathEffect {
+			effects: on_death_effects,
+		},
+		components::Team::Monster,
+		components::WeaponSet {
+			weapons: HashMap::from([(
+				components::WeaponType::BigSnowmanGun,
+				components::Weapon::big_snowman_gun(),
+			)]),
+			cur_weapon: components::WeaponType::BigSnowmanGun,
+			want_to_fire: false,
+			last_fire_time: -f64::INFINITY,
+		},
+		components::AI {
+			sense_range: TILE * 15.,
+			attack_range: TILE * 5.,
+			disengage_range: TILE * 16.,
+			status: components::Status::Idle,
+			time_to_check_status: 0.,
+		},
+		components::AmmoRegen {
+			weapon_type: components::WeaponType::BigSnowmanGun,
 			ammount: 2,
 			time_to_regen: 0.,
 		},
@@ -1396,15 +1650,27 @@ pub fn spawn_counter(
 	))
 }
 
+pub fn spawn_message(
+	message: String, active: bool, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Active { active: active },
+		components::Message {
+			message: message,
+		},
+	))
+}
+
 pub fn spawn_trigger(
-	delay: f64, targets: Vec<String>, active: bool, world: &mut hecs::World,
+	delay: f64, targets: Vec<String>, active: bool, state: &mut game_state::GameState, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	world.spawn((
 		components::Active { active: active },
 		components::Trigger {
 			delay: delay,
-			time_to_trigger: 0.,
+			time_to_trigger: state.time() + delay,
 			targets: targets,
 		},
 	))
@@ -1446,6 +1712,11 @@ fn str_to_spawn_fn(
 		{
 			Arc::new(|pos, dir, counter, _, world| spawn_snowman(pos, dir, counter, world))
 		}
+		"big_cat" => Arc::new(|pos, dir, counter, _, world| spawn_big_cat(pos, dir, counter, world)),
+		"big_snowman" =>
+		{
+			Arc::new(|pos, dir, counter, _, world| spawn_big_snowman(pos, dir, counter, world))
+		}
 		"grinch" => Arc::new(|pos, dir, counter, _, world| spawn_grinch(pos, dir, counter, world)),
 		"buggy" => Arc::new(|pos, dir, counter, _, world| spawn_buggy(pos, dir, counter, world)),
 		"suit" => Arc::new(|pos, _, counter, _, world| {
@@ -1480,6 +1751,9 @@ fn str_to_spawn_fn(
 		}),
 		"rock" => Arc::new(|pos, dir, _, _, world| {
 			spawn_doodad(pos, dir, 0.55 * TILE, 0.55 * TILE, "data/rock.cfg", world)
+		}),
+		"presents" => Arc::new(|pos, dir, _, _, world| {
+			spawn_doodad(pos, dir, 0.2 * TILE, 0.2 * TILE, "data/presents.cfg", world)
 		}),
 		"tree" => Arc::new(|pos, dir, _, _, world| {
 			spawn_doodad(pos, dir, 0.55 * TILE, 0.1 * TILE, "data/tree.cfg", world)
@@ -1672,6 +1946,9 @@ pub struct Map
 
 	test: hecs::Entity,
 	named_entities: HashMap<String, hecs::Entity>,
+	
+	message: String,
+	time_to_hide_message: f64,
 
 	world: hecs::World,
 }
@@ -1716,6 +1993,7 @@ impl Map
 		state.cache_sprite_sheet("data/rock.cfg")?;
 		state.cache_sprite_sheet("data/tree.cfg")?;
 		state.cache_sprite_sheet("data/blocker.cfg")?;
+		state.cache_sprite_sheet("data/presents.cfg")?;
 		state.cache_sprite_sheet("data/ice_cloud.cfg")?;
 		state.cache_sprite_sheet("data/orb.cfg")?;
 		state.cache_sprite_sheet("data/flame_cloud.cfg")?;
@@ -1773,6 +2051,7 @@ impl Map
 				armour: 0.,
 				max_health: 100.,
 				max_armour: 100.,
+				immunities: vec![],
 			},
 			saved_weapon_set: components::WeaponSet {
 				weapons: HashMap::from([
@@ -1803,6 +2082,8 @@ impl Map
 			},
 			named_entities: named_entities,
 			lifes: 3,
+			message: "".into(),
+			time_to_hide_message: 0.,
 		})
 	}
 
@@ -1949,32 +2230,40 @@ impl Map
 					(components::ContactEffect::Die, _) => to_die.push((true, id)),
 					(components::ContactEffect::Hurt { damage }, Some(other_id)) =>
 					{
+						let mut damaged = false;
 						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
 						{
-							health.damage(damage, 1.);
+							damaged = health.damage(damage, 1.);
 						}
-						if let components::DamageType::Cold(amount) = damage.damage_type
+						if damaged
 						{
-							if let Ok(mut freezable) =
-								self.world.get_mut::<components::Freezable>(other_id)
+							if let components::DamageType::Cold(amount) = damage.damage_type
 							{
-								freezable.amount = utils::min(2., freezable.amount + amount);
+								if let Ok(mut freezable) =
+									self.world.get_mut::<components::Freezable>(other_id)
+								{
+									freezable.amount = utils::min(2., freezable.amount + amount);
+								}
 							}
 						}
 					}
 					(components::ContactEffect::DamageOverTime { damage_rate }, Some(other_id)) =>
 					{
+						let mut damaged = false;
 						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
 						{
-							health.damage(damage_rate, utils::DT);
+							damaged = health.damage(damage_rate, utils::DT);
 						}
-						if let components::DamageType::Cold(amount) = damage_rate.damage_type
+						if damaged
 						{
-							if let Ok(mut freezable) =
-								self.world.get_mut::<components::Freezable>(other_id)
+							if let components::DamageType::Cold(amount) = damage_rate.damage_type
 							{
-								freezable.amount =
-									utils::min(2., freezable.amount + amount * utils::DT);
+								if let Ok(mut freezable) =
+									self.world.get_mut::<components::Freezable>(other_id)
+								{
+									freezable.amount =
+										utils::min(2., freezable.amount + amount * utils::DT);
+								}
 							}
 						}
 					}
@@ -2088,6 +2377,29 @@ impl Map
 					_ => (),
 				}
 			}
+		}
+		
+		// Friction.
+		for (_, (vel, _)) in self
+			.world
+			.query_mut::<(&mut components::Velocity, &components::AffectedByFriction)>()
+		{
+			vel.vel *= 0.25_f32.powf(utils::DT as f32);
+			vel.dir_vel *= 0.25_f32.powf(utils::DT as f32);
+		}
+
+		// Velocity handling.
+		for (id, (pos, vel)) in self
+			.world
+			.query_mut::<(&mut components::Position, &components::Velocity)>()
+		{
+			if id == self.test
+			{
+				//~ dbg!(pos.clone());
+			}
+			pos.pos += utils::DT * vel.vel;
+			pos.dir += utils::DT * vel.dir_vel;
+			//pos.dir = pos.dir.fmod(2. * f32::pi());
 		}
 
 		// Player controller.
@@ -2272,6 +2584,24 @@ impl Map
 					let spawn_pos = pos.pos + forward * dir - left;
 					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
 				}
+				components::WeaponType::BigFlameGun =>
+				{
+					let spawn_pos =
+						pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir - f32::pi() / 6., weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir + f32::pi() / 6., weapon.weapon_type));
+				}
+				components::WeaponType::BigSnowmanGun =>
+				{
+					let spawn_pos =
+						pos.pos + utils::dir_vec3(pos.dir) * (solid.size + proj_size + 1.);
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir - f32::pi() / 6., weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir + f32::pi() / 6., weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir - f32::pi() / 3., weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir + f32::pi() / 3., weapon.weapon_type));
+				}
 			}
 			weapon_set.last_fire_time = state.time();
 		}
@@ -2285,7 +2615,7 @@ impl Map
 					spawn_projectile(
 						pos + Vector3::new(0., 8., 0.),
 						dir,
-						1.,
+						1.5,
 						state,
 						&mut self.world,
 					);
@@ -2298,6 +2628,10 @@ impl Map
 				{
 					spawn_flame(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
 				}
+				components::WeaponType::BigFlameGun =>
+				{
+					spawn_big_flame(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
 				components::WeaponType::FreezeGun =>
 				{
 					spawn_freeze(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
@@ -2309,6 +2643,10 @@ impl Map
 				components::WeaponType::SnowmanGun =>
 				{
 					spawn_snowball(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+				}
+				components::WeaponType::BigSnowmanGun =>
+				{
+					spawn_big_snowball(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
 				}
 			}
 		}
@@ -2353,29 +2691,6 @@ impl Map
 					weapon_set.want_to_fire = false;
 				}
 			}
-		}
-
-		// Friction.
-		for (_, (vel, _)) in self
-			.world
-			.query_mut::<(&mut components::Velocity, &components::AffectedByFriction)>()
-		{
-			vel.vel *= 0.25_f32.powf(utils::DT as f32);
-			vel.dir_vel *= 0.25_f32.powf(utils::DT as f32);
-		}
-
-		// Velocity handling.
-		for (id, (pos, vel)) in self
-			.world
-			.query_mut::<(&mut components::Position, &components::Velocity)>()
-		{
-			if id == self.test
-			{
-				//~ dbg!(pos.clone());
-			}
-			pos.pos += utils::DT * vel.vel;
-			pos.dir += utils::DT * vel.dir_vel;
-			//pos.dir = pos.dir.fmod(2. * f32::pi());
 		}
 
 		// AI
@@ -2739,6 +3054,17 @@ impl Map
 				}
 			}
 		}
+		
+		// Message
+		for (id, message) in self.world.query::<&components::Message>().iter()
+		{
+			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			{
+				self.message = message.message.clone();
+				self.time_to_hide_message = state.time() + 5.;
+				to_die.push((true, id));
+			}
+		}
 
 		let mut save = false;
 		for entity in activate
@@ -2869,31 +3195,32 @@ impl Map
 								{
 									let mut health =
 										self.world.get_mut::<components::Health>(entry.inner.id)?;
-									health.health -= damage.amount;
-
-									if let components::DamageType::Cold(amount) = damage.damage_type
+									if health.damage(damage, 1.)
 									{
-										if let Ok(mut freezable) = self
-											.world
-											.get_mut::<components::Freezable>(entry.inner.id)
+										if let components::DamageType::Cold(amount) = damage.damage_type
 										{
-											if freezable.amount < 1.
+											if let Ok(mut freezable) = self
+												.world
+												.get_mut::<components::Freezable>(entry.inner.id)
 											{
-												freezable.amount =
-													utils::min(2., freezable.amount + amount);
+												if freezable.amount < 1.
+												{
+													freezable.amount =
+														utils::min(2., freezable.amount + amount);
+												}
 											}
 										}
-									}
 
-									if let (Ok(other_pos), Ok(solid), Ok(mut other_vel)) = (
-										self.world.get::<components::Position>(entry.inner.id),
-										self.world.get::<components::Solid>(entry.inner.id),
-										self.world.get_mut::<components::Velocity>(entry.inner.id),
-									)
-									{
-										let dir = (other_pos.pos.xz() - pos.pos.xz()).normalize();
-										other_vel.vel += Vector3::new(dir.x, 0., dir.y)
-											* push_strength / solid.mass;
+										if let (Ok(other_pos), Ok(solid), Ok(mut other_vel)) = (
+											self.world.get::<components::Position>(entry.inner.id),
+											self.world.get::<components::Solid>(entry.inner.id),
+											self.world.get_mut::<components::Velocity>(entry.inner.id),
+										)
+										{
+											let dir = (other_pos.pos.xz() - pos.pos.xz()).normalize();
+											other_vel.vel += Vector3::new(dir.x, 0., dir.y)
+												* push_strength / solid.mass;
+										}
 									}
 								}
 							}
@@ -3086,11 +3413,14 @@ impl Map
 		unsafe {
 			gl::Disable(gl::CULL_FACE);
 		}
-
 		state
 			.core
 			.use_projection_transform(&utils::mat4_to_transform(ortho_mat));
 		state.core.use_transform(&Transform::identity());
+		state.core.set_depth_test(None);
+		unsafe {
+			al_set_render_state(ALLEGRO_ALPHA_TEST_RS, 0);
+		}
 
 		let c_ui = Color::from_rgb_f(0.8, 0.8, 0.5);
 		let dw = 96.;
@@ -3320,6 +3650,18 @@ impl Map
 					);
 				}
 			}
+		}
+		
+		if state.time() < self.time_to_hide_message
+		{
+			state.core.draw_text(
+				&state.ui_font,
+				Color::from_rgb_f(1., 1., 0.8),
+				self.display_width / 2.,
+				16.,
+				FontAlign::Centre,
+				&self.message,
+			);
 		}
 
 		Ok(())

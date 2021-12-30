@@ -56,6 +56,31 @@ pub enum DamageType
 	Cold(f32),
 }
 
+impl DamageType
+{
+	pub fn loose_eq(&self, other: &DamageType) -> bool
+	{
+		match self
+		{
+			DamageType::Regular => match other
+			{
+				DamageType::Regular => true,
+				_ => false,
+			},
+			DamageType::Flame => match other
+			{
+				DamageType::Flame => true,
+				_ => false,
+			},
+			DamageType::Cold(_) => match other
+			{
+				DamageType::Cold(_) => true,
+				_ => false,
+			},
+		}
+	}
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Damage
 {
@@ -139,9 +164,11 @@ pub enum WeaponType
 	BuggyGun,
 	RocketGun,
 	FlameGun,
+	BigFlameGun,
 	FreezeGun,
 	OrbGun,
 	SnowmanGun,
+	BigSnowmanGun,
 }
 
 impl WeaponType
@@ -154,9 +181,11 @@ impl WeaponType
 			WeaponType::BuggyGun => 4.,
 			WeaponType::RocketGun => 8.,
 			WeaponType::FlameGun => 8.,
+			WeaponType::BigFlameGun => 16.,
 			WeaponType::FreezeGun => 8.,
 			WeaponType::OrbGun => 4.,
 			WeaponType::SnowmanGun => 12.,
+			WeaponType::BigSnowmanGun => 14.,
 		}
 	}
 
@@ -168,9 +197,11 @@ impl WeaponType
 			WeaponType::BuggyGun => 2,
 			WeaponType::RocketGun => 1,
 			WeaponType::FlameGun => 1,
+			WeaponType::BigFlameGun => 1,
 			WeaponType::FreezeGun => 1,
 			WeaponType::OrbGun => 1,
 			WeaponType::SnowmanGun => 2,
+			WeaponType::BigSnowmanGun => 1,
 		}
 	}
 }
@@ -248,6 +279,18 @@ impl Weapon
 		}
 	}
 
+	pub fn big_flame_gun() -> Self
+	{
+		Weapon {
+			delay: 0.125,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::BigFlameGun,
+			ammo: 20,
+			max_ammo: 20,
+			selectable: false,
+		}
+	}
+
 	pub fn freeze_gun() -> Self
 	{
 		Weapon {
@@ -278,6 +321,18 @@ impl Weapon
 			delay: 1.,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::SnowmanGun,
+			ammo: 0,
+			max_ammo: 2,
+			selectable: false,
+		}
+	}
+
+	pub fn big_snowman_gun() -> Self
+	{
+		Weapon {
+			delay: 1.,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::BigSnowmanGun,
 			ammo: 0,
 			max_ammo: 2,
 			selectable: false,
@@ -408,6 +463,11 @@ pub struct Counter
 	pub targets: Vec<String>,
 }
 
+pub struct Message
+{
+	pub message: String,
+}
+
 pub struct Trigger
 {
 	pub delay: f64,
@@ -438,17 +498,28 @@ pub struct Health
 
 	pub max_health: f32,
 	pub max_armour: f32,
+	
+	pub immunities: Vec<DamageType>,
 }
 
 impl Health
 {
-	pub fn damage(&mut self, damage: Damage, factor: f32)
+	pub fn damage(&mut self, damage: Damage, factor: f32) -> bool
 	{
+		for immunity in &self.immunities
+		{
+			if immunity.loose_eq(&damage.damage_type)
+			{
+				return false;
+			}
+		}
+		
 		let mut amount = damage.amount * factor;
 		let prevented_by_armor = utils::min(self.armour, amount / 3.);
 		self.armour -= prevented_by_armor;
 		amount -= prevented_by_armor;
 		self.health = utils::max(0., self.health - amount);
+		true
 	}
 
 	pub fn add_armour(&mut self, amount: f32) -> bool
