@@ -26,27 +26,15 @@ use rand::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use std::rc::Rc;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-struct Options
-{
-	fullscreen: bool,
-	width: i32,
-	height: i32,
-	play_music: bool,
-	vsync_method: i32,
-}
-
 fn real_main() -> Result<()>
 {
-	let options: Options = load_config("options.cfg")?;
-
 	let mut state = GameState::new()?;
-	if options.play_music
-	{
-		state.sfx.play_music()?;
-	}
+	//~ if options.play_music
+	//~ {
+	//~ state.sfx.play_music()?;
+	//~ }
 
-	if options.fullscreen
+	if state.options.fullscreen
 	{
 		state.core.set_new_display_flags(FULLSCREEN_WINDOW);
 	}
@@ -56,7 +44,7 @@ fn real_main() -> Result<()>
 		16,
 		DisplayOptionImportance::Suggest,
 	);
-	if options.vsync_method == 1
+	if state.options.vsync_method == 1
 	{
 		state.core.set_new_display_option(
 			DisplayOption::Vsync,
@@ -64,7 +52,7 @@ fn real_main() -> Result<()>
 			DisplayOptionImportance::Suggest,
 		);
 	}
-	let display = Display::new(&state.core, options.width, options.height)
+	let display = Display::new(&state.core, state.options.width, state.options.height)
 		.map_err(|_| "Couldn't create display".to_string())?;
 
 	gl_loader::init_gl();
@@ -118,7 +106,7 @@ fn real_main() -> Result<()>
 			state.core.clear_to_color(Color::from_rgb_f(0.1, 0.15, 0.4));
 			state.core.clear_depth_buffer(1.);
 
-			if options.vsync_method == 2
+			if state.options.vsync_method == 2
 			{
 				state.core.wait_for_vsync().ok();
 			}

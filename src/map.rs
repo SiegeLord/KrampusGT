@@ -1167,8 +1167,8 @@ pub fn spawn_player(
 		health,
 		components::Freezable { amount: 0. },
 		components::OnDeathEffect {
-			effects: vec![components::DeathEffect::Spawn(Box::new(
-				move |pos, dir, vel, _, world| {
+			effects: vec![
+				components::DeathEffect::Spawn(Box::new(move |pos, dir, vel, _, world| {
 					spawn_corpse(
 						pos,
 						dir,
@@ -1178,13 +1178,11 @@ pub fn spawn_player(
 						components::Team::Player,
 						world,
 					)
+				})),
+				components::DeathEffect::PlaySound {
+					sound: sound.into(),
+					volume: 1.,
 				},
-			)),
-			components::DeathEffect::PlaySound
-			{
-				sound: sound.into(),
-				volume: 1.,
-			}
 			],
 		},
 		components::Team::Player,
@@ -1203,12 +1201,11 @@ pub fn spawn_buggy(
 {
 	let size = 4. * TILE / 8.;
 
-	let mut on_death_effects = vec![components::DeathEffect::Spawn(Box::new(
-		move |pos, _, _, state, world| {
+	let mut on_death_effects = vec![
+		components::DeathEffect::Spawn(Box::new(move |pos, _, _, state, world| {
 			spawn_explosion(pos, size, "data/smoke.cfg".into(), 0.25, state, world)
-		},
-	)),
-	components::DeathEffect::PlaySound {
+		})),
+		components::DeathEffect::PlaySound {
 			sound: "data/explosion.ogg".into(),
 			volume: 2.,
 		},
@@ -1323,23 +1320,23 @@ pub fn spawn_item(
 ) -> hecs::Entity
 {
 	let size = item_type.size();
-	
+
 	let sound = match item_type
 	{
 		components::ItemType::Shard => "data/shard.ogg",
 		components::ItemType::Suit => "data/suit.ogg",
 		components::ItemType::Flask => "data/flask.ogg",
 		components::ItemType::ExtraLife | components::ItemType::Heart => "data/heart.ogg",
-		components::ItemType::BulletAmmo | components::ItemType::FreezeAmmo | components::ItemType::OrbAmmo => "data/ammo.ogg",
+		components::ItemType::BulletAmmo
+		| components::ItemType::FreezeAmmo
+		| components::ItemType::OrbAmmo => "data/ammo.ogg",
 		components::ItemType::FreezeGun | components::ItemType::OrbGun => "data/weapon.ogg",
 	};
 
-	let mut on_death_effects = vec![
-		components::DeathEffect::PlaySound {
-			sound: sound.into(),
-			volume: 1.,
-		}
-	];
+	let mut on_death_effects = vec![components::DeathEffect::PlaySound {
+		sound: sound.into(),
+		volume: 1.,
+	}];
 	if !counter_name.is_empty()
 	{
 		on_death_effects.push(components::DeathEffect::IncrementCounter {
@@ -1441,7 +1438,7 @@ pub fn spawn_cat(
 			disengage_range: TILE * 16.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
-						sound: "data/cat.ogg".into(),
+			sound: "data/cat.ogg".into(),
 		},
 		components::AmmoRegen {
 			weapon_type: components::WeaponType::FlameGun,
@@ -1527,7 +1524,7 @@ pub fn spawn_big_cat(
 			disengage_range: TILE * 16.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
-						sound: "data/big_cat.ogg".into(),
+			sound: "data/big_cat.ogg".into(),
 		},
 		components::AmmoRegen {
 			weapon_type: components::WeaponType::BigFlameGun,
@@ -1762,7 +1759,7 @@ pub fn spawn_krampus(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::Health {
-			health: 20.,
+			health: 2000.,
 			armour: 5.,
 			max_health: 2000.,
 			max_armour: 5.,
@@ -1788,7 +1785,7 @@ pub fn spawn_krampus(
 			disengage_range: TILE * 16.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
-						sound: "data/krampus.ogg".into(),
+			sound: "data/krampus.ogg".into(),
 		},
 		components::AmmoRegen {
 			weapon_type: components::WeaponType::KrampusGun,
@@ -1866,7 +1863,7 @@ pub fn spawn_big_snowman(
 			disengage_range: TILE * 16.,
 			status: components::Status::Idle,
 			time_to_check_status: 0.,
-						sound: "data/snowman.ogg".into(),
+			sound: "data/snowman.ogg".into(),
 		},
 		components::AmmoRegen {
 			weapon_type: components::WeaponType::BigSnowmanGun,
@@ -1925,8 +1922,7 @@ pub fn spawn_area_trigger(
 }
 
 pub fn spawn_sound(
-	pos: Point3<f32>, sound: &str, volume: f32, active: bool,
-	world: &mut hecs::World,
+	pos: Point3<f32>, sound: &str, volume: f32, active: bool, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	world.spawn((
@@ -2378,6 +2374,11 @@ impl Map
 		state.sfx.cache_sample("data/heart.ogg")?;
 		state.sfx.cache_sample("data/suit.ogg")?;
 
+		if state.options.play_music
+		{
+			state.sfx.set_music_file("data/vintersaga.xm");
+			state.sfx.play_music()?;
+		}
 
 		let player_class = PlayerClass::Reindeer;
 
@@ -2858,7 +2859,7 @@ impl Map
 							self.camera_anchor.dir,
 							1.,
 						)?;
-						
+
 						let mut vehicle = self
 							.world
 							.get_mut::<components::Vehicle>(entry.inner.id)
@@ -3363,7 +3364,7 @@ impl Map
 						}
 					}
 				}
-				
+
 				if play_sound
 				{
 					state.sfx.play_positional_sound(
@@ -3435,7 +3436,7 @@ impl Map
 				}
 			}
 		}
-		
+
 		// Sound
 		for (id, (pos, sound)) in self
 			.world

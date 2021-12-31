@@ -16,22 +16,27 @@ pub struct Sfx
 	acodec: AcodecAddon,
 	sink: Sink,
 	stream: Option<AudioStream>,
+	music_file: String,
 	sample_instances: Vec<SampleInstance>,
 	exclusive_sounds: Vec<String>,
 	exclusive_instance: Option<SampleInstance>,
+	sfx_volume: f32,
+	music_volume: f32,
 
 	samples: HashMap<String, Sample>,
 }
 
 impl Sfx
 {
-	pub fn new(core: &Core) -> Result<Sfx>
+	pub fn new(sfx_volume: f32, music_volume: f32, core: &Core) -> Result<Sfx>
 	{
 		let audio = AudioAddon::init(&core)?;
 		let acodec = AcodecAddon::init(&audio)?;
 		let sink = Sink::new(&audio).map_err(|_| "Couldn't create audio sink".to_string())?;
 
 		Ok(Sfx {
+			sfx_volume: sfx_volume,
+			music_volume: music_volume,
 			audio: audio,
 			acodec: acodec,
 			sink: sink,
@@ -40,7 +45,13 @@ impl Sfx
 			exclusive_instance: None,
 			exclusive_sounds: vec![],
 			samples: HashMap::new(),
+			music_file: "".into(),
 		})
+	}
+
+	pub fn set_music_file(&mut self, music: &str)
+	{
+		self.music_file = music.to_string();
 	}
 
 	pub fn cache_sample<'l>(&'l mut self, name: &str) -> Result<&'l Sample>
@@ -105,7 +116,7 @@ impl Sfx
 			.sink
 			.play_sample(
 				sample,
-				1.,
+				self.sfx_volume,
 				None,
 				thread_rng().gen_range(0.9..1.1),
 				Playmode::Once,
@@ -127,7 +138,7 @@ impl Sfx
 			let sample = self.samples.get(name).unwrap();
 
 			let dist = (sound_pos - camera_pos).norm();
-			let volume = utils::clamp(volume * 10000. / (dist * dist), 0., 1.);
+			let volume = utils::clamp(self.sfx_volume * volume * 40000. / (dist * dist), 0., 1.);
 			let diff = sound_pos - camera_pos;
 			let diff = diff / (diff.norm() + 1e-3);
 
@@ -158,12 +169,12 @@ impl Sfx
 
 	pub fn play_music(&mut self) -> Result<()>
 	{
-		//~ let mut new_stream =
-		//~ AudioStream::load(&self.audio, "data/a_different_reality_lagoona_remix.xm")
-		//~ .map_err(|_| "Couldn't load a_different_reality_lagoona_remix.xm".to_string())?;
-		//~ new_stream.attach(&mut self.sink).unwrap();
-		//~ new_stream.set_playmode(Playmode::Loop).unwrap();
-		//~ self.stream = Some(new_stream);
+		let mut new_stream = AudioStream::load(&self.audio, &self.music_file)
+			.map_err(|_| format!("Couldn't load {}", self.music_file))?;
+		new_stream.attach(&mut self.sink).unwrap();
+		new_stream.set_playmode(Playmode::Loop).unwrap();
+		new_stream.set_gain(self.music_volume).unwrap();
+		self.stream = Some(new_stream);
 		Ok(())
 	}
 }

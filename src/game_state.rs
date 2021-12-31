@@ -1,15 +1,28 @@
 use crate::error::Result;
 use crate::sfx::Sfx;
 use crate::utils::{load_bitmap, Vec2D, DT};
-use crate::{atlas, character_sprite_sheet};
+use crate::{atlas, character_sprite_sheet, utils};
 use allegro::*;
 use allegro_font::*;
 use allegro_image::*;
 use allegro_primitives::*;
 use allegro_ttf::*;
+use serde_derive::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct Options
+{
+	pub fullscreen: bool,
+	pub width: i32,
+	pub height: i32,
+	pub play_music: bool,
+	pub vsync_method: i32,
+	pub sfx_volume: f32,
+	pub music_volume: f32,
+}
 
 pub enum NextScreen
 {
@@ -32,6 +45,7 @@ pub struct GameState
 	pub atlas: atlas::Atlas,
 	pub ui_font: Font,
 	pub number_font: Font,
+	pub options: Options,
 
 	bitmaps: HashMap<String, Bitmap>,
 	character_sheets: HashMap<String, character_sprite_sheet::CharacterSpriteSheet>,
@@ -41,6 +55,7 @@ impl GameState
 {
 	pub fn new() -> Result<GameState>
 	{
+		let options: Options = utils::load_config("options.cfg")?;
 		let core = Core::init()?;
 		let prim = PrimitivesAddon::init(&core)?;
 		let image = ImageAddon::init(&core)?;
@@ -51,7 +66,7 @@ impl GameState
 		core.install_mouse()
 			.map_err(|_| "Couldn't install mouse".to_string())?;
 
-		let sfx = Sfx::new(&core)?;
+		let sfx = Sfx::new(options.sfx_volume, options.music_volume, &core)?;
 
 		let ui_font = ttf
 			.load_ttf_font("data/GAMEPLAY-1987.ttf", 16, TtfFlags::zero())
@@ -61,6 +76,7 @@ impl GameState
 			.map_err(|_| "Couldn't load 'data/Open 24 Display St.ttf'".to_string())?;
 
 		Ok(GameState {
+			options: options,
 			core: core,
 			prim: prim,
 			image: image,
