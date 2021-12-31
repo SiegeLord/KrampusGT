@@ -258,7 +258,7 @@ impl Weapon
 	pub fn rocket_gun() -> Self
 	{
 		Weapon {
-			delay: 1.5,
+			delay: 0.75,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::RocketGun,
 			ammo: 25,
@@ -498,7 +498,7 @@ pub struct Health
 
 	pub max_health: f32,
 	pub max_armour: f32,
-	
+
 	pub immunities: Vec<DamageType>,
 }
 
@@ -513,7 +513,7 @@ impl Health
 				return false;
 			}
 		}
-		
+
 		let mut amount = damage.amount * factor;
 		let prevented_by_armor = utils::min(self.armour, amount / 3.);
 		self.armour -= prevented_by_armor;

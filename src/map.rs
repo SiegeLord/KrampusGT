@@ -305,7 +305,6 @@ impl Level
 			let start = Point3::new(obj.x, 0., obj.y) / tile_width * TILE;
 			let end = Point3::new(obj.x + obj.width, 0., obj.y + obj.height) / tile_width * TILE;
 			let center = start + (end - start) / 2.;
-			dbg!(obj, start, tile_width, TILE, center);
 
 			let entity = match &obj.obj_type[..]
 			{
@@ -699,7 +698,7 @@ pub fn spawn_rocket(
 				})),
 				components::DeathEffect::DamageInRadius {
 					damage: components::Damage {
-						amount: 12.,
+						amount: 24.,
 						damage_type: components::DamageType::Regular,
 					},
 					radius: TILE,
@@ -1019,10 +1018,36 @@ pub fn spawn_explosion(
 }
 
 pub fn spawn_player(
-	pos: Point3<f32>, dir: f32, health: components::Health, weapon_set: components::WeaponSet,
-	world: &mut hecs::World,
+	pos: Point3<f32>, dir: f32, player_class: PlayerClass, health: components::Health,
+	weapon_set: components::WeaponSet, world: &mut hecs::World,
 ) -> hecs::Entity
 {
+	let (sprite_sheet, corpse_sprite_sheet, regen, speed, can_strafe) = match player_class
+	{
+		PlayerClass::Santa => (
+			"data/santa.cfg",
+			"data/santa_corpse.cfg",
+			components::AmmoRegen {
+				weapon_type: components::WeaponType::SantaGun,
+				ammount: 5,
+				time_to_regen: 0.,
+			},
+			100.,
+			true,
+		),
+		PlayerClass::Reindeer => (
+			"data/reindeer.cfg",
+			"data/reindeer_corpse.cfg",
+			components::AmmoRegen {
+				weapon_type: components::WeaponType::SantaGun,
+				ammount: 2,
+				time_to_regen: 0.,
+			},
+			150.,
+			false,
+		),
+	};
+
 	let size = TILE / 8.;
 	world.spawn((
 		components::Position { pos: pos, dir: dir },
@@ -1032,7 +1057,7 @@ pub fn spawn_player(
 		},
 		components::Drawable {
 			size: size,
-			sprite_sheet: "data/santa.cfg".into(),
+			sprite_sheet: sprite_sheet.into(),
 		},
 		components::Solid {
 			size: size / 2.,
@@ -1050,7 +1075,7 @@ pub fn spawn_player(
 						dir,
 						vel,
 						size,
-						"data/santa_corpse.cfg".into(),
+						corpse_sprite_sheet.into(),
 						components::Team::Player,
 						world,
 					)
@@ -1058,15 +1083,11 @@ pub fn spawn_player(
 			))],
 		},
 		components::Team::Player,
-		components::AmmoRegen {
-			weapon_type: components::WeaponType::SantaGun,
-			ammount: 5,
-			time_to_regen: 0.,
-		},
+		regen,
 		components::Moveable {
-			speed: 100.,
+			speed: speed,
 			rot_speed: f32::pi(),
-			can_strafe: true,
+			can_strafe: can_strafe,
 		},
 	))
 }
@@ -1401,10 +1422,10 @@ pub fn spawn_grinch(
 			collision_class: components::CollisionClass::Regular,
 		},
 		components::Health {
-			health: 30.,
-			armour: 5.,
-			max_health: 30.,
-			max_armour: 5.,
+			health: 20.,
+			armour: 0.,
+			max_health: 20.,
+			max_armour: 0.,
 			immunities: vec![],
 		},
 		components::Freezable { amount: 0. },
@@ -1650,20 +1671,17 @@ pub fn spawn_counter(
 	))
 }
 
-pub fn spawn_message(
-	message: String, active: bool, world: &mut hecs::World,
-) -> hecs::Entity
+pub fn spawn_message(message: String, active: bool, world: &mut hecs::World) -> hecs::Entity
 {
 	world.spawn((
 		components::Active { active: active },
-		components::Message {
-			message: message,
-		},
+		components::Message { message: message },
 	))
 }
 
 pub fn spawn_trigger(
-	delay: f64, targets: Vec<String>, active: bool, state: &mut game_state::GameState, world: &mut hecs::World,
+	delay: f64, targets: Vec<String>, active: bool, state: &mut game_state::GameState,
+	world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	world.spawn((
@@ -1712,7 +1730,10 @@ fn str_to_spawn_fn(
 		{
 			Arc::new(|pos, dir, counter, _, world| spawn_snowman(pos, dir, counter, world))
 		}
-		"big_cat" => Arc::new(|pos, dir, counter, _, world| spawn_big_cat(pos, dir, counter, world)),
+		"big_cat" =>
+		{
+			Arc::new(|pos, dir, counter, _, world| spawn_big_cat(pos, dir, counter, world))
+		}
 		"big_snowman" =>
 		{
 			Arc::new(|pos, dir, counter, _, world| spawn_big_snowman(pos, dir, counter, world))
@@ -1917,6 +1938,13 @@ fn turn_towards(
 	}
 }
 
+#[derive(Copy, Clone)]
+pub enum PlayerClass
+{
+	Santa,
+	Reindeer,
+}
+
 pub struct Map
 {
 	projection: Perspective3<f32>,
@@ -1946,7 +1974,8 @@ pub struct Map
 
 	test: hecs::Entity,
 	named_entities: HashMap<String, hecs::Entity>,
-	
+
+	player_class: PlayerClass,
 	message: String,
 	time_to_hide_message: f64,
 
@@ -2007,6 +2036,8 @@ impl Map
 		state.cache_sprite_sheet("data/grinch_corpse.cfg")?;
 		state.cache_sprite_sheet("data/santa.cfg")?;
 		state.cache_sprite_sheet("data/santa_corpse.cfg")?;
+		state.cache_sprite_sheet("data/reindeer.cfg")?;
+		state.cache_sprite_sheet("data/reindeer_corpse.cfg")?;
 		state.cache_sprite_sheet("data/bullet.cfg")?;
 		state.cache_sprite_sheet("data/armor_shard.cfg")?;
 		state.cache_sprite_sheet("data/armor_suit.cfg")?;
@@ -2025,6 +2056,8 @@ impl Map
 		state.cache_sprite_sheet("data/test.cfg")?;
 		state.cache_sprite_sheet("data/smoke.cfg")?;
 		//~ state.atlas.dump_pages();
+
+		let player_class = PlayerClass::Reindeer;
 
 		Ok(Self {
 			test: test,
@@ -2061,7 +2094,11 @@ impl Map
 					),
 					(
 						components::WeaponType::SantaGun,
-						components::Weapon::santa_gun(),
+						match player_class
+						{
+							PlayerClass::Santa => components::Weapon::santa_gun(),
+							PlayerClass::Reindeer => components::Weapon::rocket_gun(),
+						},
 					),
 					(
 						components::WeaponType::RocketGun,
@@ -2084,6 +2121,7 @@ impl Map
 			lifes: 3,
 			message: "".into(),
 			time_to_hide_message: 0.,
+			player_class: player_class,
 		})
 	}
 
@@ -2378,7 +2416,7 @@ impl Map
 				}
 			}
 		}
-		
+
 		// Friction.
 		for (_, (vel, _)) in self
 			.world
@@ -2486,8 +2524,16 @@ impl Map
 						let weapon_set =
 							(*self.world.get::<components::WeaponSet>(self.player)?).clone();
 
+						let player_class = self.player_class;
 						vehicle.contents = Some(Box::new(move |pos, dir, world| {
-							spawn_player(pos, dir, health.clone(), weapon_set.clone(), world)
+							spawn_player(
+								pos,
+								dir,
+								player_class,
+								health.clone(),
+								weapon_set.clone(),
+								world,
+							)
 						}));
 
 						to_die.push((false, self.player));
@@ -2967,10 +3013,18 @@ impl Map
 					let health = self.saved_health.clone();
 					let weapon_set = self.saved_weapon_set.clone();
 					let dir = pos.dir;
+					let player_class = self.player_class;
 					spawn_fns.push((
 						true,
 						Box::new(move |_, world| {
-							spawn_player(point_pos, dir, health, weapon_set, world)
+							spawn_player(
+								point_pos,
+								dir,
+								player_class,
+								health,
+								weapon_set,
+								world,
+							)
 						}),
 					));
 				}
@@ -3054,7 +3108,7 @@ impl Map
 				}
 			}
 		}
-		
+
 		// Message
 		for (id, message) in self.world.query::<&components::Message>().iter()
 		{
@@ -3197,11 +3251,13 @@ impl Map
 										self.world.get_mut::<components::Health>(entry.inner.id)?;
 									if health.damage(damage, 1.)
 									{
-										if let components::DamageType::Cold(amount) = damage.damage_type
+										if let components::DamageType::Cold(amount) =
+											damage.damage_type
 										{
-											if let Ok(mut freezable) = self
-												.world
-												.get_mut::<components::Freezable>(entry.inner.id)
+											if let Ok(mut freezable) =
+												self.world.get_mut::<components::Freezable>(
+													entry.inner.id,
+												)
 											{
 												if freezable.amount < 1.
 												{
@@ -3214,10 +3270,12 @@ impl Map
 										if let (Ok(other_pos), Ok(solid), Ok(mut other_vel)) = (
 											self.world.get::<components::Position>(entry.inner.id),
 											self.world.get::<components::Solid>(entry.inner.id),
-											self.world.get_mut::<components::Velocity>(entry.inner.id),
+											self.world
+												.get_mut::<components::Velocity>(entry.inner.id),
 										)
 										{
-											let dir = (other_pos.pos.xz() - pos.pos.xz()).normalize();
+											let dir =
+												(other_pos.pos.xz() - pos.pos.xz()).normalize();
 											other_vel.vel += Vector3::new(dir.x, 0., dir.y)
 												* push_strength / solid.mass;
 										}
@@ -3487,7 +3545,7 @@ impl Map
 				&state.ui_font,
 				c_ui,
 				self.display_width / 2.,
-				self.display_height / 2. - 16.,
+				16.,
 				FontAlign::Centre,
 				"YOU HAVE DIED",
 			);
@@ -3498,7 +3556,7 @@ impl Map
 					&state.ui_font,
 					c_ui,
 					self.display_width / 2.,
-					self.display_height / 2. + 16.,
+					48.,
 					FontAlign::Centre,
 					"PRESS (R) TO RESPAWN",
 				);
@@ -3509,7 +3567,7 @@ impl Map
 					&state.ui_font,
 					c_ui,
 					self.display_width / 2.,
-					self.display_height / 2. + 16.,
+					48.,
 					FontAlign::Centre,
 					"PRESS (Q) TO QUIT",
 				);
@@ -3631,13 +3689,19 @@ impl Map
 						inactive_color
 					};
 
+					let ammo_name = match self.player_class
+					{
+						PlayerClass::Santa => "BULLETS",
+						PlayerClass::Reindeer => "ROCKETS",
+					};
+
 					state.core.draw_text(
 						&state.ui_font,
 						c_ui,
 						self.display_width - 48. - 2. * dw,
 						self.display_height - 72.,
 						FontAlign::Centre,
-						"BULLETS",
+						ammo_name,
 					);
 
 					state.core.draw_text(
@@ -3651,7 +3715,7 @@ impl Map
 				}
 			}
 		}
-		
+
 		if state.time() < self.time_to_hide_message
 		{
 			state.core.draw_text(

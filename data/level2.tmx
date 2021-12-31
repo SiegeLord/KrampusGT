@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="64" tileheight="64" infinite="0" nextlayerid="4" nextobjectid="40">
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="64" tileheight="64" infinite="0" nextlayerid="4" nextobjectid="41">
  <tileset firstgid="1" source="terrain_sheet2.tsx"/>
  <layer id="3" name="Tile Layer 1" width="32" height="32">
   <data encoding="csv">
@@ -100,12 +100,12 @@
     <property name="spawn" value="freeze_ammo"/>
    </properties>
   </object>
-  <object id="22" name="big_cat" type="object" x="960" y="128" width="64" height="64">
+  <object id="22" name="big_cat" type="object" x="128" y="512" width="64" height="64">
    <properties>
     <property name="spawn" value="big_cat"/>
    </properties>
   </object>
-  <object id="23" name="big_snowman" type="object" x="64" y="576" width="64" height="64">
+  <object id="23" name="big_snowman" type="object" x="960" y="192" width="64" height="64">
    <properties>
     <property name="spawn" value="big_snowman"/>
    </properties>
@@ -177,6 +177,11 @@
     <property name="active" type="bool" value="true"/>
     <property name="delay" type="float" value="1"/>
     <property name="target0" type="object" value="36"/>
+   </properties>
+  </object>
+  <object id="40" name="bullet_ammo" type="object" x="768" y="832" width="64" height="64">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
    </properties>
   </object>
  </objectgroup>
