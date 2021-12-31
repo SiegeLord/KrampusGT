@@ -725,6 +725,73 @@ pub fn spawn_rocket(
 	))
 }
 
+pub fn spawn_big_rocket(
+	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = components::WeaponType::KrampusGun.proj_size();
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: 128. * utils::dir_vec3(dir),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/rocket.cfg".into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 0.,
+			collision_class: components::CollisionClass::Tiny,
+		},
+		components::TimeToDie {
+			time_to_die: state.time() + 4.,
+		},
+		components::OnContactEffect {
+			effects: vec![components::ContactEffect::Die],
+		},
+		components::OnDeathEffect {
+			effects: vec![
+				components::DeathEffect::Spawn(Box::new(move |pos, _, _, state, world| {
+					spawn_explosion(
+						pos - Vector3::new(0., size, 0.),
+						2. * size,
+						"data/smoke.cfg".into(),
+						0.25,
+						state,
+						world,
+					)
+				})),
+				components::DeathEffect::DamageInRadius {
+					damage: components::Damage {
+						amount: 50.,
+						damage_type: components::DamageType::Flame,
+					},
+					radius: TILE,
+					push_strength: 100.,
+				},
+			],
+		},
+		components::Spawner {
+			count: 0,
+			max_count: -1,
+			delay: 0.1,
+			time_to_spawn: 0.,
+			spawn_fn: Arc::new(move |pos, dir, _, state, world| {
+				spawn_explosion(
+					pos - Vector3::new(0., -0.05 * size, 0.) - 8. * utils::dir_vec3(dir),
+					2. * 0.25 * size,
+					"data/smoke.cfg".into(),
+					0.25,
+					state,
+					world,
+				)
+			}),
+		},
+	))
+}
+
 pub fn spawn_snowball(
 	pos: Point3<f32>, dir: f32, state: &mut game_state::GameState, world: &mut hecs::World,
 ) -> hecs::Entity
@@ -1182,6 +1249,32 @@ pub fn spawn_doodad(
 	))
 }
 
+pub fn spawn_moveable_doodad(
+	pos: Point3<f32>, dir: f32, draw_size: f32, solid_size: f32, sprite_sheet: &str,
+	world: &mut hecs::World,
+) -> hecs::Entity
+{
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Drawable {
+			size: draw_size,
+			sprite_sheet: sprite_sheet.into(),
+		},
+		components::Solid {
+			size: solid_size,
+			mass: 2.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::OnDeathEffect {
+			effects: vec![components::DeathEffect::Spawn(Box::new(
+				move |pos, _, _, state, world| {
+					spawn_explosion(pos, draw_size, "data/smoke.cfg".into(), 0.25, state, world)
+				},
+			))],
+		},
+	))
+}
+
 pub fn spawn_item(
 	pos: Point3<f32>, item_type: components::ItemType, counter_name: &str, world: &mut hecs::World,
 ) -> hecs::Entity
@@ -1535,6 +1628,90 @@ pub fn spawn_snowman(
 	))
 }
 
+pub fn spawn_krampus(
+	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
+) -> hecs::Entity
+{
+	let size = 8. * TILE / 8.;
+	let mut on_death_effects = vec![
+	
+	components::DeathEffect::Spawn(Box::new(
+		move |pos, _, _, state, world| {
+			spawn_explosion(pos, size, "data/smoke.cfg".into(), 0.25, state, world)
+		},
+	)),
+	];
+	for i in 0..8
+	{
+		on_death_effects.push(components::DeathEffect::Spawn(Box::new(
+			move |pos, _, _, state, world| {
+				spawn_moveable_doodad(pos + Vector3::new(0.1 * (i % 3 - 1) as f32, 0., 0.1 * ((7 * i) % 3 - 1) as f32), i as f32 * 2.5, 0.2 * TILE, 0.2 * TILE, "data/presents.cfg", world)
+			},
+		)));
+	}
+	if !counter_name.is_empty()
+	{
+		on_death_effects.push(components::DeathEffect::IncrementCounter {
+			target: counter_name.into(),
+		});
+	}
+
+	world.spawn((
+		components::Position { pos: pos, dir: dir },
+		components::Velocity {
+			vel: Vector3::zeros(),
+			dir_vel: 0.,
+		},
+		components::Drawable {
+			size: size,
+			sprite_sheet: "data/krampus.cfg".into(),
+		},
+		components::Solid {
+			size: size / 2.,
+			mass: 1.,
+			collision_class: components::CollisionClass::Regular,
+		},
+		components::Health {
+			health: 2000.,
+			armour: 5.,
+			max_health: 2000.,
+			max_armour: 5.,
+			immunities: vec![components::DamageType::Flame],
+		},
+		components::Freezable { amount: 0. },
+		components::OnDeathEffect {
+			effects: on_death_effects,
+		},
+		components::Team::Monster,
+		components::WeaponSet {
+			weapons: HashMap::from([(
+				components::WeaponType::KrampusGun,
+				components::Weapon::krampus_gun(),
+			)]),
+			cur_weapon: components::WeaponType::KrampusGun,
+			want_to_fire: false,
+			last_fire_time: -f64::INFINITY,
+		},
+		components::AI {
+			sense_range: TILE * 15.,
+			attack_range: TILE * 5.,
+			disengage_range: TILE * 16.,
+			status: components::Status::Idle,
+			time_to_check_status: 0.,
+		},
+		components::AmmoRegen {
+			weapon_type: components::WeaponType::KrampusGun,
+			ammount: 2,
+			time_to_regen: 0.,
+		},
+		components::Moveable {
+			speed: 40.,
+			rot_speed: 2. * f32::pi(),
+			can_strafe: true,
+		},
+	))
+}
+
 pub fn spawn_big_snowman(
 	pos: Point3<f32>, dir: f32, counter_name: &str, world: &mut hecs::World,
 ) -> hecs::Entity
@@ -1737,6 +1914,10 @@ fn str_to_spawn_fn(
 		"big_snowman" =>
 		{
 			Arc::new(|pos, dir, counter, _, world| spawn_big_snowman(pos, dir, counter, world))
+		}
+		"krampus" =>
+		{
+			Arc::new(|pos, dir, counter, _, world| spawn_krampus(pos, dir, counter, world))
 		}
 		"grinch" => Arc::new(|pos, dir, counter, _, world| spawn_grinch(pos, dir, counter, world)),
 		"buggy" => Arc::new(|pos, dir, counter, _, world| spawn_buggy(pos, dir, counter, world)),
@@ -2023,6 +2204,7 @@ impl Map
 		state.cache_sprite_sheet("data/tree.cfg")?;
 		state.cache_sprite_sheet("data/blocker.cfg")?;
 		state.cache_sprite_sheet("data/presents.cfg")?;
+		state.cache_sprite_sheet("data/krampus.cfg")?;
 		state.cache_sprite_sheet("data/ice_cloud.cfg")?;
 		state.cache_sprite_sheet("data/orb.cfg")?;
 		state.cache_sprite_sheet("data/flame_cloud.cfg")?;
@@ -2648,6 +2830,20 @@ impl Map
 					proj_spawns.push((spawn_pos, pos.dir - f32::pi() / 3., weapon.weapon_type));
 					proj_spawns.push((spawn_pos, pos.dir + f32::pi() / 3., weapon.weapon_type));
 				}
+				components::WeaponType::KrampusGun =>
+				{
+					let forward = solid.size + proj_size + 1.;
+					let dir = utils::dir_vec3(pos.dir);
+					let left = 10. * Vector3::new(-dir.z, 0., dir.x);
+					let spawn_pos = pos.pos + forward * dir + left;
+					proj_spawns.push((spawn_pos, pos.dir - f32::pi() / 6., weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir + f32::pi() / 6., weapon.weapon_type));
+					let spawn_pos = pos.pos + forward * dir - left;
+					proj_spawns.push((spawn_pos, pos.dir - f32::pi() / 6., weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir, weapon.weapon_type));
+					proj_spawns.push((spawn_pos, pos.dir + f32::pi() / 6., weapon.weapon_type));
+				}
 			}
 			weapon_set.last_fire_time = state.time();
 		}
@@ -2676,7 +2872,7 @@ impl Map
 				}
 				components::WeaponType::BigFlameGun =>
 				{
-					spawn_big_flame(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+					spawn_big_flame(pos + Vector3::new(0., 16., 0.), dir, state, &mut self.world);
 				}
 				components::WeaponType::FreezeGun =>
 				{
@@ -2692,7 +2888,11 @@ impl Map
 				}
 				components::WeaponType::BigSnowmanGun =>
 				{
-					spawn_big_snowball(pos + Vector3::new(0., 8., 0.), dir, state, &mut self.world);
+					spawn_big_snowball(pos + Vector3::new(0., 16., 0.), dir, state, &mut self.world);
+				}
+				components::WeaponType::KrampusGun =>
+				{
+					spawn_big_rocket(pos + Vector3::new(0., 16., 0.), dir, state, &mut self.world);
 				}
 			}
 		}

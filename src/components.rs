@@ -169,6 +169,7 @@ pub enum WeaponType
 	OrbGun,
 	SnowmanGun,
 	BigSnowmanGun,
+	KrampusGun,
 }
 
 impl WeaponType
@@ -186,6 +187,7 @@ impl WeaponType
 			WeaponType::OrbGun => 4.,
 			WeaponType::SnowmanGun => 12.,
 			WeaponType::BigSnowmanGun => 14.,
+			WeaponType::KrampusGun => 14.,
 		}
 	}
 
@@ -202,6 +204,7 @@ impl WeaponType
 			WeaponType::OrbGun => 1,
 			WeaponType::SnowmanGun => 2,
 			WeaponType::BigSnowmanGun => 1,
+			WeaponType::KrampusGun => 1,
 		}
 	}
 }
@@ -333,6 +336,17 @@ impl Weapon
 			delay: 1.,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::BigSnowmanGun,
+			ammo: 0,
+			max_ammo: 2,
+			selectable: false,
+		}
+	}
+	pub fn krampus_gun() -> Self
+	{
+		Weapon {
+			delay: 1.,
+			time_to_fire: 0.,
+			weapon_type: WeaponType::KrampusGun,
 			ammo: 0,
 			max_ammo: 2,
 			selectable: false,
