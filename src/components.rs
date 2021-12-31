@@ -432,11 +432,22 @@ pub enum DeathEffect
 	{
 		target: String,
 	},
+	PlaySound
+	{
+		sound: String,
+		volume: f32,
+	},
 }
 
 pub struct OnDeathEffect
 {
 	pub effects: Vec<DeathEffect>,
+}
+
+pub struct Sound
+{
+	pub sound: String,
+	pub volume: f32,
 }
 
 pub struct Active
@@ -571,7 +582,7 @@ pub enum Status
 	Searching(hecs::Entity, Point3<f32>, f64),
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct AI
 {
 	pub sense_range: f32,
@@ -579,6 +590,7 @@ pub struct AI
 	pub attack_range: f32,
 	pub status: Status,
 	pub time_to_check_status: f64,
+	pub sound: String,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

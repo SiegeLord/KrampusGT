@@ -1,5 +1,6 @@
 use crate::error::Result;
-use crate::utils::{clamp, load_sample, Vec2D};
+use crate::utils;
+use nalgebra::{Point2, Vector2};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
@@ -47,7 +48,7 @@ impl Sfx
 		Ok(match self.samples.entry(name.to_string())
 		{
 			Entry::Occupied(o) => o.into_mut(),
-			Entry::Vacant(v) => v.insert(load_sample(&self.audio, name)?),
+			Entry::Vacant(v) => v.insert(utils::load_sample(&self.audio, name)?),
 		})
 	}
 
@@ -115,7 +116,8 @@ impl Sfx
 	}
 
 	pub fn play_positional_sound(
-		&mut self, name: &str, sound_pos: Vec2D, camera_pos: Vec2D,
+		&mut self, name: &str, sound_pos: Point2<f32>, camera_pos: Point2<f32>, dir: f32,
+		volume: f32,
 	) -> Result<()>
 	{
 		self.cache_sample(name)?;
@@ -125,8 +127,13 @@ impl Sfx
 			let sample = self.samples.get(name).unwrap();
 
 			let dist = (sound_pos - camera_pos).norm();
-			let volume = clamp(50000. / (dist * dist), 0., 1.);
-			let pan = clamp((sound_pos.x - camera_pos.x) / 1000., -1., 1.);
+			let volume = utils::clamp(volume * 10000. / (dist * dist), 0., 1.);
+			let diff = sound_pos - camera_pos;
+			let diff = diff / (diff.norm() + 1e-3);
+
+			let dir_vec = utils::dir_vec3(dir).xz();
+			let left = Vector2::new(-dir_vec.y, dir_vec.x);
+			let pan = utils::clamp(left.dot(&diff), -1., 1.);
 
 			let instance = self
 				.sink

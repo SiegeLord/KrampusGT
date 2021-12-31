@@ -1,20 +1,83 @@
-items
-overlay over buggy
-sounds
-UI backgrounds
 main menu
 character selection menu
-better level tiles
-skybox
 
-characters:
+sounds:
 
-rudolf
-krampus
-minor demon
-snoman
+bullet fire  https://freesound.org/people/Animadierer/sounds/590049/
+bullet hit  https://freesound.org/people/deleted_user_3737200/sounds/203075/
 
-weapons:
+fire  https://freesound.org/people/Robinhood76/sounds/612277/
 
-rocket
-orb
+freeze  https://freesound.org/people/jackthemurray/sounds/433588/
+
+rocket fire  https://freesound.org/people/Audionautics/sounds/171655/
+rocket hit  https://freesound.org/people/studiomandragore/sounds/401628/
+
+orb fire https://freesound.org/people/Saviraz/sounds/504140/
+orb hit https://freesound.org/people/Aurelon/sounds/422633/
+
+spawn https://freesound.org/people/Under7dude/sounds/163441/ https://freesound.org/people/InspectorJ/sounds/411492/
+
+grinch search
+grinch die
+
+https://freesound.org/people/iamaviolin/sounds/463033/
+https://freesound.org/people/D4XX/sounds/607226/
+https://freesound.org/people/juliandmc4/sounds/443560/
+https://freesound.org/people/RadicalAns/sounds/522175/
+
+cat search
+cat die
+
+https://freesound.org/people/skymary/sounds/412016/
+
+snowman search
+
+https://freesound.org/people/knova/sounds/169670/
+https://freesound.org/people/IDKAKF/sounds/554258/
+
+snowman die
+
+snow fire
+
+https://freesound.org/people/qubodup/sounds/60013/
+
+snow hit
+
+https://freesound.org/people/iujhu/sounds/269847/
+https://freesound.org/people/derplayer/sounds/587188/
+
+ui1  done https://freesound.org/people/finix473/sounds/546974/
+ui2  done 
+
+krampus search
+krampus die
+
+https://freesound.org/people/soundmary/sounds/194932/
+https://freesound.org/people/GJ55GB/sounds/488348/
+https://freesound.org/people/Legnalegna55/sounds/547344/
+
+car enter
+car leave
+
+https://freesound.org/people/Tomlija/sounds/106553/
+
+santa death
+
+https://freesound.org/people/Mordecai666/sounds/579818/
+
+reindeer death
+
+https://freesound.org/people/msantoro11/sounds/351113/
+
+armor pickup
+health pickup
+weapon pickup
+ammo pickup
+
+https://freesound.org/people/Moulaythami/sounds/535478/
+https://freesound.org/people/PrimeJunt/sounds/135632/
+https://freesound.org/people/MrAuralization/sounds/274846/
+https://freesound.org/people/anagar/sounds/267932/
+https://freesound.org/people/Zott820/sounds/370344/
+https://freesound.org/people/LordForklift/sounds/448394/
