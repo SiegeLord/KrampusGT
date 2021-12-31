@@ -2248,7 +2248,6 @@ pub struct Map
 	fire_state: bool,
 	clear_rot: bool,
 	enter_state: bool,
-	desired_weapon: i32,
 	want_spawn: bool,
 
 	saved_health: components::Health,
@@ -2400,7 +2399,6 @@ impl Map
 			fire_state: false,
 			clear_rot: false,
 			enter_state: false,
-			desired_weapon: 0,
 			want_spawn: true,
 			saved_health: components::Health {
 				health: 100.,
@@ -2903,27 +2901,6 @@ impl Map
 
 			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
 			{
-				if self.desired_weapon != 0
-				{
-					let new_weapon = match self.desired_weapon
-					{
-						1 => Some(components::WeaponType::SantaGun),
-						2 => Some(components::WeaponType::FreezeGun),
-						3 => Some(components::WeaponType::OrbGun),
-						_ => None,
-					};
-					if let Some(new_weapon) = new_weapon
-					{
-						if weapon_set.weapons.contains_key(&new_weapon)
-						{
-							if weapon_set.weapons[&new_weapon].selectable
-							{
-								weapon_set.cur_weapon = new_weapon;
-							}
-						}
-					}
-					self.desired_weapon = 0;
-				}
 				weapon_set.want_to_fire = self.fire_state;
 			}
 		}
@@ -4204,9 +4181,10 @@ impl Map
 
 	pub fn input(&mut self, event: &Event, _state: &mut game_state::GameState) -> Result<()>
 	{
+		let mut desired_weapon = None;
 		match event
 		{
-			Event::MouseAxes { dx, .. } =>
+			Event::MouseAxes { dx, dz, .. } =>
 			{
 				if *dx < 0
 				{
@@ -4217,6 +4195,45 @@ impl Map
 				{
 					self.rot_left_state = 0;
 					self.rot_right_state = *dx;
+				}
+
+				if *dz != 0
+				{
+					if let Ok(mut weapon_set) =
+						self.world.get_mut::<components::WeaponSet>(self.player)
+					{
+						let mut cur_weapon_idx = match weapon_set.cur_weapon
+						{
+							components::WeaponType::SantaGun => 0,
+							components::WeaponType::FreezeGun => 1,
+							components::WeaponType::OrbGun => 2,
+							_ => 0,
+						};
+
+						loop
+						{
+							cur_weapon_idx = (cur_weapon_idx + utils::clamp(*dz, -1, 1)) % 3;
+							while cur_weapon_idx < 0
+							{
+								cur_weapon_idx += 3;
+							}
+							let new_weapon = match cur_weapon_idx
+							{
+								0 => components::WeaponType::SantaGun,
+								1 => components::WeaponType::FreezeGun,
+								2 => components::WeaponType::OrbGun,
+								_ => unreachable!(),
+							};
+							if weapon_set.weapons.contains_key(&new_weapon)
+							{
+								if weapon_set.weapons[&new_weapon].selectable
+								{
+									weapon_set.cur_weapon = new_weapon;
+									break;
+								}
+							}
+						}
+					}
 				}
 				self.clear_rot = true;
 			}
@@ -4238,23 +4255,15 @@ impl Map
 			{
 				KeyCode::_1 =>
 				{
-					self.desired_weapon = 1;
+					desired_weapon = Some(components::WeaponType::SantaGun);
 				}
 				KeyCode::_2 =>
 				{
-					self.desired_weapon = 2;
+					desired_weapon = Some(components::WeaponType::FreezeGun);
 				}
 				KeyCode::_3 =>
 				{
-					self.desired_weapon = 3;
-				}
-				KeyCode::_4 =>
-				{
-					self.desired_weapon = 4;
-				}
-				KeyCode::_5 =>
-				{
-					self.desired_weapon = 5;
+					desired_weapon = Some(components::WeaponType::OrbGun);
 				}
 				KeyCode::W =>
 				{
@@ -4336,6 +4345,21 @@ impl Map
 			},
 			_ => (),
 		}
+
+		if let Some(desired_weapon) = desired_weapon
+		{
+			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
+			{
+				if weapon_set.weapons.contains_key(&desired_weapon)
+				{
+					if weapon_set.weapons[&desired_weapon].selectable
+					{
+						weapon_set.cur_weapon = desired_weapon;
+					}
+				}
+			}
+		}
+
 		Ok(())
 	}
 }

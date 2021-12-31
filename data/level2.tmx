@@ -185,7 +185,7 @@
     <property name="spawn" value="bullet_ammo"/>
    </properties>
   </object>
-  <object id="41" name="krampus" type="object" x="768" y="640" width="64" height="64">
+  <object id="41" name="krampus" type="object" x="1024" y="320" width="64" height="64">
    <properties>
     <property name="spawn" value="krampus"/>
    </properties>
