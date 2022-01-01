@@ -488,6 +488,11 @@ pub struct Counter
 	pub targets: Vec<String>,
 }
 
+pub struct NextLevel
+{
+	pub next_level: String,
+}
+
 pub struct Message
 {
 	pub message: String,

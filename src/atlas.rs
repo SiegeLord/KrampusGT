@@ -48,7 +48,9 @@ impl Page
 		let bitmap = Bitmap::new(core, size, size)
 			.map_err(|_| format!("Couldn't create page with size {}x{}", size, size))?;
 		core.set_target_bitmap(Some(&bitmap));
-		core.clear_to_color(Color::from_rgb_f(0., 0., 0.));
+		core.set_blender(BlendOperation::Add, BlendMode::One, BlendMode::Zero);
+		core.clear_to_color(Color::from_rgba_f(0., 0., 0., 0.));
+		core.set_blender(BlendOperation::Add, BlendMode::One, BlendMode::InverseAlpha);
 
 		Ok(Page {
 			bitmap: bitmap,

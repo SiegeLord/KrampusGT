@@ -116,7 +116,7 @@ impl Sfx
 			.sink
 			.play_sample(
 				sample,
-				self.sfx_volume,
+				0.25 * self.sfx_volume,
 				None,
 				thread_rng().gen_range(0.9..1.1),
 				Playmode::Once,

@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::sfx::Sfx;
 use crate::utils::{load_bitmap, Vec2D, DT};
-use crate::{atlas, character_sprite_sheet, utils};
+use crate::{atlas, character_sprite_sheet, components, utils};
 use allegro::*;
 use allegro_font::*;
 use allegro_image::*;
@@ -22,11 +22,39 @@ pub struct Options
 	pub vsync_method: i32,
 	pub sfx_volume: f32,
 	pub music_volume: f32,
+	pub turn_sensitivity: f32,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct LevelEntry
+{
+	pub filename: String,
+	pub name: String,
+	pub unlocked: bool,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct Levels
+{
+	pub levels: Vec<LevelEntry>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum PlayerClass
+{
+	Santa,
+	Reindeer,
 }
 
 pub enum NextScreen
 {
-	Game,
+	Game(
+		String,
+		PlayerClass,
+		Option<components::Health>,
+		Option<components::WeaponSet>,
+		i32,
+	),
 	Menu,
 	Quit,
 }
@@ -46,6 +74,10 @@ pub struct GameState
 	pub ui_font: Font,
 	pub number_font: Font,
 	pub options: Options,
+	pub draw_scale: f32,
+	pub display_width: f32,
+	pub display_height: f32,
+	pub levels: Levels,
 
 	bitmaps: HashMap<String, Bitmap>,
 	character_sheets: HashMap<String, character_sprite_sheet::CharacterSpriteSheet>,
@@ -75,6 +107,8 @@ impl GameState
 			.load_ttf_font("data/Open 24 Display St.ttf", -48, TtfFlags::zero())
 			.map_err(|_| "Couldn't load 'data/Open 24 Display St.ttf'".to_string())?;
 
+		let levels: Levels = utils::load_config("data/levels.cfg")?;
+
 		Ok(GameState {
 			options: options,
 			core: core,
@@ -87,11 +121,25 @@ impl GameState
 			ttf: ttf,
 			sfx: sfx,
 			paused: false,
-			hide_mouse: true,
+			hide_mouse: false,
 			atlas: atlas::Atlas::new(4096),
 			ui_font: ui_font,
 			number_font: number_font,
+			draw_scale: 1.,
+			display_width: 0.,
+			display_height: 0.,
+			levels: levels,
 		})
+	}
+
+	pub fn transform_mouse(&self, x: f32, y: f32) -> (f32, f32)
+	{
+		let bw = 800.;
+		let bh = 600.;
+
+		let x = (x - self.display_width / 2.) / self.draw_scale + bw / 2.;
+		let y = (y - self.display_height / 2.) / self.draw_scale + bh / 2.;
+		(x, y)
 	}
 
 	pub fn cache_bitmap<'l>(&'l mut self, name: &str) -> Result<&'l Bitmap>

@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="64" tileheight="64" infinite="0" nextlayerid="4" nextobjectid="52">
+ <tileset firstgid="1" source="terrain_sheet2.tsx"/>
+ <layer id="3" name="Tile Layer 1" width="32" height="32">
+  <data encoding="csv">
+2,2,3,1,2,2,3,2,3,3,2,2,3,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+2,2,3,1,3,3,3,1,3,2,1,3,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+3,2,2,3,1,2,1,1,1,1,2,2,1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,3,3,2,3,2,1,2,2,2,1,2,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,2,1,1,1,1,3,2,1,2,2,3,1,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+2,3,2,3,2,1,3,2,2,2,3,2,11,7,7,21,21,12,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+2,2,1,2,3,1,2,1,3,3,3,2,24,17,23,18,4,22,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+2,3,1,1,3,2,2,1,2,2,2,2,24,8,1,24,4,22,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+3,3,2,2,2,1,3,2,1,3,2,2,16,22,3,24,4,22,2,3,3,3,1,1,1,1,1,1,1,1,1,1,
+2,3,2,1,1,1,2,3,1,11,7,7,19,22,3,24,4,20,21,21,12,3,3,3,1,1,1,1,1,1,1,1,
+3,3,3,2,2,1,2,2,2,24,17,23,23,9,1,10,15,15,18,4,22,1,2,3,1,1,1,1,1,1,1,1,
+1,1,3,1,2,2,1,2,3,24,8,3,3,3,2,1,2,2,24,4,8,3,1,1,1,1,1,1,1,1,1,1,
+2,1,3,1,2,2,2,1,1,24,22,3,2,1,2,2,1,3,16,4,22,3,1,1,1,1,1,1,1,1,1,1,
+2,1,2,3,2,2,2,2,3,24,22,2,3,3,1,2,3,1,16,4,22,2,1,1,1,1,1,1,1,1,1,1,
+3,2,2,2,3,3,2,1,2,16,8,2,2,1,3,1,2,3,24,4,22,2,1,1,1,1,1,1,1,1,1,1,
+2,2,2,2,3,1,3,1,1,24,22,1,2,1,1,2,3,1,16,4,22,1,1,1,1,1,1,1,1,1,1,1,
+2,1,3,2,1,2,2,1,1,16,8,3,3,2,1,1,3,1,24,4,8,1,1,1,1,1,1,1,1,1,1,1,
+3,1,2,2,3,1,3,1,3,16,8,1,3,1,2,1,2,2,16,4,8,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,2,3,3,16,22,1,1,2,2,1,1,3,16,4,22,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,16,20,21,7,7,7,21,21,7,19,4,22,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,10,15,23,23,15,15,15,23,23,23,23,9,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+</data>
+ </layer>
+ <objectgroup id="2" name="Object Layer 1">
+  <object id="1" name="start" type="start" x="896" y="448" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="true"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="3" name="tree1" type="object" x="512" y="1728" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="4" name="tree2" type="object" x="576" y="1728" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="8" name="cat" type="object" x="512" y="1792" width="64" height="64">
+   <properties>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="11" name="cat" type="object" x="576" y="1792" width="64" height="64">
+   <properties>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="14" name="grinch" type="object" x="704" y="1664" width="64" height="64">
+   <properties>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="15" name="snowman" type="object" x="704" y="1536" width="64" height="64">
+   <properties>
+    <property name="spawn" value="snowman"/>
+   </properties>
+  </object>
+  <object id="16" name="snowman" type="object" x="704" y="1728" width="64" height="64">
+   <properties>
+    <property name="spawn" value="snowman"/>
+   </properties>
+  </object>
+  <object id="17" name="orb_ammo" type="object" x="1408" y="1344" width="64" height="64">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="19" name="freeze_gun" type="object" x="1472" y="1408" width="64" height="64">
+   <properties>
+    <property name="spawn" value="freeze_gun"/>
+   </properties>
+  </object>
+  <object id="20" name="orb_gun" type="object" x="1408" y="1408" width="64" height="64">
+   <properties>
+    <property name="spawn" value="orb_gun"/>
+   </properties>
+  </object>
+  <object id="21" name="freeze_ammo" type="object" x="1472" y="1344" width="64" height="64">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="22" name="big_cat" type="object" x="896" y="1152" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="50"/>
+    <property name="spawn" value="big_cat"/>
+   </properties>
+  </object>
+  <object id="23" name="big_snowman" type="object" x="1856" y="1152" width="64" height="64">
+   <properties>
+    <property name="spawn" value="big_snowman"/>
+   </properties>
+  </object>
+  <object id="24" name="tree1" type="object" x="1280" y="1728" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="25" name="tree2" type="object" x="1792" y="1664" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="27" name="buggy" type="object" x="1472" y="1792" width="64" height="64">
+   <properties>
+    <property name="spawn" value="buggy"/>
+   </properties>
+  </object>
+  <object id="28" name="orb_ammo" type="object" x="1408" y="1472" width="64" height="64">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="29" name="orb_ammo" type="object" x="1408" y="1536" width="64" height="64">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="30" name="freeze_ammo" type="object" x="1472" y="1472" width="64" height="64">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="31" name="freeze_ammo" type="object" x="1472" y="1536" width="64" height="64">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="32" name="rock1" type="object" x="1024" y="1536" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="33" name="rock1" type="object" x="1088" y="1792" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="34" name="tree1" type="object" x="1152" y="1600" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="35" name="presents" type="object" x="1728" y="1664" width="64" height="64">
+   <properties>
+    <property name="spawn" value="presents"/>
+   </properties>
+  </object>
+  <object id="36" name="message" type="message" x="1792" y="1792" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="message" value="NOBODY STEALS OUR PRESENTS... AND LIVES"/>
+   </properties>
+  </object>
+  <object id="39" name="message delay" type="trigger" x="1792" y="1920" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="true"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="target0" type="object" value="36"/>
+    <property name="target1" type="object" value="42"/>
+   </properties>
+  </object>
+  <object id="40" name="bullet_ammo" type="object" x="1664" y="1792" width="64" height="64">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="41" name="krampus" type="object" x="1920" y="1280" width="64" height="64">
+   <properties>
+    <property name="spawn" value="krampus"/>
+   </properties>
+  </object>
+  <object id="42" name="spawn2" type="spawner" x="1664" y="1664" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="heart"/>
+   </properties>
+  </object>
+  <object id="43" name="shard" type="object" x="1408" y="1856" width="64" height="64">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="44" name="suit" type="object" x="1344" y="1856" width="64" height="64">
+   <properties>
+    <property name="spawn" value="suit"/>
+   </properties>
+  </object>
+  <object id="45" name="shard" type="object" x="1472" y="1856" width="64" height="64">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="46" name="shard" type="object" x="1536" y="1856" width="64" height="64">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="47" name="flask" type="object" x="1472" y="1920" width="64" height="64">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="49" name="extra_life" type="object" x="1856" y="1664" width="64" height="64">
+   <properties>
+    <property name="spawn" value="extra_life"/>
+   </properties>
+  </object>
+  <object id="50" name="boss_counter" type="counter" x="1024" y="1152" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="true"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="51"/>
+   </properties>
+  </object>
+  <object id="51" name="end game" type="next_level" x="1024" y="1024" width="64" height="64"/>
+ </objectgroup>
+</map>

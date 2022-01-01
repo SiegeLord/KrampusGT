@@ -27,6 +27,9 @@
   <property name="active" type="bool" default="false"/>
   <property name="message" type="string"/>
  </objecttype>
+ <objecttype name="next_level" color="#00007f">
+  <property name="next_level" type="string"/>
+ </objecttype>
  <objecttype name="object" color="#ffffff">
   <property name="counter" type="object" default="0"/>
   <property name="dir" type="float" default="0"/>

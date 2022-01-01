@@ -7,17 +7,17 @@ authors = ["SiegeLord <slabode@aim.com>"]
 
 [dependencies]
 
-allegro-sys = { version="0.0.41" }
+allegro-sys = { version="0.0.42" }
 
-allegro = { version="0.0.41" }
-allegro_dialog = { version="0.0.41" }
-allegro_image = { version="0.0.41" }
-allegro_font = { version="0.0.41" }
-allegro_ttf = { version="0.0.41" }
-allegro_acodec = { version="0.0.41" }
-allegro_audio = { version="0.0.41" }
-allegro_primitives = { version="0.0.41" }
-allegro_color = { version="0.0.41" }
+allegro = { version="0.0.42" }
+allegro_dialog = { version="0.0.42" }
+allegro_image = { version="0.0.42" }
+allegro_font = { version="0.0.42" }
+allegro_ttf = { version="0.0.42" }
+allegro_acodec = { version="0.0.42" }
+allegro_audio = { version="0.0.42" }
+allegro_primitives = { version="0.0.42" }
+allegro_color = { version="0.0.42" }
 
 hecs = "0.7.1"
 slr_config = "0.0.20"
@@ -27,7 +27,8 @@ serde = "1.0.131"
 serde_derive = "1.0.131"
 gltf = "0.16.0"
 #tiled = "0.9.5"
-tiled = { path = "/home/siege/src/rs-tiled" }
+#tiled = { path = "/home/siege/src/rs-tiled" }
+tiled = { git = "https://github.com/mapeditor/rs-tiled", rev = "2f6d637ff4318cab086f53a94c77d95e760492b3" }
 gl = "0.14.0"
 gl_loader = "0.1.2"
 rect_packer = "0.2.1"

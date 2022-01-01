@@ -243,6 +243,7 @@ pub struct LevelDesc
 {
 	level: String,
 	meshes: String,
+	music: String,
 }
 
 pub struct Level
@@ -256,12 +257,10 @@ pub struct Level
 impl Level
 {
 	pub fn new(
-		filename: &str, named_entities: &mut HashMap<String, hecs::Entity>,
+		desc: LevelDesc, named_entities: &mut HashMap<String, hecs::Entity>,
 		state: &mut game_state::GameState, world: &mut hecs::World,
 	) -> Result<Self>
 	{
-		let desc: LevelDesc = utils::load_config(filename)?;
-
 		let tile_meshes = load_meshes(&desc.meshes);
 
 		let map = tiled::parse_file(&Path::new(&desc.level))?;
@@ -347,6 +346,11 @@ impl Level
 				"message" => spawn_message(
 					get_string_property("message", obj).unwrap_or(Ok("".to_string()))?,
 					get_bool_property("active", obj).unwrap_or(Ok(true))?,
+					world,
+				),
+				"next_level" => spawn_next_level(
+					get_string_property("next_level", obj).unwrap_or(Ok("".to_string()))?,
+					get_bool_property("active", obj).unwrap_or(Ok(false))?,
 					world,
 				),
 				"trigger" => spawn_trigger(
@@ -1115,13 +1119,13 @@ pub fn spawn_explosion(
 }
 
 pub fn spawn_player(
-	pos: Point3<f32>, dir: f32, player_class: PlayerClass, health: components::Health,
+	pos: Point3<f32>, dir: f32, player_class: game_state::PlayerClass, health: components::Health,
 	weapon_set: components::WeaponSet, world: &mut hecs::World,
 ) -> hecs::Entity
 {
 	let (sprite_sheet, corpse_sprite_sheet, regen, speed, can_strafe, sound) = match player_class
 	{
-		PlayerClass::Santa => (
+		game_state::PlayerClass::Santa => (
 			"data/santa.cfg",
 			"data/santa_corpse.cfg",
 			components::AmmoRegen {
@@ -1133,7 +1137,7 @@ pub fn spawn_player(
 			true,
 			"data/santa_death.ogg",
 		),
-		PlayerClass::Reindeer => (
+		game_state::PlayerClass::Reindeer => (
 			"data/reindeer.cfg",
 			"data/reindeer_corpse.cfg",
 			components::AmmoRegen {
@@ -1957,6 +1961,16 @@ pub fn spawn_message(message: String, active: bool, world: &mut hecs::World) -> 
 	))
 }
 
+pub fn spawn_next_level(next_level: String, active: bool, world: &mut hecs::World) -> hecs::Entity
+{
+	world.spawn((
+		components::Active { active: active },
+		components::NextLevel {
+			next_level: next_level,
+		},
+	))
+}
+
 pub fn spawn_trigger(
 	delay: f64, targets: Vec<String>, active: bool, state: &mut game_state::GameState,
 	world: &mut hecs::World,
@@ -2220,11 +2234,13 @@ fn turn_towards(
 	}
 }
 
-#[derive(Copy, Clone)]
-pub enum PlayerClass
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum UIState
 {
-	Santa,
-	Reindeer,
+	Regular,
+	DeadHaveLives,
+	DeadForReal,
+	Quit,
 }
 
 pub struct Map
@@ -2256,8 +2272,10 @@ pub struct Map
 	test: hecs::Entity,
 	named_entities: HashMap<String, hecs::Entity>,
 
-	player_class: PlayerClass,
-	message: String,
+	player_class: game_state::PlayerClass,
+
+	ui_state: UIState,
+	message: Vec<String>,
 	time_to_hide_message: f64,
 
 	world: hecs::World,
@@ -2266,13 +2284,24 @@ pub struct Map
 impl Map
 {
 	pub fn new(
-		state: &mut game_state::GameState, display_width: f32, display_height: f32,
+		state: &mut game_state::GameState, level: &str, player_class: game_state::PlayerClass,
+		saved_health: Option<components::Health>, saved_weapon_set: Option<components::WeaponSet>,
+		lives: i32, display_width: f32, display_height: f32,
 	) -> Result<Self>
 	{
 		let mut world = hecs::World::default();
 		let mut named_entities = HashMap::new();
+		state.hide_mouse = true;
 
-		let level = Level::new("data/level.cfg", &mut named_entities, state, &mut world)?;
+		let level_desc: LevelDesc = utils::load_config(level)?;
+
+		if state.options.play_music
+		{
+			state.sfx.set_music_file(&level_desc.music);
+			state.sfx.play_music()?;
+		}
+
+		let level = Level::new(level_desc, &mut named_entities, state, &mut world)?;
 
 		let mut camera_anchor = components::Position {
 			pos: Point3::new(0., 0., 0.),
@@ -2373,14 +2402,6 @@ impl Map
 		state.sfx.cache_sample("data/heart.ogg")?;
 		state.sfx.cache_sample("data/suit.ogg")?;
 
-		if state.options.play_music
-		{
-			state.sfx.set_music_file("data/vintersaga.xm");
-			state.sfx.play_music()?;
-		}
-
-		let player_class = PlayerClass::Reindeer;
-
 		Ok(Self {
 			test: test,
 			projection: utils::projection_transform(display_width, display_height),
@@ -2400,14 +2421,14 @@ impl Map
 			clear_rot: false,
 			enter_state: false,
 			want_spawn: true,
-			saved_health: components::Health {
+			saved_health: saved_health.unwrap_or(components::Health {
 				health: 100.,
 				armour: 0.,
 				max_health: 100.,
 				max_armour: 100.,
 				immunities: vec![],
-			},
-			saved_weapon_set: components::WeaponSet {
+			}),
+			saved_weapon_set: saved_weapon_set.unwrap_or(components::WeaponSet {
 				weapons: HashMap::from([
 					(
 						components::WeaponType::OrbGun,
@@ -2417,8 +2438,8 @@ impl Map
 						components::WeaponType::SantaGun,
 						match player_class
 						{
-							PlayerClass::Santa => components::Weapon::santa_gun(),
-							PlayerClass::Reindeer => components::Weapon::rocket_gun(),
+							game_state::PlayerClass::Santa => components::Weapon::santa_gun(),
+							game_state::PlayerClass::Reindeer => components::Weapon::rocket_gun(),
 						},
 					),
 					(
@@ -2437,12 +2458,13 @@ impl Map
 				cur_weapon: components::WeaponType::SantaGun,
 				want_to_fire: false,
 				last_fire_time: -f64::INFINITY,
-			},
+			}),
 			named_entities: named_entities,
-			lifes: 3,
-			message: "".into(),
+			lifes: lives,
+			message: vec![],
 			time_to_hide_message: 0.,
 			player_class: player_class,
+			ui_state: UIState::Regular,
 		})
 	}
 
@@ -2472,7 +2494,9 @@ impl Map
 		)
 	}
 
-	pub fn logic(&mut self, state: &mut game_state::GameState) -> Result<()>
+	pub fn logic(
+		&mut self, state: &mut game_state::GameState,
+	) -> Result<Option<game_state::NextScreen>>
 	{
 		let sound_camera = self.camera_pos().xz();
 		let mut to_die = vec![];
@@ -2810,7 +2834,8 @@ impl Map
 			{
 				let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
 				player_vel.vel = Vector3::new(vel.x, 0., vel.y);
-				player_vel.dir_vel = rot_left_right as f32 * f32::pi() / 2.;
+				player_vel.dir_vel =
+					state.options.turn_sensitivity * (rot_left_right as f32 * f32::pi() / 2.);
 			}
 
 			if self.enter_state
@@ -2902,6 +2927,24 @@ impl Map
 			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
 			{
 				weapon_set.want_to_fire = self.fire_state;
+			}
+		}
+		else
+		{
+			if self.ui_state != UIState::Quit
+			{
+				if self.lifes > 0
+				{
+					self.ui_state = UIState::DeadHaveLives;
+					self.message = vec!["YOU HAVE FALLEN".into(), "PRESS (R) TO RESPAWN".into()];
+					self.time_to_hide_message = -1.;
+				}
+				else
+				{
+					self.ui_state = UIState::DeadForReal;
+					self.message = vec!["YOU HAVE DIED".into(), "PRESS (ESC) TO QUIT".into()];
+					self.time_to_hide_message = -1.;
+				}
 			}
 		}
 
@@ -3467,6 +3510,8 @@ impl Map
 					));
 				}
 			}
+			self.message.clear();
+			self.ui_state = UIState::Regular;
 			self.want_spawn = false;
 		}
 
@@ -3525,6 +3570,36 @@ impl Map
 			}
 		}
 
+		// Next level
+		for (id, next_level) in self.world.query::<&components::NextLevel>().iter()
+		{
+			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			{
+				if next_level.next_level.is_empty()
+				{
+					return Ok(Some(game_state::NextScreen::Menu));
+				}
+				let mut saved_health = self.saved_health.clone();
+				let mut saved_weapon_set = self.saved_weapon_set.clone();
+				if let Ok(health) = self.world.get::<components::Health>(self.player)
+				{
+					saved_health = (*health).clone();
+				}
+				if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+				{
+					saved_weapon_set = (*weapon_set).clone();
+				}
+
+				return Ok(Some(game_state::NextScreen::Game(
+					next_level.next_level.clone(),
+					self.player_class,
+					Some(saved_health),
+					Some(saved_weapon_set),
+					self.lifes,
+				)));
+			}
+		}
+
 		// Trigger
 		for (id, trigger) in self.world.query::<&components::Trigger>().iter()
 		{
@@ -3552,8 +3627,11 @@ impl Map
 		{
 			if self.world.get::<components::Active>(id).map(|a| a.active)?
 			{
-				self.message = message.message.clone();
-				self.time_to_hide_message = state.time() + 5.;
+				if self.ui_state == UIState::Regular
+				{
+					self.message = vec![message.message.clone()];
+					self.time_to_hide_message = state.time() + 5.;
+				}
 				to_die.push((true, id));
 			}
 		}
@@ -3802,7 +3880,7 @@ impl Map
 		// Remove dead entities
 		for (_, id) in to_die
 		{
-			dbg!("died", id);
+			//~ dbg!("died", id);
 			self.world.despawn(id)?;
 		}
 
@@ -3814,11 +3892,14 @@ impl Map
 			self.clear_rot = false;
 		}
 
-		Ok(())
+		Ok(None)
 	}
 
 	pub fn draw(&mut self, state: &game_state::GameState) -> Result<()>
 	{
+		state.core.clear_to_color(Color::from_rgb_f(0.1, 0.15, 0.4));
+		state.core.clear_depth_buffer(1.);
+
 		state.core.set_depth_test(Some(DepthFunction::Less));
 		state
 			.core
@@ -3987,40 +4068,6 @@ impl Map
 				&format!("{}", self.lifes),
 			);
 		}
-		else
-		{
-			state.core.draw_text(
-				&state.ui_font,
-				c_ui,
-				self.display_width / 2.,
-				16.,
-				FontAlign::Centre,
-				"YOU HAVE DIED",
-			);
-
-			if self.lifes > 0
-			{
-				state.core.draw_text(
-					&state.ui_font,
-					c_ui,
-					self.display_width / 2.,
-					48.,
-					FontAlign::Centre,
-					"PRESS (R) TO RESPAWN",
-				);
-			}
-			else
-			{
-				state.core.draw_text(
-					&state.ui_font,
-					c_ui,
-					self.display_width / 2.,
-					48.,
-					FontAlign::Centre,
-					"PRESS (Q) TO QUIT",
-				);
-			}
-		}
 
 		if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
 		{
@@ -4139,8 +4186,8 @@ impl Map
 
 					let ammo_name = match self.player_class
 					{
-						PlayerClass::Santa => "BULLETS",
-						PlayerClass::Reindeer => "ROCKETS",
+						game_state::PlayerClass::Santa => "BULLETS",
+						game_state::PlayerClass::Reindeer => "ROCKETS",
 					};
 
 					state.core.draw_text(
@@ -4165,21 +4212,27 @@ impl Map
 		}
 
 		if state.time() < self.time_to_hide_message
+			|| self.time_to_hide_message < 0. && !self.message.is_empty()
 		{
-			state.core.draw_text(
-				&state.ui_font,
-				Color::from_rgb_f(1., 1., 0.8),
-				self.display_width / 2.,
-				16.,
-				FontAlign::Centre,
-				&self.message,
-			);
+			for (i, msg) in self.message.iter().enumerate()
+			{
+				state.core.draw_text(
+					&state.ui_font,
+					Color::from_rgb_f(1., 1., 0.8),
+					self.display_width / 2.,
+					16. + 24. * i as f32,
+					FontAlign::Centre,
+					msg,
+				);
+			}
 		}
 
 		Ok(())
 	}
 
-	pub fn input(&mut self, event: &Event, _state: &mut game_state::GameState) -> Result<()>
+	pub fn input(
+		&mut self, event: &Event, _state: &mut game_state::GameState,
+	) -> Result<Option<game_state::NextScreen>>
 	{
 		let mut desired_weapon = None;
 		match event
@@ -4287,7 +4340,7 @@ impl Map
 				}
 				KeyCode::R =>
 				{
-					if self.world.get::<components::Health>(self.player).is_err() && self.lifes > 0
+					if self.ui_state == UIState::DeadHaveLives
 					{
 						self.lifes -= 1;
 						self.want_spawn = true;
@@ -4304,6 +4357,28 @@ impl Map
 				KeyCode::Space =>
 				{
 					self.fire_state = true;
+				}
+				KeyCode::Escape =>
+				{
+					self.ui_state = UIState::Quit;
+					self.time_to_hide_message = -1.;
+					self.message = vec!["QUIT? (Y/N)".into()];
+				}
+				KeyCode::Y =>
+				{
+					if self.ui_state == UIState::Quit
+					{
+						return Ok(Some(game_state::NextScreen::Menu));
+					}
+				}
+				KeyCode::N =>
+				{
+					if self.ui_state == UIState::Quit
+					{
+						self.ui_state = UIState::Regular;
+						self.time_to_hide_message = -1.;
+						self.message.clear();
+					}
 				}
 				_ => (),
 			},
@@ -4360,6 +4435,6 @@ impl Map
 			}
 		}
 
-		Ok(())
+		Ok(None)
 	}
 }
