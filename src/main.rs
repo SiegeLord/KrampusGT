@@ -36,7 +36,7 @@ fn real_main() -> Result<()>
 
 	if state.options.fullscreen
 	{
-		state.core.set_new_display_flags(FULLSCREEN_WINDOW);
+		state.core.set_new_display_flags(OPENGL | FULLSCREEN_WINDOW);
 	}
 
 	state.core.set_new_display_option(
@@ -166,6 +166,21 @@ fn real_main() -> Result<()>
 		match event
 		{
 			Event::DisplayClose { .. } => quit = true,
+			Event::DisplaySwitchOut { .. } =>
+			{
+				state.hide_mouse = false;
+			}
+			Event::DisplaySwitchIn { .. } =>
+			{
+				match cur_screen
+				{
+					CurScreen::Game(_) =>
+					{
+						state.hide_mouse = true;
+					}
+					_ => (),
+				}
+			}
 			Event::TimerTick { .. } =>
 			{
 				if logics_without_draw > 10
@@ -223,11 +238,11 @@ fn real_main() -> Result<()>
 			{
 				NextScreen::Game(level, class, health, weapons, lives) =>
 				{
-					for level in &mut state.levels.levels
+					for other_level in &mut state.levels.levels
 					{
-						if level.filename == level.filename
+						if level == other_level.filename
 						{
-							level.unlocked = true;
+							other_level.unlocked = true;
 						}
 					}
 					cur_screen = CurScreen::Game(map::Map::new(

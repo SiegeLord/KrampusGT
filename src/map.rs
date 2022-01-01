@@ -2271,6 +2271,7 @@ pub struct Map
 
 	test: hecs::Entity,
 	named_entities: HashMap<String, hecs::Entity>,
+	active_player_start: hecs::Entity,
 
 	player_class: game_state::PlayerClass,
 
@@ -2421,6 +2422,7 @@ impl Map
 			clear_rot: false,
 			enter_state: false,
 			want_spawn: true,
+			active_player_start: player_start_entity.unwrap(),
 			saved_health: saved_health.unwrap_or(components::Health {
 				health: 100.,
 				armour: 0.,
@@ -2601,7 +2603,10 @@ impl Map
 			{
 				if let Some(resolve_diff) = self.level.check_collision(pos.pos, solid.size)
 				{
-					pos.pos += 0.9 * resolve_diff;
+					if f32::is_finite(solid.mass)
+					{
+						pos.pos += 0.9 * resolve_diff;
+					}
 
 					if pass == 0
 					{
@@ -2702,7 +2707,19 @@ impl Map
 									.map(|w| {
 										w.weapons
 											.get_mut(&components::WeaponType::SantaGun)
-											.map(|w| w.add_ammo(10))
+											.map(|w| {
+												w.add_ammo(
+													if self.player_class
+														== game_state::PlayerClass::Santa
+													{
+														20
+													}
+													else
+													{
+														2
+													},
+												)
+											})
 											.unwrap_or(false)
 									})
 									.unwrap_or(false),
@@ -2720,7 +2737,7 @@ impl Map
 									.map(|w| {
 										w.weapons
 											.get_mut(&components::WeaponType::FreezeGun)
-											.map(|w| w.add_ammo(10))
+											.map(|w| w.add_ammo(25))
 											.unwrap_or(false)
 									})
 									.unwrap_or(false),
@@ -2927,24 +2944,6 @@ impl Map
 			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
 			{
 				weapon_set.want_to_fire = self.fire_state;
-			}
-		}
-		else
-		{
-			if self.ui_state != UIState::Quit
-			{
-				if self.lifes > 0
-				{
-					self.ui_state = UIState::DeadHaveLives;
-					self.message = vec!["YOU HAVE FALLEN".into(), "PRESS (R) TO RESPAWN".into()];
-					self.time_to_hide_message = -1.;
-				}
-				else
-				{
-					self.ui_state = UIState::DeadForReal;
-					self.message = vec!["YOU HAVE DIED".into(), "PRESS (ESC) TO QUIT".into()];
-					self.time_to_hide_message = -1.;
-				}
 			}
 		}
 
@@ -3489,26 +3488,20 @@ impl Map
 				*team = components::Team::Neutral;
 			}
 
-			for (_, (active, pos, _)) in self.world.query_mut::<(
-				&components::Active,
-				&components::Position,
-				&components::PlayerStart,
-			)>()
+			if let Ok(pos) = self.world.get::<components::Position>(self.active_player_start)
 			{
-				if active.active
-				{
-					let point_pos = pos.pos.clone();
-					let health = self.saved_health.clone();
-					let weapon_set = self.saved_weapon_set.clone();
-					let dir = pos.dir;
-					let player_class = self.player_class;
-					spawn_fns.push((
-						true,
-						Box::new(move |_, world| {
-							spawn_player(point_pos, dir, player_class, health, weapon_set, world)
-						}),
-					));
-				}
+				dbg!("spawning at", self.active_player_start);
+				let point_pos = pos.pos.clone();
+				let health = self.saved_health.clone();
+				let weapon_set = self.saved_weapon_set.clone();
+				let dir = pos.dir;
+				let player_class = self.player_class;
+				spawn_fns.push((
+					true,
+					Box::new(move |_, world| {
+						spawn_player(point_pos, dir, player_class, health, weapon_set, world)
+					}),
+				));
 			}
 			self.message.clear();
 			self.ui_state = UIState::Regular;
@@ -3561,6 +3554,7 @@ impl Map
 						{
 							if self.world.contains(entity)
 							{
+								dbg!("activating", entity);
 								activate.push(entity);
 							}
 						}
@@ -3641,6 +3635,7 @@ impl Map
 		{
 			if let Ok(mut active) = self.world.get_mut::<components::Active>(entity)
 			{
+				dbg!("activating", entity, active.active);
 				active.active = !active.active;
 
 				if active.active
@@ -3648,6 +3643,7 @@ impl Map
 					if self.world.get::<components::PlayerStart>(entity).is_ok()
 					{
 						save = true;
+						self.active_player_start = entity;
 					}
 					if let Ok(mut trigger) = self.world.get_mut::<components::Trigger>(entity)
 					{
@@ -3828,6 +3824,7 @@ impl Map
 											self.world.get_mut::<components::Counter>(entity)
 										{
 											counter.count += 1;
+											dbg!(target, counter.count);
 										}
 									}
 								}
@@ -3865,6 +3862,25 @@ impl Map
 			if new_player
 			{
 				self.player = entity;
+			}
+		}
+		
+		if !self.world.get::<components::Health>(self.player).is_ok()
+		{
+			if self.ui_state != UIState::Quit
+			{
+				if self.lifes > 0
+				{
+					self.ui_state = UIState::DeadHaveLives;
+					self.message = vec!["YOU HAVE FALLEN".into(), "PRESS (R) TO RESPAWN".into()];
+					self.time_to_hide_message = -1.;
+				}
+				else
+				{
+					self.ui_state = UIState::DeadForReal;
+					self.message = vec!["YOU HAVE DIED".into(), "PRESS (ESC) TO QUIT".into()];
+					self.time_to_hide_message = -1.;
+				}
 			}
 		}
 
@@ -4357,6 +4373,10 @@ impl Map
 				KeyCode::Space =>
 				{
 					self.fire_state = true;
+				}
+				KeyCode::Backspace =>
+				{
+					self.world.despawn(self.player)?;
 				}
 				KeyCode::Escape =>
 				{

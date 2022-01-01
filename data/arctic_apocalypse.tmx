@@ -1,0 +1,601 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="64" tileheight="64" infinite="0" nextlayerid="4" nextobjectid="182">
+ <tileset firstgid="1" source="terrain_sheet2.tsx"/>
+ <layer id="3" name="Tile Layer 1" width="32" height="32">
+  <data encoding="csv">
+17,23,18,22,2,2,2,1,3,11,7,7,7,21,21,7,21,7,12,1,2,3,1,1,1,1,1,1,1,1,1,1,
+22,2,16,22,3,3,3,2,11,19,17,15,23,23,23,23,23,18,20,12,1,1,2,3,1,1,1,1,1,1,1,1,
+20,25,19,8,1,2,3,3,16,17,9,3,2,2,3,1,3,10,18,20,7,21,12,1,1,1,1,1,1,1,1,1,
+17,27,18,8,3,2,3,2,24,8,1,2,1,1,3,2,2,1,10,23,15,18,8,1,1,1,1,1,1,1,1,1,
+8,2,24,20,7,7,12,3,24,22,3,2,3,3,1,3,2,1,3,3,1,24,22,1,1,1,1,1,1,1,1,1,
+22,3,10,15,15,18,20,12,16,20,12,2,3,3,2,1,2,2,11,7,21,19,22,1,1,1,1,1,1,1,1,1,
+8,2,1,2,3,10,18,22,10,18,22,2,2,2,2,1,2,3,24,17,23,23,9,1,1,1,1,1,1,1,1,1,
+22,3,1,1,3,2,24,20,12,16,20,7,12,1,11,7,21,21,19,8,3,1,1,1,1,1,1,1,1,1,1,1,
+8,3,2,2,2,1,10,18,8,10,18,4,8,1,10,18,17,23,15,9,1,3,1,1,1,1,1,1,1,1,1,1,
+20,12,2,1,1,1,2,16,8,3,24,17,9,1,3,24,8,2,2,3,3,1,3,3,1,1,1,1,1,1,1,1,
+18,20,7,21,12,2,11,19,20,21,19,22,2,1,1,24,22,3,1,1,2,1,2,3,1,1,1,1,1,1,1,1,
+10,15,18,4,22,2,16,4,4,4,17,9,1,1,3,16,20,12,3,1,2,2,1,1,1,1,1,1,1,1,1,1,
+2,1,16,17,9,2,10,23,23,18,8,2,3,3,3,10,18,20,12,3,1,2,1,1,1,1,1,1,1,1,1,1,
+2,1,16,8,2,2,2,2,1,10,9,3,1,3,1,3,10,18,20,7,7,12,1,1,1,1,1,1,1,1,1,1,
+3,2,24,8,3,3,2,1,2,2,1,1,3,1,3,2,1,24,17,23,18,8,1,1,1,1,1,1,1,1,1,1,
+2,2,24,22,3,1,3,1,1,11,12,1,1,1,1,2,3,28,26,2,24,8,1,1,1,1,1,1,1,1,1,1,
+2,1,16,20,12,2,2,1,3,24,20,21,7,12,11,7,7,19,22,2,24,20,12,1,1,1,1,1,1,1,1,1,
+3,1,10,18,20,21,21,7,7,19,17,18,17,9,10,23,18,17,9,2,10,18,8,1,1,1,1,1,1,1,1,1,
+1,1,1,10,15,15,15,23,23,15,9,24,8,3,1,2,28,26,3,2,2,24,22,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,3,3,2,24,20,21,7,7,19,20,21,7,7,19,22,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,3,1,2,10,15,23,23,23,23,23,23,23,23,15,9,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,2,1,2,1,1,3,1,1,1,1,2,1,2,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,3,3,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+</data>
+ </layer>
+ <objectgroup id="2" name="Object Layer 1">
+  <object id="1" name="start" type="start" x="64" y="256" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="true"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="20" name="orb_gun" type="object" x="64" y="64" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="181"/>
+    <property name="spawn" value="orb_gun"/>
+   </properties>
+  </object>
+  <object id="33" name="rock1" type="object" x="384" y="1024" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="76" name="secret" type="area trigger" x="64" y="128" width="64" height="64">
+   <properties>
+    <property name="target0" type="object" value="77"/>
+   </properties>
+  </object>
+  <object id="77" name="message" type="message" x="256" y="128" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="message" value="YOU FOUND A SECRET"/>
+   </properties>
+  </object>
+  <object id="94" name="tree1" type="object" x="128" y="576" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="95" name="tree2" type="object" x="768" y="704" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="96" type="area trigger" x="64" y="512" width="383.333" height="64">
+   <properties>
+    <property name="target0" type="object" value="99"/>
+    <property name="target1" type="object" value="100"/>
+   </properties>
+  </object>
+  <object id="97" name="message" type="message" x="448" y="320" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="message" value="NOBODY STEALS OUR PRESENTS... AND LIVES"/>
+   </properties>
+  </object>
+  <object id="98" name="message delay" type="trigger" x="448" y="192" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="true"/>
+    <property name="delay" type="float" value="0.5"/>
+    <property name="target0" type="object" value="97"/>
+    <property name="target1" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="99" name="grinch 1" type="spawner" x="320" y="704" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="100" name="grinch 1" type="spawner" x="384" y="576" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="1.56"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="101" name="tree1" type="object" x="192" y="384" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="102" name="tree1" type="object" x="320" y="448" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="103" name="bullet_ammo" type="object" x="384.333" y="896.333" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="110"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="104" name="bullet_ammo" type="object" x="384.333" y="928.167" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="110"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="105" name="bullet_ammo" type="object" x="416.167" y="896.333" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="110"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="106" name="bullet_ammo" type="object" x="416.167" y="928.167" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="110"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="107" name="grinch 5" type="spawner" x="512" y="1024" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="111"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="108" name="grinch 5" type="spawner" x="256" y="832" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="111"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="0"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="110" name="counter" type="counter" x="512" y="896" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="4"/>
+    <property name="target0" type="object" value="108"/>
+    <property name="target1" type="object" value="107"/>
+   </properties>
+  </object>
+  <object id="111" name="counter" type="counter" x="256" y="960" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="10"/>
+    <property name="target0" type="object" value="112"/>
+    <property name="target1" type="object" value="114"/>
+    <property name="target2" type="object" value="113"/>
+    <property name="target3" type="object" value="116"/>
+    <property name="target4" type="object" value="115"/>
+    <property name="target5" type="object" value="118"/>
+    <property name="target6" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="112" name="flask" type="spawner" x="448" y="896" width="29.5" height="29.5">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="113" name="flask" type="spawner" x="450.5" y="929" width="29.5" height="29.5">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="114" name="flask" type="spawner" x="478.5" y="897.75" width="29.5" height="29.5">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="115" name="flask" type="spawner" x="481" y="930.75" width="29.5" height="29.5">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="116" name="start 2" type="start" x="320" y="768" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="117" name="blocker" type="object" x="576" y="896" width="64" height="64">
+   <properties>
+    <property name="spawn" value="blocker"/>
+   </properties>
+  </object>
+  <object id="118" name="deleter" type="deleter" x="576" y="960" width="64" height="64">
+   <properties>
+    <property name="target0" type="object" value="117"/>
+    <property name="target1" type="object" value="0"/>
+    <property name="target2" type="object" value="0"/>
+    <property name="target3" type="object" value="0"/>
+    <property name="target4" type="object" value="0"/>
+    <property name="target5" type="object" value="0"/>
+    <property name="target6" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="120" name="shard" type="object" x="768.083" y="994.75" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="126" name="secret" type="area trigger" x="1152" y="960" width="64" height="64">
+   <properties>
+    <property name="target0" type="object" value="127"/>
+   </properties>
+  </object>
+  <object id="127" name="message" type="message" x="1408" y="768" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="message" value="YOU FOUND A SECRET"/>
+   </properties>
+  </object>
+  <object id="128" name="suit" type="object" x="866" y="1152" width="64" height="64">
+   <properties>
+    <property name="spawn" value="suit"/>
+   </properties>
+  </object>
+  <object id="129" name="tree2" type="object" x="1024" y="896" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="130" name="tree2" type="object" x="960" y="832" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="131" name="cat trigger" type="area trigger" x="704" y="768" width="320" height="64">
+   <properties>
+    <property name="target0" type="object" value="132"/>
+    <property name="target1" type="object" value="134"/>
+    <property name="target2" type="object" value="133"/>
+   </properties>
+  </object>
+  <object id="132" name="grinch 1" type="spawner" x="704" y="960" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="133" name="grinch 1" type="spawner" x="960" y="960" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="134" name="cat" type="spawner" x="832" y="576" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="1.56"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="136" name="shard" type="object" x="800.417" y="995.417" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="137" name="shard" type="object" x="830.75" y="994.417" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="138" name="shard" type="object" x="861.417" y="994.417" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="139" name="shard" type="object" x="896.083" y="994.75" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="140" name="shard" type="object" x="927.083" y="993.75" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="141" name="bullet_ammo" type="object" x="643.5" y="928.75" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="143" name="bullet_ammo" type="object" x="674.75" y="926.75" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="144" name="bullet_ammo" type="object" x="676.083" y="896.083" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="145" name="bullet_ammo" type="object" x="643.417" y="896.083" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="146" name="rock1" type="object" x="1280" y="1152" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="147" name="presents" type="object" x="1280" y="256" width="64" height="64">
+   <properties>
+    <property name="spawn" value="presents"/>
+   </properties>
+  </object>
+  <object id="148" name="blocker" type="object" x="1216" y="256" width="64" height="64">
+   <properties>
+    <property name="spawn" value="blocker"/>
+   </properties>
+  </object>
+  <object id="149" name="wall" type="spawner" x="832" y="448" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="blocker"/>
+   </properties>
+  </object>
+  <object id="150" name="tree2" type="object" x="1024" y="384" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="151" name="tree1" type="object" x="704" y="128" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="152" name="bullet_ammo" type="object" x="832" y="320" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="153" name="bullet_ammo" type="object" x="865.083" y="318.083" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="154" name="bullet_ammo" type="object" x="897.417" y="286.417" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="155" name="bullet_ammo" type="object" x="897.083" y="254.75" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="156" name="bullet_ammo" type="object" x="832.75" y="220.417" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="157" name="bullet_ammo" type="object" x="864.417" y="221.083" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="158" name="bullet_ammo" type="object" x="800.083" y="253.75" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="159" name="bullet_ammo" type="object" x="800.417" y="287.417" width="31.8333" height="31.8333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="160" name="extra_life" type="object" x="832" y="256" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="162"/>
+    <property name="spawn" value="extra_life"/>
+   </properties>
+  </object>
+  <object id="161" name="grinch 5" type="spawner" x="1024" y="128" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="163"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="0"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="162" name="start counter" type="counter" x="662.667" y="285.333" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="149"/>
+    <property name="target1" type="object" value="161"/>
+    <property name="target2" type="object" value="169"/>
+    <property name="target3" type="object" value="179"/>
+    <property name="target4" type="object" value="167"/>
+    <property name="target5" type="object" value="168"/>
+    <property name="target6" type="object" value="0"/>
+    <property name="target7" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="163" name="cat start counter" type="counter" x="1088" y="256" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="10"/>
+    <property name="target0" type="object" value="172"/>
+    <property name="target1" type="object" value="170"/>
+    <property name="target2" type="object" value="0"/>
+    <property name="target3" type="object" value="0"/>
+    <property name="target4" type="object" value="0"/>
+    <property name="target5" type="object" value="0"/>
+    <property name="target6" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="167" name="grinch 5" type="spawner" x="768" y="128" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="163"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="0"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="168" name="grinch 5" type="spawner" x="704" y="384" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="163"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="169" name="grinch 5" type="spawner" x="1088" y="384" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="163"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="170" name="cat" type="spawner" x="896" y="128" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="171"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="171" name="cat end counter" type="counter" x="1152" y="576" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="2"/>
+    <property name="target0" type="object" value="173"/>
+    <property name="target1" type="object" value="0"/>
+    <property name="target2" type="object" value="0"/>
+    <property name="target3" type="object" value="0"/>
+    <property name="target4" type="object" value="0"/>
+    <property name="target5" type="object" value="0"/>
+    <property name="target6" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="172" name="cat" type="spawner" x="896" y="384" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="171"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="173" name="deleter" type="deleter" x="1280" y="576" width="64" height="64">
+   <properties>
+    <property name="target0" type="object" value="148"/>
+    <property name="target1" type="object" value="0"/>
+    <property name="target2" type="object" value="0"/>
+    <property name="target3" type="object" value="0"/>
+    <property name="target4" type="object" value="0"/>
+    <property name="target5" type="object" value="0"/>
+    <property name="target6" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="174" name="end of level" type="area trigger" x="1246.67" y="191.333" width="64" height="192">
+   <properties>
+    <property name="target0" type="object" value="175"/>
+    <property name="target1" type="object" value="176"/>
+   </properties>
+  </object>
+  <object id="175" name="message" type="message" x="1472" y="320" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="message" value="WHERE ARE THE REST?"/>
+   </properties>
+  </object>
+  <object id="176" name="message delay" type="trigger" x="1472" y="192" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="target0" type="object" value="177"/>
+    <property name="target1" type="object" value="0"/>
+   </properties>
+  </object>
+  <object id="177" name="next level" type="next_level" x="1600" y="192" width="64" height="64">
+   <properties>
+    <property name="next_level" value="data/inviting_fire.cfg"/>
+   </properties>
+  </object>
+  <object id="179" name="start 3" type="start" x="832" y="384" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="180" name="start orb" type="start" x="64" y="320" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="181" name="orb counter" type="counter" x="256" y="0" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="180"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

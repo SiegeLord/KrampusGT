@@ -240,7 +240,7 @@ impl Weapon
 			delay: 0.2,
 			time_to_fire: 0.,
 			weapon_type: WeaponType::SantaGun,
-			ammo: 5,
+			ammo: 0,
 			max_ammo: 5,
 			selectable: true,
 		}

@@ -1,0 +1,758 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="64" tileheight="64" infinite="0" nextlayerid="4" nextobjectid="225">
+ <tileset firstgid="1" source="terrain_sheet2.tsx"/>
+ <layer id="3" name="Tile Layer 1" width="32" height="32">
+  <data encoding="csv">
+2,2,3,1,2,2,3,2,3,3,1,3,3,1,1,3,3,3,2,3,3,2,1,1,1,1,1,1,1,1,1,1,
+2,2,3,1,3,3,1,3,2,3,3,1,1,3,1,1,1,2,3,3,3,2,1,3,1,1,1,1,1,1,1,1,
+3,2,2,3,1,2,2,2,2,2,2,1,2,11,21,21,12,2,2,1,3,2,3,1,2,1,1,1,1,1,1,1,
+1,3,3,2,3,3,2,3,3,3,2,3,2,16,17,18,20,12,2,2,1,2,2,1,1,1,1,1,1,1,1,1,
+1,2,1,1,1,1,2,2,1,3,3,2,2,24,22,10,18,22,2,3,1,3,3,1,1,1,1,1,1,1,1,1,
+2,3,2,3,2,1,1,2,2,3,2,2,3,24,8,2,24,22,3,2,2,3,1,1,1,1,1,1,1,1,1,1,
+2,2,1,2,3,1,3,2,2,2,1,2,1,16,8,3,16,20,21,7,21,12,1,1,1,1,1,1,1,1,1,1,
+2,3,1,1,3,2,1,2,2,1,1,2,2,16,8,2,10,23,15,15,18,20,12,1,1,1,1,1,1,1,1,1,
+3,3,2,2,2,1,3,2,2,1,3,11,21,19,8,2,1,3,3,3,10,18,22,1,1,1,1,1,1,1,1,1,
+2,3,2,1,1,1,2,3,3,3,1,16,17,23,9,2,2,2,1,1,3,24,8,3,1,1,1,1,1,1,1,1,
+3,3,3,2,2,1,2,2,3,2,11,19,22,2,2,2,3,2,1,2,2,24,22,3,1,1,1,1,1,1,1,1,
+1,1,3,1,2,2,1,2,3,2,24,17,9,1,1,3,2,2,2,3,11,19,8,11,7,7,7,7,12,1,1,1,
+2,1,3,1,2,2,2,1,3,2,24,20,12,2,1,2,3,2,1,3,24,17,13,19,17,23,23,18,22,1,1,1,
+2,1,2,3,2,2,2,2,3,2,10,18,20,12,11,12,3,3,3,11,19,20,19,17,9,2,3,24,20,12,1,1,
+3,2,2,2,3,3,2,2,1,3,2,16,4,20,19,8,2,1,1,16,4,17,23,9,1,3,3,10,18,22,1,1,
+2,2,2,2,3,1,3,3,3,3,11,19,17,15,18,22,3,3,1,10,15,9,2,1,3,1,3,1,24,8,1,1,
+2,1,3,2,1,2,2,1,3,1,24,17,9,3,28,26,1,1,2,2,3,1,2,3,11,12,1,1,16,20,12,1,
+3,1,2,2,3,1,3,2,2,3,24,8,2,3,24,20,21,7,7,21,12,1,3,2,10,9,1,2,24,4,8,1,
+1,1,1,1,1,1,2,1,2,2,24,20,7,7,19,17,15,15,18,17,13,7,12,1,1,3,1,3,16,17,9,1,
+1,1,1,1,1,1,1,1,1,11,19,17,18,4,17,9,1,2,24,20,14,18,22,2,1,3,1,11,19,22,1,1,
+1,1,1,1,1,1,1,1,11,19,17,9,10,15,9,1,2,2,10,18,20,19,20,21,7,12,3,16,17,9,1,1,
+1,1,1,1,1,1,1,11,19,17,9,1,1,1,2,1,2,1,3,10,23,15,15,18,4,22,1,16,20,12,1,1,
+1,1,1,1,1,1,11,19,17,9,1,1,3,2,1,3,3,1,2,1,1,1,1,10,15,9,1,10,18,8,1,1,
+1,1,1,1,1,1,16,17,9,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,24,8,1,1,
+1,1,1,1,1,1,24,8,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,24,22,1,1,
+1,1,1,1,1,1,24,20,12,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,11,12,1,1,24,22,1,1,
+1,1,1,1,1,1,10,18,8,1,1,1,1,1,1,1,1,1,1,1,1,1,11,7,19,20,7,7,19,22,1,1,
+1,1,1,1,1,1,1,16,20,12,1,1,1,1,1,1,1,1,1,1,1,11,19,17,23,23,23,23,15,9,1,1,
+1,1,1,1,1,1,1,10,18,20,21,12,1,1,1,11,7,7,7,7,21,19,17,9,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,10,23,18,20,21,21,7,19,17,18,4,17,15,15,9,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,10,23,23,23,23,15,9,10,23,9,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+</data>
+ </layer>
+ <objectgroup id="2" name="Object Layer 1">
+  <object id="97" name="tree1" type="object" x="832" y="768" width="64" height="64">
+   <properties>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="98" name="tree3" type="object" x="1152" y="512" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="99" name="tree1" type="object" x="1088" y="768" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="55"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="100" name="tree3" type="object" x="1199" y="554" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="101" name="tree3" type="object" x="1118" y="747" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="102" name="tree3" type="object" x="1217" y="778" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="103" name="tree3" type="object" x="1265" y="681" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="104" name="tree3" type="object" x="870" y="630" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="105" name="tree3" type="object" x="1104" y="630" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="106" name="freeze gun" type="object" x="960" y="640" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="208"/>
+    <property name="spawn" value="freeze_gun"/>
+   </properties>
+  </object>
+  <object id="107" name="freeze ammo" type="object" x="1024" y="640" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="108" name="freeze ammo" type="object" x="1024.5" y="673.5" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="109" name="freeze ammo" type="object" x="1057.17" y="673.167" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="110" name="freeze ammo" type="object" x="1057.5" y="640.833" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="111" name="freeze ammo" type="object" x="958.75" y="705.083" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="112" name="freeze ammo" type="object" x="959.25" y="738.583" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="113" name="freeze ammo" type="object" x="991.92" y="738.25" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="114" name="freeze ammo" type="object" x="992.25" y="705.916" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="115" name="rock1" type="object" x="1173.33" y="724" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="116" name="start" type="start" x="960" y="320" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="true"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="117" name="cat area" type="area trigger" x="768" y="768" width="576" height="64">
+   <properties>
+    <property name="target0" type="object" value="118"/>
+    <property name="target1" type="object" value="121"/>
+   </properties>
+  </object>
+  <object id="118" name="cat2" type="spawner" x="1280" y="576" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="10"/>
+    <property name="max_count" type="int" value="2"/>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="120" name="cat2" type="spawner" x="1088" y="1024" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="10"/>
+    <property name="dir" type="float" value="3.14"/>
+    <property name="max_count" type="int" value="2"/>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="121" name="delay" type="trigger" x="1024" y="896" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="4"/>
+    <property name="target0" type="object" value="120"/>
+   </properties>
+  </object>
+  <object id="122" name="snowman" type="spawner" x="1664" y="1216" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="snowman"/>
+   </properties>
+  </object>
+  <object id="123" name="snowman" type="spawner" x="1664" y="896" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="snowman"/>
+   </properties>
+  </object>
+  <object id="124" name="shard" type="object" x="1278.67" y="1042" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="125" name="flask" type="object" x="1471.33" y="1151.33" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="126" name="flask" type="object" x="1505" y="1153.67" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="127" name="flask" type="object" x="1471.67" y="1186.33" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="128" name="flask" type="object" x="1505" y="1187.67" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="129" name="flask" type="object" x="1667" y="1054.33" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="130" name="flask" type="object" x="1697.67" y="1055" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="131" name="flask" type="object" x="1667" y="1086.33" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="132" name="flask" type="object" x="1699.67" y="1089" width="31.3333" height="32.6667">
+   <properties>
+    <property name="spawn" value="flask"/>
+   </properties>
+  </object>
+  <object id="133" name="shard" type="object" x="1312" y="1040.67" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="134" name="shard" type="object" x="1346" y="1040.67" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="135" name="shard" type="object" x="1382" y="1042" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="136" name="shard" type="object" x="1416" y="1041.33" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="137" name="shard" type="object" x="1452" y="1041.33" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="shard"/>
+   </properties>
+  </object>
+  <object id="138" name="secret" type="area trigger" x="896" y="1024" width="64" height="64">
+   <properties>
+    <property name="target0" type="object" value="139"/>
+   </properties>
+  </object>
+  <object id="139" name="message" type="message" x="832" y="1024" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="message" value="YOU FOUND A SECRET"/>
+   </properties>
+  </object>
+  <object id="143" name="orb ammo" type="object" x="831.333" y="1088.83" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="144" name="rock1" type="object" x="1732" y="1084" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="145" type="area trigger" x="1476" y="929" width="72" height="373">
+   <properties>
+    <property name="target0" type="object" value="122"/>
+    <property name="target1" type="object" value="123"/>
+    <property name="target2" type="object" value="146"/>
+    <property name="target3" type="object" value="0"/>
+    <property name="target4" type="object" value="147"/>
+   </properties>
+  </object>
+  <object id="146" name="grinch" type="spawner" x="1216" y="1024" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="2.7"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="147" name="start 2" type="start" x="1088" y="832" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="148" name="orb ammo" type="object" x="831.833" y="1122.17" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="149" name="orb ammo" type="object" x="797.167" y="1121.5" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="150" name="orb ammo" type="object" x="797.833" y="1088.83" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="151" name="buggy" type="object" x="1664" y="1472" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="spawn" value="buggy"/>
+   </properties>
+  </object>
+  <object id="152" name="start" type="area trigger" x="1024" y="1217" width="69" height="585">
+   <properties>
+    <property name="target0" type="object" value="157"/>
+    <property name="target1" type="object" value="161"/>
+    <property name="target2" type="object" value="158"/>
+    <property name="target3" type="object" value="163"/>
+    <property name="target4" type="object" value="153"/>
+    <property name="target5" type="object" value="156"/>
+    <property name="target6" type="object" value="164"/>
+    <property name="target7" type="object" value="162"/>
+   </properties>
+  </object>
+  <object id="153" name="grinch" type="spawner" x="1408" y="1408" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="159"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="max_count" type="int" value="10"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="154" name="grinch" type="spawner" x="1408" y="1472" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="159"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="max_count" type="int" value="10"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="155" name="grinch" type="spawner" x="1408" y="1536" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="159"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="max_count" type="int" value="10"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="156" name="grinch" type="spawner" x="1408" y="1600" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="159"/>
+    <property name="delay" type="float" value="1"/>
+    <property name="dir" type="float" value="1.57"/>
+    <property name="max_count" type="int" value="10"/>
+    <property name="spawn" value="grinch"/>
+   </properties>
+  </object>
+  <object id="157" name="cat2" type="spawner" x="704" y="1408" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="159"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="2.7"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="158" name="cat2" type="spawner" x="708" y="1666" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="159"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="2.7"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="cat"/>
+   </properties>
+  </object>
+  <object id="159" name="counter second phase" type="counter" x="896" y="1984" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="55"/>
+    <property name="target0" type="object" value="191"/>
+    <property name="target1" type="object" value="200"/>
+    <property name="target10" type="object" value="201"/>
+    <property name="target2" type="object" value="199"/>
+    <property name="target3" type="object" value="202"/>
+    <property name="target4" type="object" value="204"/>
+    <property name="target5" type="object" value="196"/>
+    <property name="target6" type="object" value="203"/>
+    <property name="target7" type="object" value="205"/>
+    <property name="target8" type="object" value="206"/>
+   </properties>
+  </object>
+  <object id="160" name="snowman" type="spawner" x="640" y="1536" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="159"/>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="2.7"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="snowman"/>
+   </properties>
+  </object>
+  <object id="161" name="delay 2" type="trigger" x="832" y="1536" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="4"/>
+    <property name="target0" type="object" value="160"/>
+   </properties>
+  </object>
+  <object id="162" name="delay 5" type="trigger" x="1216" y="1472" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="2"/>
+    <property name="target0" type="object" value="154"/>
+    <property name="target1" type="object" value="155"/>
+   </properties>
+  </object>
+  <object id="163" name="wall" type="spawner" x="1664" y="1344" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="5"/>
+    <property name="dir" type="float" value="2.7"/>
+    <property name="max_count" type="int" value="5"/>
+    <property name="spawn" value="blocker"/>
+   </properties>
+  </object>
+  <object id="164" name="start 3" type="start" x="1664" y="1536" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="dir" type="float" value="1.57"/>
+   </properties>
+  </object>
+  <object id="165" name="heart" type="object" x="1093.67" y="1438.67" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="heart"/>
+   </properties>
+  </object>
+  <object id="166" name="heart" type="object" x="1096" y="1597.33" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="heart"/>
+   </properties>
+  </object>
+  <object id="167" name="suit" type="object" x="988" y="1436.67" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="suit"/>
+   </properties>
+  </object>
+  <object id="168" name="suit" type="object" x="988.667" y="1594" width="33.3333" height="33.3333">
+   <properties>
+    <property name="spawn" value="suit"/>
+   </properties>
+  </object>
+  <object id="169" name="rock1" type="object" x="640" y="1408" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="170" name="tree3" type="object" x="896" y="1728" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="171" name="tree3" type="object" x="768" y="1344" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="172" name="tree3" type="object" x="1280" y="1664" width="64" height="64">
+   <properties>
+    <property name="dir" type="float" value="34"/>
+    <property name="spawn" value="tree"/>
+   </properties>
+  </object>
+  <object id="173" name="rock1" type="object" x="1088" y="1344" width="64" height="64">
+   <properties>
+    <property name="spawn" value="rock"/>
+   </properties>
+  </object>
+  <object id="174" name="bullet_ammo" type="object" x="960" y="1280" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="175" name="bullet_ammo" type="object" x="990.833" y="1282.83" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="176" name="bullet_ammo" type="object" x="1023.83" y="1280.83" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="177" name="bullet_ammo" type="object" x="1057.33" y="1282.83" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="178" name="bullet_ammo" type="object" x="1090.33" y="1281.83" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="179" name="bullet_ammo" type="object" x="1123.33" y="1278.83" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="180" name="bullet_ammo" type="object" x="960" y="1729.17" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="181" name="bullet_ammo" type="object" x="990.833" y="1732" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="182" name="bullet_ammo" type="object" x="1023.83" y="1730" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="183" name="bullet_ammo" type="object" x="1057.33" y="1732" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="184" name="bullet_ammo" type="object" x="1090.33" y="1731" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="185" name="bullet_ammo" type="object" x="1123.33" y="1728" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="186" name="freeze ammo" type="object" x="828.417" y="1786.75" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="187" name="freeze ammo" type="object" x="828.917" y="1820.25" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="188" name="freeze ammo" type="object" x="861.587" y="1819.92" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="189" name="freeze ammo" type="object" x="861.917" y="1787.58" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="191" name="extra" type="spawner" x="1129.83" y="1514.83" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="193"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="extra_life"/>
+   </properties>
+  </object>
+  <object id="192" name="big snowman" type="spawner" x="576" y="1536" width="64" height="64">
+   <properties>
+    <property name="counter" type="object" value="211"/>
+    <property name="delay" type="float" value="0"/>
+    <property name="dir" type="float" value="2.7"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="big_snowman"/>
+   </properties>
+  </object>
+  <object id="193" name="counter second phase 2" type="counter" x="1088" y="1984" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="192"/>
+   </properties>
+  </object>
+  <object id="196" name="orb_gun" type="spawner" x="958.667" y="1516.33" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="210"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_gun"/>
+   </properties>
+  </object>
+  <object id="199" name="orb_ammo" type="spawner" x="922.833" y="1555.83" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="200" name="orb_ammo" type="spawner" x="957.833" y="1559.08" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="201" name="orb_ammo" type="spawner" x="925.833" y="1477.58" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="202" name="orb_ammo" type="spawner" x="989.333" y="1558.83" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="203" name="orb_ammo" type="spawner" x="991.333" y="1523.83" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="204" name="orb_ammo" type="spawner" x="923.833" y="1518.33" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="205" name="orb_ammo" type="spawner" x="956.833" y="1476.83" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="206" name="orb_ammo" type="spawner" x="989.833" y="1481.83" width="33.3333" height="33.3333">
+   <properties>
+    <property name="counter" type="object" value="0"/>
+    <property name="max_count" type="int" value="1"/>
+    <property name="spawn" value="orb_ammo"/>
+   </properties>
+  </object>
+  <object id="207" name="start freeze" type="start" x="960" y="384" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="208" name="freeze gun counter" type="counter" x="960" y="448" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="207"/>
+   </properties>
+  </object>
+  <object id="209" name="start orb" type="start" x="1565.83" y="1477" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="dir" type="float" value="0"/>
+   </properties>
+  </object>
+  <object id="210" name="orb gun counter" type="counter" x="1565.83" y="1541" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="209"/>
+   </properties>
+  </object>
+  <object id="211" name="big snowman counter" type="counter" x="576" y="1984" width="64" height="64">
+   <properties>
+    <property name="max_count" type="int" value="1"/>
+    <property name="target0" type="object" value="212"/>
+    <property name="target1" type="object" value="214"/>
+   </properties>
+  </object>
+  <object id="212" name="message" type="message" x="448" y="1856" width="64" height="64">
+   <properties>
+    <property name="active" type="bool" value="false"/>
+    <property name="message" value="I HATE SNOWMEN"/>
+   </properties>
+  </object>
+  <object id="213" name="next level" type="next_level" x="320" y="1664" width="64" height="64">
+   <properties>
+    <property name="next_level" value="data/krampus_hack.cfg"/>
+   </properties>
+  </object>
+  <object id="214" name="delay 3" type="trigger" x="320" y="1792" width="64" height="64">
+   <properties>
+    <property name="delay" type="float" value="5"/>
+    <property name="target0" type="object" value="213"/>
+   </properties>
+  </object>
+  <object id="215" name="bullet_ammo" type="object" x="958.836" y="1760.34" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="216" name="bullet_ammo" type="object" x="989.669" y="1763.17" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="217" name="bullet_ammo" type="object" x="1022.66" y="1761.17" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="218" name="bullet_ammo" type="object" x="1056.16" y="1763.17" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="219" name="bullet_ammo" type="object" x="1089.16" y="1762.17" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="220" name="bullet_ammo" type="object" x="1122.16" y="1759.17" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="bullet_ammo"/>
+   </properties>
+  </object>
+  <object id="221" name="freeze ammo" type="object" x="829.083" y="1711.58" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="222" name="freeze ammo" type="object" x="829.583" y="1745.08" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="223" name="freeze ammo" type="object" x="862.253" y="1744.75" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+  <object id="224" name="freeze ammo" type="object" x="862.583" y="1712.41" width="32.3333" height="30.3333">
+   <properties>
+    <property name="spawn" value="freeze_ammo"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>
