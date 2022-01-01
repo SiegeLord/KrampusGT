@@ -638,6 +638,8 @@ pub struct Vehicle
 {
 	pub contents:
 		Option<Box<dyn Fn(Point3<f32>, f32, &mut hecs::World) -> hecs::Entity + Sync + Send>>,
+	pub saved_health: Option<Health>,
+	pub saved_weapon_set: Option<WeaponSet>,
 }
 
 #[derive(Debug, Copy, Clone)]

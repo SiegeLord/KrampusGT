@@ -1257,7 +1257,7 @@ pub fn spawn_buggy(
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
-		components::Vehicle { contents: None },
+		components::Vehicle { contents: None, saved_health: None, saved_weapon_set: None },
 		components::Moveable {
 			speed: 200.,
 			rot_speed: f32::pi(),
@@ -2910,6 +2910,8 @@ impl Map
 							(*self.world.get::<components::WeaponSet>(self.player)?).clone();
 
 						let player_class = self.player_class;
+						vehicle.saved_health = Some(health.clone());
+						vehicle.saved_weapon_set = Some(weapon_set.clone());
 						vehicle.contents = Some(Box::new(move |pos, dir, world| {
 							spawn_player(
 								pos,
@@ -3655,13 +3657,21 @@ impl Map
 
 		if save
 		{
-			if let Ok(health) = self.world.get::<components::Health>(self.player)
+			if let Ok(vehicle) = self.world.get::<components::Vehicle>(self.player)
 			{
-				self.saved_health = (*health).clone();
+				self.saved_health = vehicle.saved_health.as_ref().unwrap().clone();
+				self.saved_weapon_set = vehicle.saved_weapon_set.as_ref().unwrap().clone();
 			}
-			if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+			else
 			{
-				self.saved_weapon_set = (*weapon_set).clone();
+				if let Ok(health) = self.world.get::<components::Health>(self.player)
+				{
+					self.saved_health = (*health).clone();
+				}
+				if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+				{
+					self.saved_weapon_set = (*weapon_set).clone();
+				}
 			}
 		}
 

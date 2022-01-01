@@ -23,9 +23,34 @@ Also see `options.cfg` for controlling audio/mouse sensitivity.
 On Windows, you can use the pre-built binaries (extracted in the `allegro`
 subdirectory). `run_msys.sh` may be useful for this purpose.
 
+# Wishes
+
+This game was created as a Secret Santa gift, and had to implement the 
+following wishes:
+
+1. You must slay Krampus for the end boss and save Christmas.
+
+This is done in the final level.
+
+2. Multiple choice for characters would be nice - eg. Santa / Elf / Reindeer 
+with different abilities if possible.
+
+You can play as Santa or Rude-Olf.
+
+3. Learn modeling if not too challenging and use an .obj file format 
+(exportable from blender or many other 3D tools) - note you don't have to use 
+3D in the game. 2D sprites generated from 3D models are fine.
+
+I learned how to sculpt and vertex paint in Blender. I didn't use the .obj 
+format, but the often better .gtlf. Most of the graphics are indeed prerendered.
+
 # Credits
 
 Fonts: See `data/` directory for ReadMe files.
+
+Open 24 Display St.ttf
+GAMEPLAY-1987.ttf
+
 
 Sounds:
 
