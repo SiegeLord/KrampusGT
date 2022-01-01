@@ -158,7 +158,7 @@ impl MainMenu
 					self.cur_selection =
 						(self.cur_selection + self.buttons.len() + 1) % self.buttons.len();
 				}
-				KeyCode::Enter =>
+				KeyCode::Enter | KeyCode::Space =>
 				{
 					state.sfx.play_sound("data/ui2.ogg").unwrap();
 					return Some(self.buttons[self.cur_selection].action.clone());
@@ -276,7 +276,7 @@ impl LevelMenu
 					self.cur_selection =
 						(self.cur_selection + self.buttons.len() + 1) % self.buttons.len();
 				}
-				KeyCode::Enter =>
+				KeyCode::Enter | KeyCode::Space =>
 				{
 					state.sfx.play_sound("data/ui2.ogg").unwrap();
 					return Some(self.buttons[self.cur_selection].action.clone());
@@ -437,7 +437,7 @@ impl CharacterMenu
 					self.cur_selection =
 						(self.cur_selection + self.buttons.len() + 1) % self.buttons.len();
 				}
-				KeyCode::Enter =>
+				KeyCode::Enter | KeyCode::Space =>
 				{
 					state.sfx.play_sound("data/ui2.ogg").unwrap();
 					return Some(self.buttons[self.cur_selection].action.clone());
