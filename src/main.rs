@@ -245,6 +245,7 @@ fn real_main() -> Result<()>
 							other_level.unlocked = true;
 						}
 					}
+					utils::save_config("data/levels.cfg", &state.levels)?;
 					cur_screen = CurScreen::Game(map::Map::new(
 						&mut state,
 						&level,
@@ -272,8 +273,6 @@ fn real_main() -> Result<()>
 			}
 		}
 	}
-
-	utils::save_config("data/levels.cfg", state.levels)?;
 
 	Ok(())
 }
