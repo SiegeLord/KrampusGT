@@ -172,7 +172,7 @@ impl Sfx
 		let mut new_stream = AudioStream::load(&self.audio, &self.music_file)
 			.map_err(|_| format!("Couldn't load {}", self.music_file))?;
 		new_stream.attach(&mut self.sink).unwrap();
-		new_stream.set_playmode(Playmode::Loop).unwrap();
+		//~ new_stream.set_playmode(Playmode::Loop).unwrap();
 		new_stream.set_gain(self.music_volume).unwrap();
 		self.stream = Some(new_stream);
 		Ok(())
