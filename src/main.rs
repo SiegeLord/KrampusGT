@@ -170,7 +170,7 @@ fn real_main() -> Result<()>
 			{
 				state.hide_mouse = false;
 			}
-			Event::DisplaySwitchIn { .. } =>
+			Event::MouseButtonDown { .. } =>
 			{
 				match cur_screen
 				{
