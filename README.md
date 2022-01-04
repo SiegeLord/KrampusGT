@@ -12,6 +12,7 @@ Also see `options.cfg` for controlling audio/mouse sensitivity.
 - Mouse/Left/Right - Turn
 - Mouse Left Button/Space - Shoot
 - W/A/S/D - Strafe
+- E - Enter/Exit vehicle
 - Escape - Quit
 
 # Building instructions
