@@ -6,6 +6,7 @@
 mod atlas;
 mod character_sprite_sheet;
 mod components;
+mod controls;
 mod error;
 mod game_state;
 mod map;
@@ -170,17 +171,14 @@ fn real_main() -> Result<()>
 			{
 				state.hide_mouse = false;
 			}
-			Event::MouseButtonDown { .. } =>
+			Event::MouseButtonDown { .. } => match cur_screen
 			{
-				match cur_screen
+				CurScreen::Game(_) =>
 				{
-					CurScreen::Game(_) =>
-					{
-						state.hide_mouse = true;
-					}
-					_ => (),
+					state.hide_mouse = true;
 				}
-			}
+				_ => (),
+			},
 			Event::TimerTick { .. } =>
 			{
 				if logics_without_draw > 10

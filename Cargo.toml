@@ -19,8 +19,10 @@ allegro_audio = { version="0.0.42" }
 allegro_primitives = { version="0.0.42" }
 allegro_color = { version="0.0.42" }
 
+bimap = { version="0.6.2", features = ["serde"] }
 hecs = "0.7.1"
-slr_config = "0.0.20"
+slr_config = "0.0.21"
+#slr_config = { path = "/home/siege/Projects/SLRConfig/slr_config" }
 nalgebra = "0.29.0"
 rand = "0.8.4"
 serde = "1.0.131"

@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::{atlas, components, game_state, spatial_grid, utils};
+use crate::{atlas, components, controls, game_state, spatial_grid, utils};
 
 use allegro::*;
 use allegro_font::*;
@@ -1257,7 +1257,11 @@ pub fn spawn_buggy(
 			want_to_fire: false,
 			last_fire_time: -f64::INFINITY,
 		},
-		components::Vehicle { contents: None, saved_health: None, saved_weapon_set: None },
+		components::Vehicle {
+			contents: None,
+			saved_health: None,
+			saved_weapon_set: None,
+		},
 		components::Moveable {
 			speed: 200.,
 			rot_speed: f32::pi(),
@@ -3490,7 +3494,9 @@ impl Map
 				*team = components::Team::Neutral;
 			}
 
-			if let Ok(pos) = self.world.get::<components::Position>(self.active_player_start)
+			if let Ok(pos) = self
+				.world
+				.get::<components::Position>(self.active_player_start)
 			{
 				dbg!("spawning at", self.active_player_start);
 				let point_pos = pos.pos.clone();
@@ -3874,7 +3880,7 @@ impl Map
 				self.player = entity;
 			}
 		}
-		
+
 		if !self.world.get::<components::Health>(self.player).is_ok()
 		{
 			if self.ui_state != UIState::Quit
@@ -4257,7 +4263,7 @@ impl Map
 	}
 
 	pub fn input(
-		&mut self, event: &Event, _state: &mut game_state::GameState,
+		&mut self, event: &Event, state: &mut game_state::GameState,
 	) -> Result<Option<game_state::NextScreen>>
 	{
 		let mut desired_weapon = None;
@@ -4332,38 +4338,6 @@ impl Map
 			}
 			Event::KeyDown { keycode, .. } => match keycode
 			{
-				KeyCode::_1 =>
-				{
-					desired_weapon = Some(components::WeaponType::SantaGun);
-				}
-				KeyCode::_2 =>
-				{
-					desired_weapon = Some(components::WeaponType::FreezeGun);
-				}
-				KeyCode::_3 =>
-				{
-					desired_weapon = Some(components::WeaponType::OrbGun);
-				}
-				KeyCode::W =>
-				{
-					self.up_state = true;
-				}
-				KeyCode::S =>
-				{
-					self.down_state = true;
-				}
-				KeyCode::A =>
-				{
-					self.left_state = true;
-				}
-				KeyCode::D =>
-				{
-					self.right_state = true;
-				}
-				KeyCode::E =>
-				{
-					self.enter_state = true;
-				}
 				KeyCode::R =>
 				{
 					if self.ui_state == UIState::DeadHaveLives
@@ -4371,18 +4345,6 @@ impl Map
 						self.lifes -= 1;
 						self.want_spawn = true;
 					}
-				}
-				KeyCode::Left =>
-				{
-					self.rot_left_state = 3;
-				}
-				KeyCode::Right =>
-				{
-					self.rot_right_state = 3;
-				}
-				KeyCode::Space =>
-				{
-					self.fire_state = true;
 				}
 				KeyCode::Backspace =>
 				{
@@ -4412,43 +4374,58 @@ impl Map
 				}
 				_ => (),
 			},
-			Event::KeyUp { keycode, .. } => match keycode
-			{
-				KeyCode::W =>
-				{
-					self.up_state = false;
-				}
-				KeyCode::S =>
-				{
-					self.down_state = false;
-				}
-				KeyCode::A =>
-				{
-					self.left_state = false;
-				}
-				KeyCode::D =>
-				{
-					self.right_state = false;
-				}
-				KeyCode::E =>
-				{
-					self.enter_state = false;
-				}
-				KeyCode::Left =>
-				{
-					self.rot_left_state = 0;
-				}
-				KeyCode::Right =>
-				{
-					self.rot_right_state = 0;
-				}
-				KeyCode::Space =>
-				{
-					self.fire_state = false;
-				}
-				_ => (),
-			},
 			_ => (),
+		}
+
+		if let Some((down, action)) = state.options.controls.decode_event(event)
+		{
+			match action
+			{
+				controls::Action::MoveForward =>
+				{
+					self.up_state = down;
+				}
+				controls::Action::MoveBackward =>
+				{
+					self.down_state = down;
+				}
+				controls::Action::StrafeLeft =>
+				{
+					self.left_state = down;
+				}
+				controls::Action::StrafeRight =>
+				{
+					self.right_state = down;
+				}
+				controls::Action::EnterVehicle =>
+				{
+					self.enter_state = down;
+				}
+				controls::Action::TurnLeft =>
+				{
+					self.rot_left_state = if down { 3 } else { 0 };
+				}
+				controls::Action::TurnRight =>
+				{
+					self.rot_right_state = if down { 3 } else { 0 };
+				}
+				controls::Action::FireWeapon =>
+				{
+					self.fire_state = down;
+				}
+				controls::Action::SelectWeapon1 =>
+				{
+					desired_weapon = Some(components::WeaponType::SantaGun);
+				}
+				controls::Action::SelectWeapon2 =>
+				{
+					desired_weapon = Some(components::WeaponType::FreezeGun);
+				}
+				controls::Action::SelectWeapon3 =>
+				{
+					desired_weapon = Some(components::WeaponType::OrbGun);
+				}
+			}
 		}
 
 		if let Some(desired_weapon) = desired_weapon

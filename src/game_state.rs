@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::sfx::Sfx;
 use crate::utils::{load_bitmap, Vec2D, DT};
-use crate::{atlas, character_sprite_sheet, components, utils};
+use crate::{atlas, character_sprite_sheet, components, controls, utils};
 use allegro::*;
 use allegro_font::*;
 use allegro_image::*;
@@ -12,7 +12,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Options
 {
 	pub fullscreen: bool,
@@ -23,6 +23,7 @@ pub struct Options
 	pub sfx_volume: f32,
 	pub music_volume: f32,
 	pub turn_sensitivity: f32,
+	pub controls: controls::Controls,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
