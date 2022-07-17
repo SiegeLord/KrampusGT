@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::{atlas, components, controls, game_state, spatial_grid, utils};
+use crate::{atlas, components, controls, game_state, spatial_grid, ui, utils};
 
 use allegro::*;
 use allegro_font::*;
@@ -2244,7 +2244,7 @@ enum UIState
 	Regular,
 	DeadHaveLives,
 	DeadForReal,
-	Quit,
+	InMenu,
 }
 
 pub struct Map
@@ -2283,6 +2283,8 @@ pub struct Map
 	message: Vec<String>,
 	time_to_hide_message: f64,
 
+	subscreens: Vec<ui::SubScreen>,
+
 	world: hecs::World,
 }
 
@@ -2297,6 +2299,7 @@ impl Map
 		let mut world = hecs::World::default();
 		let mut named_entities = HashMap::new();
 		state.hide_mouse = true;
+		state.paused = false;
 
 		let level_desc: LevelDesc = utils::load_config(level)?;
 
@@ -2471,6 +2474,7 @@ impl Map
 			time_to_hide_message: 0.,
 			player_class: player_class,
 			ui_state: UIState::Regular,
+			subscreens: vec![],
 		})
 	}
 
@@ -2504,6 +2508,10 @@ impl Map
 		&mut self, state: &mut game_state::GameState,
 	) -> Result<Option<game_state::NextScreen>>
 	{
+		if self.ui_state == UIState::InMenu
+		{
+			return Ok(None);
+		}
 		let sound_camera = self.camera_pos().xz();
 		let mut to_die = vec![];
 
@@ -3883,7 +3891,7 @@ impl Map
 
 		if !self.world.get::<components::Health>(self.player).is_ok()
 		{
-			if self.ui_state != UIState::Quit
+			if self.ui_state != UIState::InMenu
 			{
 				if self.lifes > 0
 				{
@@ -4259,6 +4267,18 @@ impl Map
 			}
 		}
 
+		if let Some(subscreen) = self.subscreens.last()
+		{
+			state.prim.draw_filled_rectangle(
+				0.,
+				0.,
+				self.display_width,
+				self.display_height,
+				Color::from_rgba_f(0., 0., 0., 0.5),
+			);
+			subscreen.draw(state);
+		}
+
 		Ok(())
 	}
 
@@ -4266,177 +4286,221 @@ impl Map
 		&mut self, event: &Event, state: &mut game_state::GameState,
 	) -> Result<Option<game_state::NextScreen>>
 	{
-		let mut desired_weapon = None;
-		match event
+		if self.ui_state == UIState::InMenu
 		{
-			Event::MouseAxes { dx, dz, .. } =>
+			if let Event::KeyDown {
+				keycode: KeyCode::Escape,
+				..
+			} = event
 			{
-				if *dx < 0
+				state.sfx.play_sound("data/ui2.ogg").unwrap();
+				self.subscreens.pop().unwrap();
+			}
+			if let Some(action) = self
+				.subscreens
+				.last_mut()
+				.and_then(|s| s.input(state, event))
+			{
+				match action
 				{
-					self.rot_left_state = -*dx;
-					self.rot_right_state = 0;
-				}
-				else if *dx > 0
-				{
-					self.rot_left_state = 0;
-					self.rot_right_state = *dx;
-				}
-
-				if *dz != 0
-				{
-					if let Ok(mut weapon_set) =
-						self.world.get_mut::<components::WeaponSet>(self.player)
+					ui::Action::ControlsMenu =>
 					{
-						let mut cur_weapon_idx = match weapon_set.cur_weapon
-						{
-							components::WeaponType::SantaGun => 0,
-							components::WeaponType::FreezeGun => 1,
-							components::WeaponType::OrbGun => 2,
-							_ => 0,
-						};
+						self.subscreens
+							.push(ui::SubScreen::ControlsMenu(ui::ControlsMenu::new(
+								self.display_width,
+								self.display_height,
+								state,
+							)));
+					}
+					ui::Action::OptionsMenu =>
+					{
+						self.subscreens
+							.push(ui::SubScreen::OptionsMenu(ui::OptionsMenu::new(
+								self.display_width,
+								self.display_height,
+								state,
+							)));
+					}
+					ui::Action::MainMenu => return Ok(Some(game_state::NextScreen::Menu)),
+					ui::Action::Back =>
+					{
+						self.subscreens.pop().unwrap();
+					}
+					_ => (),
+				}
+			}
+			if self.subscreens.is_empty()
+			{
+				self.ui_state = UIState::Regular;
+				state.paused = false;
+				state.hide_mouse = true;
+			}
+		}
+		else
+		{
+			let mut desired_weapon = None;
+			match event
+			{
+				Event::MouseAxes { dx, dz, .. } =>
+				{
+					if *dx < 0
+					{
+						self.rot_left_state = -*dx;
+						self.rot_right_state = 0;
+					}
+					else if *dx > 0
+					{
+						self.rot_left_state = 0;
+						self.rot_right_state = *dx;
+					}
 
-						loop
+					if *dz != 0
+					{
+						if let Ok(mut weapon_set) =
+							self.world.get_mut::<components::WeaponSet>(self.player)
 						{
-							cur_weapon_idx = (cur_weapon_idx + utils::clamp(*dz, -1, 1)) % 3;
-							while cur_weapon_idx < 0
+							let mut cur_weapon_idx = match weapon_set.cur_weapon
 							{
-								cur_weapon_idx += 3;
-							}
-							let new_weapon = match cur_weapon_idx
-							{
-								0 => components::WeaponType::SantaGun,
-								1 => components::WeaponType::FreezeGun,
-								2 => components::WeaponType::OrbGun,
-								_ => unreachable!(),
+								components::WeaponType::SantaGun => 0,
+								components::WeaponType::FreezeGun => 1,
+								components::WeaponType::OrbGun => 2,
+								_ => 0,
 							};
-							if weapon_set.weapons.contains_key(&new_weapon)
+
+							loop
 							{
-								if weapon_set.weapons[&new_weapon].selectable
+								cur_weapon_idx = (cur_weapon_idx + utils::clamp(*dz, -1, 1)) % 3;
+								while cur_weapon_idx < 0
 								{
-									weapon_set.cur_weapon = new_weapon;
-									break;
+									cur_weapon_idx += 3;
+								}
+								let new_weapon = match cur_weapon_idx
+								{
+									0 => components::WeaponType::SantaGun,
+									1 => components::WeaponType::FreezeGun,
+									2 => components::WeaponType::OrbGun,
+									_ => unreachable!(),
+								};
+								if weapon_set.weapons.contains_key(&new_weapon)
+								{
+									if weapon_set.weapons[&new_weapon].selectable
+									{
+										weapon_set.cur_weapon = new_weapon;
+										break;
+									}
 								}
 							}
 						}
 					}
+					self.clear_rot = true;
 				}
-				self.clear_rot = true;
-			}
-			Event::MouseButtonDown { button, .. } =>
-			{
-				if *button == 1
+				Event::MouseButtonDown { button, .. } =>
 				{
-					self.fire_state = true;
-				}
-			}
-			Event::MouseButtonUp { button, .. } =>
-			{
-				if *button == 1
-				{
-					self.fire_state = false;
-				}
-			}
-			Event::KeyDown { keycode, .. } => match keycode
-			{
-				KeyCode::R =>
-				{
-					if self.ui_state == UIState::DeadHaveLives
+					state.hide_mouse = true;
+					if *button == 1
 					{
-						self.lifes -= 1;
-						self.want_spawn = true;
+						self.fire_state = true;
 					}
 				}
-				KeyCode::Backspace =>
+				Event::MouseButtonUp { button, .. } =>
 				{
-					self.world.despawn(self.player)?;
-				}
-				KeyCode::Escape =>
-				{
-					self.ui_state = UIState::Quit;
-					self.time_to_hide_message = -1.;
-					self.message = vec!["QUIT? (Y/N)".into()];
-				}
-				KeyCode::Y =>
-				{
-					if self.ui_state == UIState::Quit
+					if *button == 1
 					{
-						return Ok(Some(game_state::NextScreen::Menu));
+						self.fire_state = false;
 					}
 				}
-				KeyCode::N =>
+				Event::KeyDown { keycode, .. } => match keycode
 				{
-					if self.ui_state == UIState::Quit
+					KeyCode::R =>
 					{
-						self.ui_state = UIState::Regular;
-						self.time_to_hide_message = -1.;
-						self.message.clear();
+						if self.ui_state == UIState::DeadHaveLives
+						{
+							self.lifes -= 1;
+							self.want_spawn = true;
+						}
 					}
-				}
+					KeyCode::Backspace =>
+					{
+						self.world.despawn(self.player)?;
+					}
+					KeyCode::Escape =>
+					{
+						state.sfx.play_sound("data/ui2.ogg").unwrap();
+						self.subscreens
+							.push(ui::SubScreen::InGameMenu(ui::InGameMenu::new(
+								self.display_width,
+								self.display_height,
+							)));
+						self.ui_state = UIState::InMenu;
+						state.paused = true;
+						state.hide_mouse = false;
+					}
+					_ => (),
+				},
 				_ => (),
-			},
-			_ => (),
-		}
+			}
 
-		if let Some((down, action)) = state.options.controls.decode_event(event)
-		{
-			match action
+			if let Some((down, action)) = state.options.controls.decode_event(event)
 			{
-				controls::Action::MoveForward =>
+				match action
 				{
-					self.up_state = down;
-				}
-				controls::Action::MoveBackward =>
-				{
-					self.down_state = down;
-				}
-				controls::Action::StrafeLeft =>
-				{
-					self.left_state = down;
-				}
-				controls::Action::StrafeRight =>
-				{
-					self.right_state = down;
-				}
-				controls::Action::EnterVehicle =>
-				{
-					self.enter_state = down;
-				}
-				controls::Action::TurnLeft =>
-				{
-					self.rot_left_state = if down { 3 } else { 0 };
-				}
-				controls::Action::TurnRight =>
-				{
-					self.rot_right_state = if down { 3 } else { 0 };
-				}
-				controls::Action::FireWeapon =>
-				{
-					self.fire_state = down;
-				}
-				controls::Action::SelectWeapon1 =>
-				{
-					desired_weapon = Some(components::WeaponType::SantaGun);
-				}
-				controls::Action::SelectWeapon2 =>
-				{
-					desired_weapon = Some(components::WeaponType::FreezeGun);
-				}
-				controls::Action::SelectWeapon3 =>
-				{
-					desired_weapon = Some(components::WeaponType::OrbGun);
+					controls::Action::MoveForward =>
+					{
+						self.up_state = down;
+					}
+					controls::Action::MoveBackward =>
+					{
+						self.down_state = down;
+					}
+					controls::Action::StrafeLeft =>
+					{
+						self.left_state = down;
+					}
+					controls::Action::StrafeRight =>
+					{
+						self.right_state = down;
+					}
+					controls::Action::EnterVehicle =>
+					{
+						self.enter_state = down;
+					}
+					controls::Action::TurnLeft =>
+					{
+						self.rot_left_state = if down { 3 } else { 0 };
+					}
+					controls::Action::TurnRight =>
+					{
+						self.rot_right_state = if down { 3 } else { 0 };
+					}
+					controls::Action::FireWeapon =>
+					{
+						self.fire_state = down;
+					}
+					controls::Action::SelectWeapon1 =>
+					{
+						desired_weapon = Some(components::WeaponType::SantaGun);
+					}
+					controls::Action::SelectWeapon2 =>
+					{
+						desired_weapon = Some(components::WeaponType::FreezeGun);
+					}
+					controls::Action::SelectWeapon3 =>
+					{
+						desired_weapon = Some(components::WeaponType::OrbGun);
+					}
 				}
 			}
-		}
 
-		if let Some(desired_weapon) = desired_weapon
-		{
-			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
+			if let Some(desired_weapon) = desired_weapon
 			{
-				if weapon_set.weapons.contains_key(&desired_weapon)
+				if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
 				{
-					if weapon_set.weapons[&desired_weapon].selectable
+					if weapon_set.weapons.contains_key(&desired_weapon)
 					{
-						weapon_set.cur_weapon = desired_weapon;
+						if weapon_set.weapons[&desired_weapon].selectable
+						{
+							weapon_set.cur_weapon = desired_weapon;
+						}
 					}
 				}
 			}

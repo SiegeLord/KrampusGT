@@ -6,17 +6,23 @@ use allegro_font::*;
 use allegro_sys::*;
 use nalgebra::{Matrix4, Point2, Vector2, Vector3};
 
-#[derive(Clone, PartialEq, Eq)]
-enum Action
+#[derive(Clone, Debug, PartialEq)]
+pub enum Action
 {
 	SelectMe,
 	MainMenu,
 	ControlsMenu,
 	LevelMenu,
+	OptionsMenu,
 	SelectLevel(String),
 	SelectCharacter(game_state::PlayerClass),
 	Quit,
+	Back,
+	ToggleFullscreen,
 	ChangeInput(controls::Action),
+	MouseSensitivity(f32),
+	MusicVolume(f32),
+	SfxVolume(f32),
 }
 
 #[derive(Clone)]
@@ -26,6 +32,7 @@ struct Button
 	size: Vector2<f32>,
 	text: String,
 	action: Action,
+	selected: bool,
 }
 
 impl Button
@@ -37,6 +44,7 @@ impl Button
 			size: Vector2::new(w, h),
 			text: text.into(),
 			action: action,
+			selected: false,
 		}
 	}
 
@@ -50,9 +58,9 @@ impl Button
 		self.size.y
 	}
 
-	fn draw(&self, selected: bool, state: &game_state::GameState)
+	fn draw(&self, state: &game_state::GameState)
 	{
-		let c_ui = if selected
+		let c_ui = if self.selected
 		{
 			Color::from_rgb_f(1., 1., 1.)
 		}
@@ -85,6 +93,18 @@ impl Button
 					return Some(Action::SelectMe);
 				}
 			}
+			Event::KeyUp { keycode, .. } => match keycode
+			{
+				KeyCode::Enter | KeyCode::Space =>
+				{
+					if self.selected
+					{
+						state.sfx.play_sound("data/ui2.ogg").unwrap();
+						return Some(self.action.clone());
+					}
+				}
+				_ => (),
+			},
 			Event::MouseButtonUp { x, y, .. } =>
 			{
 				let (x, y) = state.transform_mouse(*x as f32, *y as f32);
@@ -92,6 +112,261 @@ impl Button
 				{
 					state.sfx.play_sound("data/ui2.ogg").unwrap();
 					return Some(self.action.clone());
+				}
+			}
+			_ => (),
+		}
+		None
+	}
+}
+
+#[derive(Clone)]
+struct Toggle
+{
+	loc: Point2<f32>,
+	size: Vector2<f32>,
+	texts: Vec<String>,
+	cur_value: usize,
+	action_fn: fn(usize) -> Action,
+	selected: bool,
+}
+
+impl Toggle
+{
+	fn new(
+		x: f32, y: f32, w: f32, h: f32, cur_value: usize, texts: Vec<String>,
+		action_fn: fn(usize) -> Action,
+	) -> Self
+	{
+		Self {
+			loc: Point2::new(x, y),
+			size: Vector2::new(w, h),
+			texts: texts,
+			cur_value: cur_value,
+			action_fn: action_fn,
+			selected: false,
+		}
+	}
+
+	fn width(&self) -> f32
+	{
+		self.size.x
+	}
+
+	fn height(&self) -> f32
+	{
+		self.size.y
+	}
+
+	fn draw(&self, state: &game_state::GameState)
+	{
+		let c_ui = if self.selected
+		{
+			Color::from_rgb_f(1., 1., 1.)
+		}
+		else
+		{
+			Color::from_rgb_f(0.8, 0.8, 0.5)
+		};
+
+		state.core.draw_text(
+			&state.ui_font,
+			c_ui,
+			self.loc.x,
+			self.loc.y - state.ui_font.get_line_height() as f32 / 2.,
+			FontAlign::Centre,
+			&self.texts[self.cur_value],
+		);
+	}
+
+	fn input(&mut self, state: &mut game_state::GameState, event: &Event) -> Option<Action>
+	{
+		let start = self.loc - self.size / 2.;
+		let end = self.loc + self.size / 2.;
+		match event
+		{
+			Event::MouseAxes { x, y, .. } =>
+			{
+				let (x, y) = state.transform_mouse(*x as f32, *y as f32);
+				if x > start.x && x < end.x && y > start.y && y < end.y
+				{
+					return Some(Action::SelectMe);
+				}
+			}
+			Event::KeyUp { keycode, .. } => match keycode
+			{
+				KeyCode::Enter | KeyCode::Space =>
+				{
+					if self.selected
+					{
+						return Some(self.trigger(state));
+					}
+				}
+				_ => (),
+			},
+			Event::MouseButtonUp { x, y, .. } =>
+			{
+				let (x, y) = state.transform_mouse(*x as f32, *y as f32);
+				if x > start.x && x < end.x && y > start.y && y < end.y
+				{
+					return Some(self.trigger(state));
+				}
+			}
+			_ => (),
+		}
+		None
+	}
+
+	fn trigger(&mut self, state: &mut game_state::GameState) -> Action
+	{
+		state.sfx.play_sound("data/ui2.ogg").unwrap();
+		state.sfx.play_sound("data/ui2.ogg").unwrap();
+		self.cur_value = (self.cur_value + 1) % self.texts.len();
+		(self.action_fn)(self.cur_value)
+	}
+}
+
+#[derive(Clone)]
+struct Slider
+{
+	loc: Point2<f32>,
+	size: Vector2<f32>,
+	cur_pos: f32,
+	max_pos: f32,
+	grabbed: bool,
+	selected: bool,
+	action_fn: fn(f32) -> Action,
+}
+
+impl Slider
+{
+	fn new(
+		x: f32, y: f32, w: f32, h: f32, cur_pos: f32, max_pos: f32, action_fn: fn(f32) -> Action,
+	) -> Self
+	{
+		Self {
+			loc: Point2::new(x, y),
+			size: Vector2::new(w, h),
+			cur_pos: cur_pos,
+			max_pos: max_pos,
+			grabbed: false,
+			selected: false,
+			action_fn: action_fn,
+		}
+	}
+
+	fn width(&self) -> f32
+	{
+		self.size.x
+	}
+
+	fn height(&self) -> f32
+	{
+		self.size.y
+	}
+
+	fn draw(&self, state: &game_state::GameState)
+	{
+		let c_ui = if self.selected
+		{
+			Color::from_rgb_f(1., 1., 1.)
+		}
+		else
+		{
+			Color::from_rgb_f(0.8, 0.8, 0.5)
+		};
+
+		let w = self.width();
+		let cursor_x = self.loc.x - w / 2. + w * self.cur_pos / self.max_pos;
+		let start_x = self.loc.x - w / 2.;
+		let end_x = self.loc.x + w / 2.;
+		if cursor_x - start_x > 16.
+		{
+			state
+				.prim
+				.draw_line(start_x, self.loc.y, cursor_x - 16., self.loc.y, c_ui, 4.);
+		}
+		if end_x - cursor_x > 16.
+		{
+			state
+				.prim
+				.draw_line(cursor_x + 16., self.loc.y, end_x, self.loc.y, c_ui, 4.);
+		}
+		//state.prim.draw_filled_circle(self.loc.x - w / 2. + w * self.cur_pos / self.max_pos, self.loc.y, 8., c_ui);
+		state.core.draw_text(
+			&state.ui_font,
+			c_ui,
+			cursor_x,
+			self.loc.y - state.ui_font.get_line_height() as f32 / 2.,
+			FontAlign::Centre,
+			&format!("{:.1}", self.cur_pos),
+		);
+	}
+
+	fn input(&mut self, state: &mut game_state::GameState, event: &Event) -> Option<Action>
+	{
+		let start = self.loc - self.size / 2.;
+		let end = self.loc + self.size / 2.;
+		match event
+		{
+			Event::MouseAxes { x, y, .. } =>
+			{
+				let (x, y) = state.transform_mouse(*x as f32, *y as f32);
+				if x > start.x && x < end.x && y > start.y && y < end.y
+				{
+					if self.grabbed
+					{
+						self.cur_pos = (x - start.x) / self.width() * self.max_pos;
+						return Some((self.action_fn)(self.cur_pos));
+					}
+					else
+					{
+						return Some(Action::SelectMe);
+					}
+				}
+			}
+			Event::MouseButtonUp { .. } =>
+			{
+				self.grabbed = false;
+			}
+			Event::MouseButtonDown { x, y, .. } =>
+			{
+				let (x, y) = state.transform_mouse(*x as f32, *y as f32);
+				if x > start.x && x < end.x && y > start.y && y < end.y
+				{
+					state.sfx.play_sound("data/ui2.ogg").unwrap();
+					self.grabbed = true;
+					self.cur_pos = (x - start.x) / self.width() * self.max_pos;
+					return Some((self.action_fn)(self.cur_pos));
+				}
+			}
+			Event::KeyUp { keycode, .. } =>
+			{
+				if self.selected
+				{
+					match keycode
+					{
+						KeyCode::Left =>
+						{
+							if self.cur_pos > 0.
+							{
+								state.sfx.play_sound("data/ui2.ogg").unwrap();
+								self.cur_pos = utils::max(0., self.cur_pos - self.max_pos / 25.);
+								return Some((self.action_fn)(self.cur_pos));
+							}
+						}
+						KeyCode::Right =>
+						{
+							if self.cur_pos < self.max_pos
+							{
+								state.sfx.play_sound("data/ui2.ogg").unwrap();
+								self.cur_pos =
+									utils::min(self.max_pos, self.cur_pos + self.max_pos / 25.);
+								return Some((self.action_fn)(self.cur_pos));
+							}
+						}
+						_ => (),
+					}
 				}
 			}
 			_ => (),
@@ -129,7 +404,7 @@ impl Label
 		self.size.y
 	}
 
-	fn draw(&self, _selected: bool, state: &game_state::GameState)
+	fn draw(&self, state: &game_state::GameState)
 	{
 		state.core.draw_text(
 			&state.ui_font,
@@ -152,6 +427,8 @@ enum Widget
 {
 	Button(Button),
 	Label(Label),
+	Slider(Slider),
+	Toggle(Toggle),
 }
 
 impl Widget
@@ -162,6 +439,8 @@ impl Widget
 		{
 			Widget::Button(w) => w.height(),
 			Widget::Label(w) => w.height(),
+			Widget::Slider(w) => w.height(),
+			Widget::Toggle(w) => w.height(),
 		}
 	}
 
@@ -171,6 +450,8 @@ impl Widget
 		{
 			Widget::Button(w) => w.width(),
 			Widget::Label(w) => w.width(),
+			Widget::Slider(w) => w.width(),
+			Widget::Toggle(w) => w.width(),
 		}
 	}
 
@@ -180,15 +461,8 @@ impl Widget
 		{
 			Widget::Button(w) => w.loc,
 			Widget::Label(w) => w.loc,
-		}
-	}
-
-	fn action(&self) -> Option<&Action>
-	{
-		match self
-		{
-			Widget::Button(w) => Some(&w.action),
-			Widget::Label(_) => None,
+			Widget::Slider(w) => w.loc,
+			Widget::Toggle(w) => w.loc,
 		}
 	}
 
@@ -198,6 +472,8 @@ impl Widget
 		{
 			Widget::Button(_) => true,
 			Widget::Label(_) => false,
+			Widget::Slider(_) => true,
+			Widget::Toggle(_) => true,
 		}
 	}
 
@@ -207,15 +483,41 @@ impl Widget
 		{
 			Widget::Button(ref mut w) => w.loc = loc,
 			Widget::Label(ref mut w) => w.loc = loc,
+			Widget::Slider(ref mut w) => w.loc = loc,
+			Widget::Toggle(ref mut w) => w.loc = loc,
 		}
 	}
 
-	fn draw(&self, selected: bool, state: &game_state::GameState)
+	fn selected(&self) -> bool
 	{
 		match self
 		{
-			Widget::Button(w) => w.draw(selected, state),
-			Widget::Label(w) => w.draw(selected, state),
+			Widget::Button(w) => w.selected,
+			Widget::Label(_) => false,
+			Widget::Slider(w) => w.selected,
+			Widget::Toggle(w) => w.selected,
+		}
+	}
+
+	fn set_selected(&mut self, selected: bool)
+	{
+		match self
+		{
+			Widget::Button(ref mut w) => w.selected = selected,
+			Widget::Label(_) => (),
+			Widget::Slider(ref mut w) => w.selected = selected,
+			Widget::Toggle(ref mut w) => w.selected = selected,
+		}
+	}
+
+	fn draw(&self, state: &game_state::GameState)
+	{
+		match self
+		{
+			Widget::Button(w) => w.draw(state),
+			Widget::Label(w) => w.draw(state),
+			Widget::Slider(w) => w.draw(state),
+			Widget::Toggle(w) => w.draw(state),
 		}
 	}
 
@@ -225,6 +527,8 @@ impl Widget
 		{
 			Widget::Button(w) => w.input(state, event),
 			Widget::Label(w) => w.input(state, event),
+			Widget::Slider(w) => w.input(state, event),
+			Widget::Toggle(w) => w.input(state, event),
 		}
 	}
 }
@@ -303,6 +607,11 @@ impl WidgetList
 			}
 		}
 
+		if let Some((i, j)) = cur_selection
+		{
+			new_widgets[i][j].set_selected(true);
+		}
+
 		Self {
 			widgets: new_widgets,
 			cur_selection: cur_selection.expect("No selectable widgets?"),
@@ -311,126 +620,128 @@ impl WidgetList
 
 	pub fn draw(&self, state: &game_state::GameState)
 	{
-		for (i, row) in self.widgets.iter().enumerate()
+		for row in &self.widgets
 		{
-			for (j, w) in row.iter().enumerate()
+			for w in row
 			{
-				w.draw((i, j) == self.cur_selection, state);
+				w.draw(state);
 			}
 		}
 	}
 
 	pub fn input(&mut self, state: &mut game_state::GameState, event: &Event) -> Option<Action>
 	{
-		for (i, row) in self.widgets.iter_mut().enumerate()
+		let mut action = None;
+		let old_selection = self.cur_selection;
+		'got_action: for (i, row) in self.widgets.iter_mut().enumerate()
 		{
 			for (j, w) in row.iter_mut().enumerate()
 			{
-				let action = w.input(state, event);
-				if action.is_some()
+				let cur_action = w.input(state, event);
+				if cur_action.is_some()
 				{
-					if action == Some(Action::SelectMe)
+					action = cur_action;
+					if self.cur_selection != (i, j)
 					{
-						if self.cur_selection != (i, j)
-						{
-							state.sfx.play_sound("data/ui1.ogg").unwrap();
-						}
-						self.cur_selection = (i, j);
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
 					}
-					return action;
+					self.cur_selection = (i, j);
+					break 'got_action;
 				}
 			}
 		}
-		match event
+		if action.is_none() || action == Some(Action::SelectMe)
 		{
-			Event::KeyUp { keycode, .. } => match *keycode
+			match event
 			{
-				KeyCode::Up =>
+				Event::KeyUp { keycode, .. } => match *keycode
 				{
-					state.sfx.play_sound("data/ui1.ogg").unwrap();
-					'found1: loop
+					KeyCode::Up =>
 					{
-						self.cur_selection.0 =
-							(self.cur_selection.0 + self.widgets.len() - 1) % self.widgets.len();
-						let row_len = self.widgets[self.cur_selection.0].len();
-						if self.cur_selection.1 >= row_len
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
+						'found1: loop
 						{
-							self.cur_selection.1 = row_len - 1;
+							self.cur_selection.0 = (self.cur_selection.0 + self.widgets.len() - 1)
+								% self.widgets.len();
+							let row_len = self.widgets[self.cur_selection.0].len();
+							if self.cur_selection.1 >= row_len
+							{
+								self.cur_selection.1 = row_len - 1;
+							}
+							for _ in 0..row_len
+							{
+								if self.widgets[self.cur_selection.0][self.cur_selection.1]
+									.selectable()
+								{
+									break 'found1;
+								}
+								self.cur_selection.1 =
+									(self.cur_selection.1 + row_len - 1) % row_len;
+							}
 						}
-						for _ in 0..row_len
+					}
+					KeyCode::Down =>
+					{
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
+						'found2: loop
 						{
+							self.cur_selection.0 = (self.cur_selection.0 + self.widgets.len() + 1)
+								% self.widgets.len();
+							let row_len = self.widgets[self.cur_selection.0].len();
+							if self.cur_selection.1 >= row_len
+							{
+								self.cur_selection.1 = row_len - 1;
+							}
+							for _ in 0..row_len
+							{
+								if self.widgets[self.cur_selection.0][self.cur_selection.1]
+									.selectable()
+								{
+									break 'found2;
+								}
+								self.cur_selection.1 =
+									(self.cur_selection.1 + row_len - 1) % row_len;
+							}
+						}
+					}
+					KeyCode::Left =>
+					{
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
+						let row_len = self.widgets[self.cur_selection.0].len();
+						loop
+						{
+							self.cur_selection.1 = (self.cur_selection.1 + row_len - 1) % row_len;
 							if self.widgets[self.cur_selection.0][self.cur_selection.1].selectable()
 							{
-								break 'found1;
+								break;
 							}
-							self.cur_selection.1 = (self.cur_selection.1 + row_len - 1) % row_len;
 						}
 					}
-				}
-				KeyCode::Down =>
-				{
-					state.sfx.play_sound("data/ui1.ogg").unwrap();
-					'found2: loop
+					KeyCode::Right =>
 					{
-						self.cur_selection.0 =
-							(self.cur_selection.0 + self.widgets.len() + 1) % self.widgets.len();
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
 						let row_len = self.widgets[self.cur_selection.0].len();
-						if self.cur_selection.1 >= row_len
+						loop
 						{
-							self.cur_selection.1 = row_len - 1;
-						}
-						for _ in 0..row_len
-						{
+							self.cur_selection.1 = (self.cur_selection.1 + row_len + 1) % row_len;
 							if self.widgets[self.cur_selection.0][self.cur_selection.1].selectable()
 							{
-								break 'found2;
+								break;
 							}
-							self.cur_selection.1 = (self.cur_selection.1 + row_len - 1) % row_len;
 						}
 					}
-				}
-				KeyCode::Left =>
-				{
-					state.sfx.play_sound("data/ui1.ogg").unwrap();
-					let row_len = self.widgets[self.cur_selection.0].len();
-					loop
-					{
-						self.cur_selection.1 = (self.cur_selection.1 + row_len - 1) % row_len;
-						if self.widgets[self.cur_selection.0][self.cur_selection.1].selectable()
-						{
-							break;
-						}
-					}
-				}
-				KeyCode::Right =>
-				{
-					state.sfx.play_sound("data/ui1.ogg").unwrap();
-					let row_len = self.widgets[self.cur_selection.0].len();
-					loop
-					{
-						self.cur_selection.1 = (self.cur_selection.1 + row_len + 1) % row_len;
-						if self.widgets[self.cur_selection.0][self.cur_selection.1].selectable()
-						{
-							break;
-						}
-					}
-				}
-				KeyCode::Enter | KeyCode::Space =>
-				{
-					state.sfx.play_sound("data/ui2.ogg").unwrap();
-					return self.widgets[self.cur_selection.0][self.cur_selection.1]
-						.action()
-						.map(|a| a.to_owned());
-				}
+					_ => (),
+				},
 				_ => (),
-			},
-			_ => (),
+			}
 		}
-		None
+		self.widgets[old_selection.0][old_selection.1].set_selected(false);
+		self.widgets[self.cur_selection.0][self.cur_selection.1].set_selected(true);
+		action
 	}
 }
 
-struct MainMenu
+pub struct MainMenu
 {
 	widgets: WidgetList,
 }
@@ -472,6 +783,14 @@ impl MainMenu
 						0.,
 						w,
 						h,
+						"OPTIONS",
+						Action::OptionsMenu,
+					))],
+					&[Widget::Button(Button::new(
+						0.,
+						0.,
+						w,
+						h,
 						"QUIT",
 						Action::Quit,
 					))],
@@ -497,7 +816,7 @@ impl MainMenu
 	}
 }
 
-struct LevelMenu
+pub struct LevelMenu
 {
 	widgets: WidgetList,
 }
@@ -533,7 +852,7 @@ impl LevelMenu
 			w,
 			h,
 			"BACK",
-			Action::MainMenu,
+			Action::Back,
 		))]);
 
 		Self {
@@ -558,7 +877,7 @@ impl LevelMenu
 	}
 }
 
-struct ControlsMenu
+pub struct ControlsMenu
 {
 	widgets: WidgetList,
 	accepting_input: bool,
@@ -568,7 +887,7 @@ impl ControlsMenu
 {
 	pub fn new(display_width: f32, display_height: f32, state: &game_state::GameState) -> Self
 	{
-		let w = 128.;
+		let w = 256.;
 		let h = 16.;
 		let cx = display_width / 2.;
 		let cy = display_height / 2.;
@@ -588,6 +907,19 @@ impl ControlsMenu
 			controls::Action::SelectWeapon3,
 			controls::Action::EnterVehicle,
 		];
+
+		widgets.push(vec![
+			Widget::Label(Label::new(0., 0., w, h, "TURN SPEED")),
+			Widget::Slider(Slider::new(
+				0.,
+				0.,
+				w,
+				h,
+				state.options.turn_sensitivity,
+				10.,
+				|i| Action::MouseSensitivity(i),
+			)),
+		]);
 
 		for action in &actions
 		{
@@ -610,7 +942,7 @@ impl ControlsMenu
 			w,
 			h,
 			"BACK",
-			Action::MainMenu,
+			Action::Back,
 		))]);
 
 		Self {
@@ -633,6 +965,7 @@ impl ControlsMenu
 	pub fn input(&mut self, state: &mut game_state::GameState, event: &Event) -> Option<Action>
 	{
 		let mut action = None;
+		let mut options_changed = false;
 		if self.accepting_input
 		{
 			match event
@@ -672,12 +1005,12 @@ impl ControlsMenu
 											.insert(other_action, old_keycode);
 									}
 									state.options.controls.controls.insert(action, new_keycode);
+									options_changed = true;
 								}
 							}
 							_ => (),
 						}
 					}
-					utils::save_config("options.cfg", &state.options).unwrap();
 					for row in &mut self.widgets.widgets
 					{
 						for w in row
@@ -710,22 +1043,148 @@ impl ControlsMenu
 		else
 		{
 			action = self.widgets.input(state, event);
-			if let Some(Action::ChangeInput(_)) = action
+			match action
 			{
-				self.accepting_input = true;
-				match &mut self.widgets.widgets[self.widgets.cur_selection.0]
-					[self.widgets.cur_selection.1]
+				Some(Action::ChangeInput(_)) =>
 				{
-					Widget::Button(b) => b.text = "PRESS KEY".into(),
-					_ => (),
+					self.accepting_input = true;
+					match &mut self.widgets.widgets[self.widgets.cur_selection.0]
+						[self.widgets.cur_selection.1]
+					{
+						Widget::Button(b) => b.text = "PRESS KEY".into(),
+						_ => (),
+					}
 				}
+				Some(Action::MouseSensitivity(ms)) =>
+				{
+					state.options.turn_sensitivity = ms;
+					options_changed = true;
+				}
+				_ => (),
 			}
+		}
+		if options_changed
+		{
+			utils::save_config("options.cfg", &state.options).unwrap();
 		}
 		action
 	}
 }
 
-struct CharacterMenu
+pub struct OptionsMenu
+{
+	widgets: WidgetList,
+}
+
+impl OptionsMenu
+{
+	pub fn new(display_width: f32, display_height: f32, state: &game_state::GameState) -> Self
+	{
+		let w = 256.;
+		let h = 16.;
+		let cx = display_width / 2.;
+		let cy = display_height / 2.;
+
+		let widgets = [
+			vec![
+				Widget::Label(Label::new(0., 0., w, h, "FULLSCREEN")),
+				Widget::Toggle(Toggle::new(
+					0.,
+					0.,
+					w,
+					h,
+					state.options.fullscreen as usize,
+					vec!["NO".into(), "YES".into()],
+					|_| Action::ToggleFullscreen,
+				)),
+			],
+			vec![
+				Widget::Label(Label::new(0., 0., w, h, "MUSIC VOLUME")),
+				Widget::Slider(Slider::new(
+					0.,
+					0.,
+					w,
+					h,
+					state.options.music_volume,
+					4.,
+					|i| Action::MusicVolume(i),
+				)),
+			],
+			vec![
+				Widget::Label(Label::new(0., 0., w, h, "SFX VOLUME")),
+				Widget::Slider(Slider::new(
+					0.,
+					0.,
+					w,
+					h,
+					state.options.sfx_volume,
+					4.,
+					|i| Action::SfxVolume(i),
+				)),
+			],
+			vec![Widget::Button(Button::new(
+				0.,
+				0.,
+				w,
+				h,
+				"BACK",
+				Action::Back,
+			))],
+		];
+
+		Self {
+			widgets: WidgetList::new(
+				cx,
+				cy,
+				h,
+				h,
+				&widgets.iter().map(|r| &r[..]).collect::<Vec<_>>(),
+			),
+		}
+	}
+
+	pub fn draw(&self, state: &game_state::GameState)
+	{
+		self.widgets.draw(state);
+	}
+
+	pub fn input(&mut self, state: &mut game_state::GameState, event: &Event) -> Option<Action>
+	{
+		let mut options_changed = false;
+		let action = self.widgets.input(state, event);
+		if let Some(action) = action
+		{
+			match action
+			{
+				Action::ToggleFullscreen =>
+				{
+					state.options.fullscreen = !state.options.fullscreen;
+					options_changed = true;
+				}
+				Action::MusicVolume(v) =>
+				{
+					state.options.music_volume = v;
+					state.sfx.set_music_volume(v);
+					options_changed = true;
+				}
+				Action::SfxVolume(v) =>
+				{
+					state.options.sfx_volume = v;
+					state.sfx.set_sfx_volume(v);
+					options_changed = true;
+				}
+				_ => return Some(action),
+			}
+		}
+		if options_changed
+		{
+			utils::save_config("options.cfg", &state.options).unwrap();
+		}
+		None
+	}
+}
+
+pub struct CharacterMenu
 {
 	widgets: WidgetList,
 	display_width: f32,
@@ -775,7 +1234,7 @@ impl CharacterMenu
 						w,
 						h,
 						"BACK",
-						Action::LevelMenu,
+						Action::Back,
 					))],
 				],
 			),
@@ -850,143 +1309,110 @@ impl CharacterMenu
 	}
 }
 
-enum CurSubScreen
+pub struct InGameMenu
+{
+	widgets: WidgetList,
+}
+
+impl InGameMenu
+{
+	pub fn new(display_width: f32, display_height: f32) -> Self
+	{
+		let w = 128.;
+		let h = 32.;
+		let cx = display_width / 2.;
+		let cy = display_height / 2.;
+
+		Self {
+			widgets: WidgetList::new(
+				cx,
+				cy,
+				h,
+				h,
+				&[
+					&[Widget::Button(Button::new(
+						0.,
+						0.,
+						w,
+						h,
+						"RESUME",
+						Action::Back,
+					))],
+					&[Widget::Button(Button::new(
+						0.,
+						0.,
+						w,
+						h,
+						"CONTROLS",
+						Action::ControlsMenu,
+					))],
+					&[Widget::Button(Button::new(
+						0.,
+						0.,
+						w,
+						h,
+						"OPTIONS",
+						Action::OptionsMenu,
+					))],
+					&[Widget::Button(Button::new(
+						0.,
+						0.,
+						w,
+						h,
+						"QUIT",
+						Action::MainMenu,
+					))],
+				],
+			),
+		}
+	}
+
+	pub fn draw(&self, state: &game_state::GameState)
+	{
+		self.widgets.draw(state);
+	}
+
+	pub fn input(&mut self, state: &mut game_state::GameState, event: &Event) -> Option<Action>
+	{
+		self.widgets.input(state, event)
+	}
+}
+
+pub enum SubScreen
 {
 	MainMenu(MainMenu),
 	LevelMenu(LevelMenu),
 	ControlsMenu(ControlsMenu),
 	CharacterMenu(CharacterMenu),
+	OptionsMenu(OptionsMenu),
+	InGameMenu(InGameMenu),
 }
 
-pub struct Menu
+impl SubScreen
 {
-	display_width: f32,
-	display_height: f32,
-	next_level: String,
-
-	subscreen: CurSubScreen,
-}
-
-impl Menu
-{
-	pub fn new(
-		state: &mut game_state::GameState, display_width: f32, display_height: f32,
-	) -> Result<Self>
+	pub fn draw(&self, state: &game_state::GameState)
 	{
-		if state.options.play_music
+		match self
 		{
-			state.sfx.set_music_file("data/evil_minded.mod");
-			state.sfx.play_music()?;
+			SubScreen::MainMenu(s) => s.draw(state),
+			SubScreen::LevelMenu(s) => s.draw(state),
+			SubScreen::ControlsMenu(s) => s.draw(state),
+			SubScreen::CharacterMenu(s) => s.draw(state),
+			SubScreen::OptionsMenu(s) => s.draw(state),
+			SubScreen::InGameMenu(s) => s.draw(state),
 		}
-
-		state.cache_bitmap("data/main_menu.png")?;
-		state.cache_sprite_sheet("data/santa.cfg")?;
-		state.cache_sprite_sheet("data/reindeer.cfg")?;
-		state.sfx.cache_sample("data/ui1.ogg")?;
-		state.sfx.cache_sample("data/ui2.ogg")?;
-
-		Ok(Self {
-			display_width: display_width,
-			display_height: display_height,
-			subscreen: CurSubScreen::MainMenu(MainMenu::new(display_width, display_height)),
-			next_level: "".into(),
-		})
 	}
 
-	pub fn input(
-		&mut self, event: &Event, state: &mut game_state::GameState,
-	) -> Result<Option<game_state::NextScreen>>
+	pub fn input(&mut self, state: &mut game_state::GameState, event: &Event) -> Option<Action>
 	{
-		let action = match &mut self.subscreen
+		match self
 		{
-			CurSubScreen::MainMenu(menu) => menu.input(state, event),
-			CurSubScreen::LevelMenu(menu) => menu.input(state, event),
-			CurSubScreen::ControlsMenu(menu) => menu.input(state, event),
-			CurSubScreen::CharacterMenu(menu) => menu.input(state, event),
-		};
-		if let Some(action) = action
-		{
-			match action
-			{
-				Action::MainMenu =>
-				{
-					self.subscreen = CurSubScreen::MainMenu(MainMenu::new(
-						self.display_width,
-						self.display_height,
-					));
-				}
-				Action::LevelMenu =>
-				{
-					self.subscreen = CurSubScreen::LevelMenu(LevelMenu::new(
-						state,
-						self.display_width,
-						self.display_height,
-					));
-				}
-				Action::ControlsMenu =>
-				{
-					self.subscreen = CurSubScreen::ControlsMenu(ControlsMenu::new(
-						self.display_width,
-						self.display_height,
-						state,
-					));
-				}
-				Action::Quit => return Ok(Some(game_state::NextScreen::Quit)),
-				Action::SelectLevel(name) =>
-				{
-					self.next_level = name.clone();
-					self.subscreen = CurSubScreen::CharacterMenu(CharacterMenu::new(
-						state,
-						self.display_width,
-						self.display_height,
-					));
-				}
-				Action::SelectCharacter(character) =>
-				{
-					return Ok(Some(game_state::NextScreen::Game(
-						self.next_level.clone(),
-						character,
-						None,
-						None,
-						3,
-					)));
-				}
-				_ => (),
-			}
+			SubScreen::MainMenu(s) => s.input(state, event),
+			SubScreen::LevelMenu(s) => s.input(state, event),
+			SubScreen::ControlsMenu(s) => s.input(state, event),
+			SubScreen::CharacterMenu(s) => s.input(state, event),
+			SubScreen::OptionsMenu(s) => s.input(state, event),
+			SubScreen::InGameMenu(s) => s.input(state, event),
 		}
-		Ok(None)
-	}
-
-	pub fn draw(&mut self, state: &game_state::GameState) -> Result<()>
-	{
-		let ortho_mat = Matrix4::new_orthographic(
-			0.,
-			self.display_width as f32,
-			self.display_height as f32,
-			0.,
-			-1.,
-			1.,
-		);
-
-		unsafe {
-			gl::Disable(gl::CULL_FACE);
-		}
-		state
-			.core
-			.use_projection_transform(&utils::mat4_to_transform(ortho_mat));
-		state.core.use_transform(&Transform::identity());
-		state.core.set_depth_test(None);
-		unsafe {
-			al_set_render_state(ALLEGRO_ALPHA_TEST_RS, 0);
-		}
-		state.core.clear_to_color(Color::from_rgb_f(0., 0., 0.));
-		match &self.subscreen
-		{
-			CurSubScreen::MainMenu(menu) => menu.draw(state),
-			CurSubScreen::LevelMenu(menu) => menu.draw(state),
-			CurSubScreen::ControlsMenu(menu) => menu.draw(state),
-			CurSubScreen::CharacterMenu(menu) => menu.draw(state),
-		};
-		Ok(())
 	}
 }

@@ -10,6 +10,7 @@ mod controls;
 mod error;
 mod game_state;
 mod map;
+mod menu;
 mod sfx;
 mod spatial_grid;
 mod ui;
@@ -28,7 +29,7 @@ use std::rc::Rc;
 enum CurScreen
 {
 	Game(map::Map),
-	Menu(ui::Menu),
+	Menu(menu::Menu),
 }
 
 fn real_main() -> Result<()>
@@ -37,7 +38,9 @@ fn real_main() -> Result<()>
 
 	if state.options.fullscreen
 	{
-		state.core.set_new_display_flags(OPENGL | FULLSCREEN_WINDOW);
+		state
+			.core
+			.set_new_display_flags(OPENGL | FULLSCREEN_WINDOW | RESIZABLE);
 	}
 
 	state.core.set_new_display_option(
@@ -96,7 +99,7 @@ fn real_main() -> Result<()>
 	let mut draw = true;
 	//~ let mut rng = thread_rng();
 
-	let mut cur_screen = CurScreen::Menu(ui::Menu::new(
+	let mut cur_screen = CurScreen::Menu(menu::Menu::new(
 		&mut state,
 		buffer_width as f32,
 		buffer_height as f32,
@@ -104,6 +107,7 @@ fn real_main() -> Result<()>
 
 	let mut logics_without_draw = 0;
 	let mut old_mouse_hide = state.hide_mouse;
+	let mut old_fullscreen = state.options.fullscreen;
 	//~ let mut prev_frame_start = state.core.get_time();
 
 	timer.start();
@@ -171,14 +175,19 @@ fn real_main() -> Result<()>
 			{
 				state.hide_mouse = false;
 			}
-			Event::MouseButtonDown { .. } => match cur_screen
+			Event::DisplayResize { .. } =>
 			{
-				CurScreen::Game(_) =>
-				{
-					state.hide_mouse = true;
-				}
-				_ => (),
-			},
+				display
+					.acknowledge_resize()
+					.map_err(|_| "Couldn't acknowledge resize".to_string())?;
+
+				state.display_width = display.get_width() as f32;
+				state.display_height = display.get_height() as f32;
+				state.draw_scale = utils::min(
+					(display.get_width() as f32) / (buffer.get_width() as f32),
+					(display.get_height() as f32) / (buffer.get_height() as f32),
+				);
+			}
 			Event::TimerTick { .. } =>
 			{
 				if logics_without_draw > 10
@@ -216,6 +225,12 @@ fn real_main() -> Result<()>
 							al_show_mouse_cursor(display.get_allegro_display());
 						}
 					}
+				}
+
+				if old_fullscreen != state.options.fullscreen
+				{
+					display.set_flag(FULLSCREEN_WINDOW, state.options.fullscreen);
+					old_fullscreen = state.options.fullscreen;
 				}
 
 				logics_without_draw += 1;
@@ -257,7 +272,7 @@ fn real_main() -> Result<()>
 				}
 				NextScreen::Menu =>
 				{
-					cur_screen = CurScreen::Menu(ui::Menu::new(
+					cur_screen = CurScreen::Menu(menu::Menu::new(
 						&mut state,
 						buffer_width as f32,
 						buffer_height as f32,
