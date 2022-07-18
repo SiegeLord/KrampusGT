@@ -49,9 +49,8 @@ format, but the often better .gtlf. Most of the graphics are indeed prerendered.
 
 Fonts: See `data/` directory for ReadMe files.
 
-Open 24 Display St.ttf
-GAMEPLAY-1987.ttf
-
+* Open 24 Display St.ttf
+* GAMEPLAY-1987.ttf
 
 Sounds:
 
