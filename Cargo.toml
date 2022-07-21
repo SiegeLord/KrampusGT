@@ -7,17 +7,27 @@ authors = ["SiegeLord <slabode@aim.com>"]
 
 [dependencies]
 
-allegro-sys = { version="0.0.42" }
+allegro-sys = { version="0.0.43" }
+allegro = { version="0.0.43" }
+allegro_dialog = { version="0.0.43" }
+allegro_image = { version="0.0.43" }
+allegro_font = { version="0.0.43" }
+allegro_ttf = { version="0.0.43" }
+allegro_acodec = { version="0.0.43" }
+allegro_audio = { version="0.0.43" }
+allegro_primitives = { version="0.0.43" }
+allegro_color = { version="0.0.43" }
 
-allegro = { version="0.0.42" }
-allegro_dialog = { version="0.0.42" }
-allegro_image = { version="0.0.42" }
-allegro_font = { version="0.0.42" }
-allegro_ttf = { version="0.0.42" }
-allegro_acodec = { version="0.0.42" }
-allegro_audio = { version="0.0.42" }
-allegro_primitives = { version="0.0.42" }
-allegro_color = { version="0.0.42" }
+#allegro-sys = { path = "/home/siege/Projects/RustAllegro/allegro-sys" }
+#allegro = { path = "/home/siege/Projects/RustAllegro/allegro" }
+#allegro_dialog = { path = "/home/siege/Projects/RustAllegro/allegro_dialog" }
+#allegro_image = { path = "/home/siege/Projects/RustAllegro/allegro_image" }
+#allegro_font = { path = "/home/siege/Projects/RustAllegro/allegro_font" }
+#allegro_ttf = { path = "/home/siege/Projects/RustAllegro/allegro_ttf" }
+#allegro_acodec = { path = "/home/siege/Projects/RustAllegro/allegro_acodec" }
+#allegro_audio = { path = "/home/siege/Projects/RustAllegro/allegro_audio" }
+#allegro_primitives = { path = "/home/siege/Projects/RustAllegro/allegro_primitives" }
+#allegro_color = { path = "/home/siege/Projects/RustAllegro/allegro_color" }
 
 bimap = { version="0.6.2", features = ["serde"] }
 hecs = "0.7.1"

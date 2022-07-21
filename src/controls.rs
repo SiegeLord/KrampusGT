@@ -1,7 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug, PartialOrd, Ord)]
 pub struct KeyCode(pub allegro::KeyCode);
 
 impl KeyCode
@@ -302,7 +302,7 @@ impl<'de> serde::Deserialize<'de> for KeyCode
 	}
 }
 
-#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Copy, Clone, Debug, PartialOrd, Ord)]
 pub enum Action
 {
 	TurnLeft,
@@ -342,14 +342,14 @@ impl Action
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Controls
 {
-	pub controls: bimap::BiMap<Action, KeyCode>,
+	pub controls: bimap::BiBTreeMap<Action, KeyCode>,
 }
 
 impl Controls
 {
 	pub fn new() -> Self
 	{
-		let mut controls = bimap::BiMap::new();
+		let mut controls = bimap::BiBTreeMap::new();
 		controls.insert(Action::TurnLeft, KeyCode(allegro::KeyCode::Left));
 		controls.insert(Action::TurnRight, KeyCode(allegro::KeyCode::Right));
 		controls.insert(Action::StrafeLeft, KeyCode(allegro::KeyCode::A));

@@ -115,6 +115,17 @@ fn real_main() -> Result<()>
 	{
 		if draw && queue.is_empty()
 		{
+			if state.display_width != display.get_width() as f32
+				|| state.display_height != display.get_height() as f32
+			{
+				state.display_width = display.get_width() as f32;
+				state.display_height = display.get_height() as f32;
+				state.draw_scale = utils::min(
+					(display.get_width() as f32) / (buffer.get_width() as f32),
+					(display.get_height() as f32) / (buffer.get_height() as f32),
+				);
+			}
+
 			//~ let frame_start = state.core.get_time();
 			state.core.set_target_bitmap(Some(&buffer));
 
@@ -180,13 +191,6 @@ fn real_main() -> Result<()>
 				display
 					.acknowledge_resize()
 					.map_err(|_| "Couldn't acknowledge resize".to_string())?;
-
-				state.display_width = display.get_width() as f32;
-				state.display_height = display.get_height() as f32;
-				state.draw_scale = utils::min(
-					(display.get_width() as f32) / (buffer.get_width() as f32),
-					(display.get_height() as f32) / (buffer.get_height() as f32),
-				);
 			}
 			Event::TimerTick { .. } =>
 			{
@@ -215,16 +219,7 @@ fn real_main() -> Result<()>
 				if old_mouse_hide != state.hide_mouse
 				{
 					old_mouse_hide = state.hide_mouse;
-					unsafe {
-						if state.hide_mouse
-						{
-							al_hide_mouse_cursor(display.get_allegro_display());
-						}
-						else
-						{
-							al_show_mouse_cursor(display.get_allegro_display());
-						}
-					}
+					display.show_cursor(state.hide_mouse).map_err(|_| "Could not hide cursor.".to_string())?;
 				}
 
 				if old_fullscreen != state.options.fullscreen
