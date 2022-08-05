@@ -220,7 +220,7 @@ fn real_main() -> Result<()>
 				{
 					old_mouse_hide = state.hide_mouse;
 					display
-						.show_cursor(state.hide_mouse)
+						.show_cursor(!state.hide_mouse)
 						.map_err(|_| "Could not hide cursor.".to_string())?;
 				}
 
