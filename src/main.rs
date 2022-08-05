@@ -219,7 +219,9 @@ fn real_main() -> Result<()>
 				if old_mouse_hide != state.hide_mouse
 				{
 					old_mouse_hide = state.hide_mouse;
-					display.show_cursor(state.hide_mouse).map_err(|_| "Could not hide cursor.".to_string())?;
+					display
+						.show_cursor(state.hide_mouse)
+						.map_err(|_| "Could not hide cursor.".to_string())?;
 				}
 
 				if old_fullscreen != state.options.fullscreen

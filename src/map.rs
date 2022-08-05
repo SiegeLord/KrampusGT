@@ -143,11 +143,11 @@ fn draw_billboard(
 	);
 }
 
-fn get_float_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<f32>>
+fn get_float_property(property: &str, obj: &tiled::Object) -> Option<Result<f32>>
 {
 	obj.properties.get(property).map(|p| match p
 	{
-		tiled::properties::PropertyValue::FloatValue(v) => Ok(*v),
+		tiled::PropertyValue::FloatValue(v) => Ok(*v),
 		other => Err(format!(
 			"Invalid value for '{}' in object {:?}: {:?}",
 			property, obj, other
@@ -156,11 +156,11 @@ fn get_float_property(property: &str, obj: &tiled::objects::Object) -> Option<Re
 	})
 }
 
-fn get_int_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<i32>>
+fn get_int_property(property: &str, obj: &tiled::Object) -> Option<Result<i32>>
 {
 	obj.properties.get(property).map(|p| match p
 	{
-		tiled::properties::PropertyValue::IntValue(v) => Ok(*v),
+		tiled::PropertyValue::IntValue(v) => Ok(*v),
 		other => Err(format!(
 			"Invalid value for '{}' in object {:?}: {:?}",
 			property, obj, other
@@ -169,11 +169,11 @@ fn get_int_property(property: &str, obj: &tiled::objects::Object) -> Option<Resu
 	})
 }
 
-fn get_bool_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<bool>>
+fn get_bool_property(property: &str, obj: &tiled::Object) -> Option<Result<bool>>
 {
 	obj.properties.get(property).map(|p| match p
 	{
-		tiled::properties::PropertyValue::BoolValue(v) => Ok(*v),
+		tiled::PropertyValue::BoolValue(v) => Ok(*v),
 		other => Err(format!(
 			"Invalid value for '{}' in object {:?}: {:?}",
 			property, obj, other
@@ -183,12 +183,12 @@ fn get_bool_property(property: &str, obj: &tiled::objects::Object) -> Option<Res
 }
 
 fn get_target_property(
-	property: &str, obj: &tiled::objects::Object, id_to_name: &HashMap<u32, String>,
+	property: &str, obj: &tiled::Object, id_to_name: &HashMap<u32, String>,
 ) -> Option<Result<String>>
 {
 	obj.properties.get(property).and_then(|p| match p
 	{
-		tiled::properties::PropertyValue::ObjectValue(v) =>
+		tiled::PropertyValue::ObjectValue(v) =>
 		{
 			if *v == 0
 			{
@@ -207,11 +207,11 @@ fn get_target_property(
 	})
 }
 
-fn get_string_property(property: &str, obj: &tiled::objects::Object) -> Option<Result<String>>
+fn get_string_property(property: &str, obj: &tiled::Object) -> Option<Result<String>>
 {
 	obj.properties.get(property).map(|p| match p
 	{
-		tiled::properties::PropertyValue::StringValue(v) => Ok(v.clone()),
+		tiled::PropertyValue::StringValue(v) => Ok(v.clone()),
 		other => Err(format!(
 			"Invalid value for '{}' in object {:?}: {:?}",
 			property, obj, other
@@ -221,7 +221,7 @@ fn get_string_property(property: &str, obj: &tiled::objects::Object) -> Option<R
 }
 
 fn get_targets_property(
-	obj: &tiled::objects::Object, id_to_name: &HashMap<u32, String>,
+	obj: &tiled::Object, id_to_name: &HashMap<u32, String>,
 ) -> Result<Vec<String>>
 {
 	let mut ret = vec![];
@@ -263,27 +263,31 @@ impl Level
 	{
 		let tile_meshes = load_meshes(&desc.meshes);
 
-		let map = tiled::parse_file(&Path::new(&desc.level))?;
+		let map = tiled::Loader::new().load_tmx_map(&Path::new(&desc.level))?;
 		let tile_width = map.tile_width as f32;
 
-		let layer_tiles = &map.layers[0].tiles;
+		let layer_tiles = match map.get_layer(0).unwrap().layer_type()
+		{
+			tiled::LayerType::TileLayer(layer_tiles) => layer_tiles,
+			_ => return Err("Layer 0 must be the tile layer!".to_string().into()),
+		};
 		let layer_tiles = match layer_tiles
 		{
-			tiled::layers::LayerData::Finite(layer_tiles) => layer_tiles,
+			tiled::TileLayer::Finite(layer_tiles) => layer_tiles,
 			_ => return Err("Bad map!".to_string().into()),
 		};
 
-		let height = layer_tiles.len();
-		let width = layer_tiles[0].len();
+		let height = layer_tiles.height() as usize;
+		let width = layer_tiles.width() as usize;
 
-		let tileset = &map.tilesets[0];
 		let mut tiles = Vec::with_capacity(width * height);
 
-		for row in layer_tiles
+		for y in 0..height
 		{
-			for tile in row
+			for x in 0..width
 			{
-				tiles.push((utils::max(tile.gid, tileset.first_gid) - tileset.first_gid) as i32);
+				let id = layer_tiles.get_tile(x as i32, y as i32).unwrap().id();
+				tiles.push(id as i32);
 			}
 		}
 
@@ -294,12 +298,17 @@ impl Level
 		}
 
 		let mut id_to_name = HashMap::new();
-		let objects = &map.object_groups[0].objects;
-		for obj in objects
+
+		let objects = match map.get_layer(1).unwrap().layer_type()
 		{
-			id_to_name.insert(obj.id, format!("{}|{}", obj.name, obj.id));
+			tiled::LayerType::ObjectLayer(objects) => objects,
+			_ => return Err("Layer 1 must be the object layer!".to_string().into()),
+		};
+		for obj in objects.objects()
+		{
+			id_to_name.insert(obj.id(), format!("{}|{}", obj.name, obj.id()));
 		}
-		for obj in objects
+		for obj in objects.objects()
 		{
 			let start = Point3::new(obj.x, 0., obj.y) / tile_width * TILE;
 			let end = Point3::new(obj.x + obj.width, 0., obj.y + obj.height) / tile_width * TILE;
@@ -309,71 +318,72 @@ impl Level
 			{
 				"start" => spawn_player_start(
 					center,
-					get_float_property("dir", obj).unwrap_or(Ok(0.))?,
-					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					get_float_property("dir", &obj).unwrap_or(Ok(0.))?,
+					get_bool_property("active", &obj).unwrap_or(Ok(false))?,
 					world,
 				),
 				"area trigger" => spawn_area_trigger(
 					start.xz(),
 					end.xz(),
-					get_targets_property(obj, &id_to_name)?,
-					get_bool_property("active", obj).unwrap_or(Ok(true))?,
+					get_targets_property(&obj, &id_to_name)?,
+					get_bool_property("active", &obj).unwrap_or(Ok(true))?,
 					world,
 				),
 				"spawner" => spawn_spawner(
 					center,
-					get_float_property("dir", obj).unwrap_or(Ok(0.))?,
-					&get_target_property("counter", obj, &id_to_name)
+					get_float_property("dir", &obj).unwrap_or(Ok(0.))?,
+					&get_target_property("counter", &obj, &id_to_name)
 						.unwrap_or(Ok("".to_string()))?,
-					get_bool_property("active", obj).unwrap_or(Ok(false))?,
-					str_to_spawn_fn(&get_string_property("spawn", obj).unwrap_or(Err(
-						format!("Spawner {:?} needs 'spawn' specified.", obj).into(),
+					get_bool_property("active", &obj).unwrap_or(Ok(false))?,
+					str_to_spawn_fn(&get_string_property("spawn", &obj).unwrap_or(Err(
+						format!("Spawner {:?} needs 'spawn' specified.", &obj).into(),
 					))?)?,
-					get_int_property("max_count", obj).unwrap_or(Ok(1))?,
-					get_float_property("delay", obj).unwrap_or(Ok(0.1))?,
+					get_int_property("max_count", &obj).unwrap_or(Ok(1))?,
+					get_float_property("delay", &obj).unwrap_or(Ok(0.1))?,
 					world,
 				),
 				"counter" => spawn_counter(
-					get_int_property("max_count", obj).unwrap_or(Err(format!(
+					get_int_property("max_count", &obj).unwrap_or(Err(format!(
 						"Counter {:?} needs 'max_count' specified.",
-						obj
+						&obj
 					)
 					.into()))?,
-					get_targets_property(obj, &id_to_name)?,
-					get_bool_property("active", obj).unwrap_or(Ok(true))?,
+					get_targets_property(&obj, &id_to_name)?,
+					get_bool_property("active", &obj).unwrap_or(Ok(true))?,
 					world,
 				),
 				"message" => spawn_message(
-					get_string_property("message", obj).unwrap_or(Ok("".to_string()))?,
-					get_bool_property("active", obj).unwrap_or(Ok(true))?,
+					get_string_property("message", &obj).unwrap_or(Ok("".to_string()))?,
+					get_bool_property("active", &obj).unwrap_or(Ok(true))?,
 					world,
 				),
 				"next_level" => spawn_next_level(
-					get_string_property("next_level", obj).unwrap_or(Ok("".to_string()))?,
-					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					get_string_property("next_level", &obj).unwrap_or(Ok("".to_string()))?,
+					get_bool_property("active", &obj).unwrap_or(Ok(false))?,
 					world,
 				),
 				"trigger" => spawn_trigger(
-					get_float_property("delay", obj).unwrap_or(Ok(0.))? as f64,
-					get_targets_property(obj, &id_to_name)?,
-					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					get_float_property("delay", &obj).unwrap_or(Ok(0.))? as f64,
+					get_targets_property(&obj, &id_to_name)?,
+					get_bool_property("active", &obj).unwrap_or(Ok(false))?,
 					state,
 					world,
 				),
 				"deleter" => spawn_deleter(
-					get_targets_property(obj, &id_to_name)?,
-					get_bool_property("active", obj).unwrap_or(Ok(false))?,
+					get_targets_property(&obj, &id_to_name)?,
+					get_bool_property("active", &obj).unwrap_or(Ok(false))?,
 					world,
 				),
 				"object" =>
 				{
-					let spawn_fn = str_to_spawn_fn(&get_string_property("spawn", obj).unwrap_or(
-						Err(format!("Object {:?} needs 'spawn' specified.", obj).into()),
-					)?)?;
+					let spawn_fn =
+						str_to_spawn_fn(&get_string_property("spawn", &obj).unwrap_or(Err(
+							format!("Object {:?} needs 'spawn' specified.", &obj).into(),
+						))?)?;
 					spawn_fn(
 						center,
-						get_float_property("dir", obj).unwrap_or(Ok(0.))?,
-						&get_target_property("counter", obj, &id_to_name)
+						get_float_property("dir", &obj).unwrap_or(Ok(0.))?,
+						&get_target_property("counter", &obj, &id_to_name)
 							.unwrap_or(Ok("".to_string()))?,
 						state,
 						world,
@@ -381,7 +391,7 @@ impl Level
 				}
 				other => return Err(format!("Unknown object type '{}'", other).into()),
 			};
-			named_entities.insert(format!("{}|{}", obj.name, obj.id), entity);
+			named_entities.insert(format!("{}|{}", obj.name, obj.id()), entity);
 		}
 
 		Ok(Level {
@@ -2176,7 +2186,7 @@ fn segment_check(
 		}
 		else
 		{
-			if let Ok(solid) = world.get::<components::Solid>(entry.inner.id)
+			if let Ok(solid) = world.get::<&components::Solid>(entry.inner.id)
 			{
 				if solid.collision_class == components::CollisionClass::Tiny
 					|| solid.collision_class == components::CollisionClass::Gas
@@ -2184,7 +2194,7 @@ fn segment_check(
 					return false;
 				}
 			}
-			if let Ok(other_team) = world.get::<components::Team>(entry.inner.id)
+			if let Ok(other_team) = world.get::<&components::Team>(entry.inner.id)
 			{
 				team.friendly(&other_team)
 			}
@@ -2199,7 +2209,7 @@ fn segment_check(
 	for blocker in blockers
 	{
 		let nearest = utils::nearest_line_point(start, end, blocker.inner.pos.xz());
-		if let Ok(solid) = world.get::<components::Solid>(blocker.inner.id)
+		if let Ok(solid) = world.get::<&components::Solid>(blocker.inner.id)
 		{
 			let size = solid.size + margin;
 			if (nearest - blocker.inner.pos.xz()).norm_squared() < size * size
@@ -2543,8 +2553,8 @@ impl Map
 
 		let mut colliding_pairs = vec![];
 		for (a, b) in grid.all_pairs(|a, b| {
-			let a_solid = self.world.get::<components::Solid>(a.inner.id).unwrap();
-			let b_solid = self.world.get::<components::Solid>(b.inner.id).unwrap();
+			let a_solid = self.world.get::<&components::Solid>(a.inner.id).unwrap();
+			let b_solid = self.world.get::<&components::Solid>(b.inner.id).unwrap();
 			a_solid
 				.collision_class
 				.collides_with(b_solid.collision_class)
@@ -2560,11 +2570,11 @@ impl Map
 			{
 				let id1 = inner1.id;
 				let id2 = inner2.id;
-				let pos1 = self.world.get::<components::Position>(id1)?.pos;
-				let pos2 = self.world.get::<components::Position>(id2)?.pos;
+				let pos1 = self.world.get::<&components::Position>(id1)?.pos;
+				let pos2 = self.world.get::<&components::Position>(id2)?.pos;
 
-				let solid1 = *self.world.get::<components::Solid>(id1)?;
-				let solid2 = *self.world.get::<components::Solid>(id2)?;
+				let solid1 = *self.world.get::<&components::Solid>(id1)?;
+				let solid2 = *self.world.get::<&components::Solid>(id2)?;
 
 				let diff = pos2.xz() - pos1.xz();
 				let diff_norm = utils::max(0.1, diff.norm());
@@ -2583,11 +2593,11 @@ impl Map
 					let f2 = 1. - solid2.mass / (solid2.mass + solid1.mass);
 					if f32::is_finite(f1)
 					{
-						self.world.get_mut::<components::Position>(id1)?.pos -= diff * f1;
+						self.world.get::<&mut components::Position>(id1)?.pos -= diff * f1;
 					}
 					if f32::is_finite(f2)
 					{
-						self.world.get_mut::<components::Position>(id2)?.pos += diff * f2;
+						self.world.get::<&mut components::Position>(id2)?.pos += diff * f2;
 					}
 				}
 
@@ -2596,7 +2606,7 @@ impl Map
 					for (id, other_id) in [(id1, Some(id2)), (id2, Some(id1))]
 					{
 						if let Ok(on_contact_effect) =
-							self.world.get::<components::OnContactEffect>(id)
+							self.world.get::<&components::OnContactEffect>(id)
 						{
 							on_contact_effects.push((
 								id,
@@ -2623,7 +2633,7 @@ impl Map
 					if pass == 0
 					{
 						if let Ok(on_contact_effect) =
-							self.world.get::<components::OnContactEffect>(id)
+							self.world.get::<&components::OnContactEffect>(id)
 						{
 							on_contact_effects.push((id, None, on_contact_effect.effects.clone()));
 						}
@@ -2643,7 +2653,7 @@ impl Map
 					(components::ContactEffect::Hurt { damage }, Some(other_id)) =>
 					{
 						let mut damaged = false;
-						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
+						if let Ok(mut health) = self.world.get::<&mut components::Health>(other_id)
 						{
 							damaged = health.damage(damage, 1.);
 						}
@@ -2652,7 +2662,7 @@ impl Map
 							if let components::DamageType::Cold(amount) = damage.damage_type
 							{
 								if let Ok(mut freezable) =
-									self.world.get_mut::<components::Freezable>(other_id)
+									self.world.get::<&mut components::Freezable>(other_id)
 								{
 									freezable.amount = utils::min(2., freezable.amount + amount);
 								}
@@ -2662,7 +2672,7 @@ impl Map
 					(components::ContactEffect::DamageOverTime { damage_rate }, Some(other_id)) =>
 					{
 						let mut damaged = false;
-						if let Ok(mut health) = self.world.get_mut::<components::Health>(other_id)
+						if let Ok(mut health) = self.world.get::<&mut components::Health>(other_id)
 						{
 							damaged = health.damage(damage_rate, utils::DT);
 						}
@@ -2671,7 +2681,7 @@ impl Map
 							if let components::DamageType::Cold(amount) = damage_rate.damage_type
 							{
 								if let Ok(mut freezable) =
-									self.world.get_mut::<components::Freezable>(other_id)
+									self.world.get::<&mut components::Freezable>(other_id)
 								{
 									freezable.amount =
 										utils::min(2., freezable.amount + amount * utils::DT);
@@ -2681,10 +2691,10 @@ impl Map
 					}
 					(components::ContactEffect::Item { item_type }, Some(other_id)) =>
 					{
-						let team = self.world.get::<components::Team>(other_id);
-						let vehicle = self.world.get::<components::Vehicle>(other_id);
-						let mut health = self.world.get_mut::<components::Health>(other_id);
-						let mut weapon_set = self.world.get_mut::<components::WeaponSet>(other_id);
+						let team = self.world.get::<&components::Team>(other_id);
+						let vehicle = self.world.get::<&components::Vehicle>(other_id);
+						let mut health = self.world.get::<&mut components::Health>(other_id);
+						let mut weapon_set = self.world.get::<&mut components::WeaponSet>(other_id);
 
 						let mut new_weapon = None;
 						if team.map(|t| *t) == Ok(components::Team::Player) && vehicle.is_err()
@@ -2830,19 +2840,19 @@ impl Map
 
 		// Player controller.
 		if self.world.contains(self.player)
-			&& self.world.get::<components::Team>(self.player).is_ok()
+			&& self.world.get::<&components::Team>(self.player).is_ok()
 			&& self
 				.world
-				.get::<components::Health>(self.player)
+				.get::<&components::Health>(self.player)
 				.map(|h| h.health > 0.)
 				.unwrap_or(false)
 			&& self
 				.world
-				.get::<components::Freezable>(self.player)
+				.get::<&components::Freezable>(self.player)
 				.map(|f| !f.is_frozen())
 				.unwrap_or(true)
 		{
-			let moveable = *self.world.get::<components::Moveable>(self.player)?;
+			let moveable = *self.world.get::<&components::Moveable>(self.player)?;
 			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
 			let left_right = if moveable.can_strafe
 			{
@@ -2854,14 +2864,14 @@ impl Map
 			};
 			let up_down = self.up_state as i32 - (self.down_state as i32);
 
-			let pos = *self.world.get::<components::Position>(self.player)?;
+			let pos = *self.world.get::<&components::Position>(self.player)?;
 			let dir = pos.dir;
 			let rot = Rotation2::new(dir);
 			let speed = moveable.speed;
 			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
 
 			{
-				let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
+				let mut player_vel = self.world.get::<&mut components::Velocity>(self.player)?;
 				player_vel.vel = Vector3::new(vel.x, 0., vel.y);
 				player_vel.dir_vel =
 					state.options.turn_sensitivity * (rot_left_right as f32 * f32::pi() / 2.);
@@ -2870,16 +2880,17 @@ impl Map
 			if self.enter_state
 			{
 				let mut spawn_fn = None;
-				if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(self.player)
+				if let Ok(mut vehicle) = self.world.get::<&mut components::Vehicle>(self.player)
 				{
 					spawn_fn = vehicle.contents.take();
 					self.enter_state = false;
 
-					let mut player_vel = self.world.get_mut::<components::Velocity>(self.player)?;
+					let mut player_vel =
+						self.world.get::<&mut components::Velocity>(self.player)?;
 					player_vel.vel = Vector3::zeros();
 					player_vel.dir_vel = 0.;
 
-					*self.world.get_mut::<components::Team>(self.player)? =
+					*self.world.get::<&mut components::Team>(self.player)? =
 						components::Team::Neutral;
 				}
 				else
@@ -2889,8 +2900,8 @@ impl Map
 						Point2::new(pos.pos.x + 2. * TILE, pos.pos.z + 2. * TILE),
 						|entry| {
 							if let (Ok(other_team), Ok(vehicle)) = (
-								self.world.get::<components::Team>(entry.inner.id),
-								self.world.get::<components::Vehicle>(entry.inner.id),
+								self.world.get::<&components::Team>(entry.inner.id),
+								self.world.get::<&components::Vehicle>(entry.inner.id),
 							)
 							{
 								components::Team::Player.friendly(&other_team)
@@ -2914,12 +2925,12 @@ impl Map
 
 						let mut vehicle = self
 							.world
-							.get_mut::<components::Vehicle>(entry.inner.id)
+							.get::<&mut components::Vehicle>(entry.inner.id)
 							.unwrap();
 
-						let health = (*self.world.get::<components::Health>(self.player)?).clone();
+						let health = (*self.world.get::<&components::Health>(self.player)?).clone();
 						let weapon_set =
-							(*self.world.get::<components::WeaponSet>(self.player)?).clone();
+							(*self.world.get::<&components::WeaponSet>(self.player)?).clone();
 
 						let player_class = self.player_class;
 						vehicle.saved_health = Some(health.clone());
@@ -2938,7 +2949,7 @@ impl Map
 						to_die.push((false, self.player));
 						*self
 							.world
-							.get_mut::<components::Team>(entry.inner.id)
+							.get::<&mut components::Team>(entry.inner.id)
 							.unwrap() = components::Team::Player;
 
 						self.player = entry.inner.id;
@@ -2955,7 +2966,7 @@ impl Map
 				}
 			}
 
-			if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
+			if let Ok(mut weapon_set) = self.world.get::<&mut components::WeaponSet>(self.player)
 			{
 				weapon_set.want_to_fire = self.fire_state;
 			}
@@ -3197,7 +3208,7 @@ impl Map
 			freezable.amount = utils::max(0., freezable.amount - 0.25 * utils::DT);
 			if freezable.is_frozen()
 			{
-				if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(id)
+				if let Ok(mut weapon_set) = self.world.get::<&mut components::WeaponSet>(id)
 				{
 					weapon_set.want_to_fire = false;
 				}
@@ -3222,7 +3233,7 @@ impl Map
 			{
 				continue;
 			}
-			if let Ok(freezable) = self.world.get::<components::Freezable>(id)
+			if let Ok(freezable) = self.world.get::<&components::Freezable>(id)
 			{
 				if freezable.is_frozen()
 				{
@@ -3251,7 +3262,7 @@ impl Map
 							Point2::new(pos.pos.x + ai.sense_range, pos.pos.z + ai.sense_range),
 							|entry| {
 								if let Ok(other_team) =
-									self.world.get::<components::Team>(entry.inner.id)
+									self.world.get::<&components::Team>(entry.inner.id)
 								{
 									if team.friendly(&other_team)
 									{
@@ -3299,7 +3310,7 @@ impl Map
 						}
 						else if self
 							.world
-							.get::<components::Team>(target)
+							.get::<&components::Team>(target)
 							.map(|other_team| team.friendly(&other_team))
 							.unwrap_or(true)
 						{
@@ -3307,7 +3318,7 @@ impl Map
 						}
 						else
 						{
-							let target_pos = self.world.get::<components::Position>(target)?;
+							let target_pos = self.world.get::<&components::Position>(target)?;
 							let dist = (target_pos.pos.xz() - pos.pos.xz()).norm();
 
 							new_dir_vel =
@@ -3375,7 +3386,7 @@ impl Map
 							}
 							else
 							{
-								let target_pos = self.world.get::<components::Position>(target)?;
+								let target_pos = self.world.get::<&components::Position>(target)?;
 								let blocked = segment_check(
 									pos.pos.xz(),
 									target_pos.pos.xz(),
@@ -3414,7 +3425,7 @@ impl Map
 				{
 					vel.vel = new_vel.unwrap_or(Vector3::zeros());
 				}
-				if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(id)
+				if let Ok(mut weapon_set) = self.world.get::<&mut components::WeaponSet>(id)
 				{
 					weapon_set.want_to_fire = do_attack;
 				}
@@ -3448,7 +3459,7 @@ impl Map
 		{
 			if self
 				.world
-				.get::<components::Active>(id)
+				.get::<&components::Active>(id)
 				.map(|a| a.active)
 				.unwrap_or(true)
 			{
@@ -3478,7 +3489,7 @@ impl Map
 		{
 			if self
 				.world
-				.get::<components::Active>(id)
+				.get::<&components::Active>(id)
 				.map(|a| a.active)
 				.unwrap_or(true)
 			{
@@ -3496,7 +3507,7 @@ impl Map
 		// Player start
 		if self.want_spawn
 		{
-			if let Ok(mut team) = self.world.get_mut::<components::Team>(self.player)
+			if let Ok(mut team) = self.world.get::<&mut components::Team>(self.player)
 			{
 				// To get enemies to stop attacking corpses.
 				*team = components::Team::Neutral;
@@ -3504,7 +3515,7 @@ impl Map
 
 			if let Ok(pos) = self
 				.world
-				.get::<components::Position>(self.active_player_start)
+				.get::<&components::Position>(self.active_player_start)
 			{
 				dbg!("spawning at", self.active_player_start);
 				let point_pos = pos.pos.clone();
@@ -3528,10 +3539,13 @@ impl Map
 		let mut activate = vec![];
 		for (id, area_trigger) in self.world.query::<&components::AreaTrigger>().iter()
 		{
-			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			if self
+				.world
+				.get::<&components::Active>(id)
+				.map(|a| a.active)?
 			{
 				let entries = grid.query_rect(area_trigger.start, area_trigger.end, |entry| {
-					if let Ok(team) = self.world.get::<components::Team>(entry.inner.id)
+					if let Ok(team) = self.world.get::<&components::Team>(entry.inner.id)
 					{
 						*team == components::Team::Player
 					}
@@ -3560,7 +3574,10 @@ impl Map
 		// Counter
 		for (id, counter) in self.world.query::<&components::Counter>().iter()
 		{
-			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			if self
+				.world
+				.get::<&components::Active>(id)
+				.map(|a| a.active)?
 			{
 				if counter.count >= counter.max_count
 				{
@@ -3583,7 +3600,10 @@ impl Map
 		// Next level
 		for (id, next_level) in self.world.query::<&components::NextLevel>().iter()
 		{
-			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			if self
+				.world
+				.get::<&components::Active>(id)
+				.map(|a| a.active)?
 			{
 				if next_level.next_level.is_empty()
 				{
@@ -3591,11 +3611,11 @@ impl Map
 				}
 				let mut saved_health = self.saved_health.clone();
 				let mut saved_weapon_set = self.saved_weapon_set.clone();
-				if let Ok(health) = self.world.get::<components::Health>(self.player)
+				if let Ok(health) = self.world.get::<&components::Health>(self.player)
 				{
 					saved_health = (*health).clone();
 				}
-				if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+				if let Ok(weapon_set) = self.world.get::<&components::WeaponSet>(self.player)
 				{
 					saved_weapon_set = (*weapon_set).clone();
 				}
@@ -3613,7 +3633,10 @@ impl Map
 		// Trigger
 		for (id, trigger) in self.world.query::<&components::Trigger>().iter()
 		{
-			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			if self
+				.world
+				.get::<&components::Active>(id)
+				.map(|a| a.active)?
 			{
 				if state.time() > trigger.time_to_trigger
 				{
@@ -3635,7 +3658,10 @@ impl Map
 		// Message
 		for (id, message) in self.world.query::<&components::Message>().iter()
 		{
-			if self.world.get::<components::Active>(id).map(|a| a.active)?
+			if self
+				.world
+				.get::<&components::Active>(id)
+				.map(|a| a.active)?
 			{
 				if self.ui_state == UIState::Regular
 				{
@@ -3649,19 +3675,19 @@ impl Map
 		let mut save = false;
 		for entity in activate
 		{
-			if let Ok(mut active) = self.world.get_mut::<components::Active>(entity)
+			if let Ok(mut active) = self.world.get::<&mut components::Active>(entity)
 			{
 				dbg!("activating", entity, active.active);
 				active.active = !active.active;
 
 				if active.active
 				{
-					if self.world.get::<components::PlayerStart>(entity).is_ok()
+					if self.world.get::<&components::PlayerStart>(entity).is_ok()
 					{
 						save = true;
 						self.active_player_start = entity;
 					}
-					if let Ok(mut trigger) = self.world.get_mut::<components::Trigger>(entity)
+					if let Ok(mut trigger) = self.world.get::<&mut components::Trigger>(entity)
 					{
 						trigger.time_to_trigger = state.time() + trigger.delay;
 					}
@@ -3671,18 +3697,18 @@ impl Map
 
 		if save
 		{
-			if let Ok(vehicle) = self.world.get::<components::Vehicle>(self.player)
+			if let Ok(vehicle) = self.world.get::<&components::Vehicle>(self.player)
 			{
 				self.saved_health = vehicle.saved_health.as_ref().unwrap().clone();
 				self.saved_weapon_set = vehicle.saved_weapon_set.as_ref().unwrap().clone();
 			}
 			else
 			{
-				if let Ok(health) = self.world.get::<components::Health>(self.player)
+				if let Ok(health) = self.world.get::<&components::Health>(self.player)
 				{
 					self.saved_health = (*health).clone();
 				}
-				if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+				if let Ok(weapon_set) = self.world.get::<&components::WeaponSet>(self.player)
 				{
 					self.saved_weapon_set = (*weapon_set).clone();
 				}
@@ -3694,7 +3720,7 @@ impl Map
 		{
 			if self
 				.world
-				.get::<components::Active>(id)
+				.get::<&components::Active>(id)
 				.map(|a| a.active)
 				.unwrap_or(true)
 			{
@@ -3728,17 +3754,18 @@ impl Map
 			{
 				continue;
 			}
-			if let Ok(pos) = self.world.get::<components::Position>(id)
+			if let Ok(pos) = self.world.get::<&components::Position>(id)
 			{
 				let point_pos = pos.pos.clone();
 				let dir = pos.dir;
 				let point_vel = self
 					.world
-					.get::<components::Velocity>(id)
+					.get::<&components::Velocity>(id)
 					.map(|v| v.vel.clone())
 					.unwrap_or(Vector3::zeros());
 
-				if let Ok(mut on_death_effect) = self.world.get_mut::<components::OnDeathEffect>(id)
+				if let Ok(mut on_death_effect) =
+					self.world.get::<&mut components::OnDeathEffect>(id)
 				{
 					for effect in on_death_effect.effects.drain(..)
 					{
@@ -3768,8 +3795,8 @@ impl Map
 											return false;
 										}
 										if let (Ok(_), Ok(other_pos)) = (
-											self.world.get::<components::Health>(entry.inner.id),
-											self.world.get::<components::Position>(entry.inner.id),
+											self.world.get::<&components::Health>(entry.inner.id),
+											self.world.get::<&components::Position>(entry.inner.id),
 										)
 										{
 											(other_pos.pos.xz() - pos.pos.xz()).norm() < radius
@@ -3783,15 +3810,16 @@ impl Map
 
 								for entry in entries
 								{
-									let mut health =
-										self.world.get_mut::<components::Health>(entry.inner.id)?;
+									let mut health = self
+										.world
+										.get::<&mut components::Health>(entry.inner.id)?;
 									if health.damage(damage, 1.)
 									{
 										if let components::DamageType::Cold(amount) =
 											damage.damage_type
 										{
 											if let Ok(mut freezable) =
-												self.world.get_mut::<components::Freezable>(
+												self.world.get::<&mut components::Freezable>(
 													entry.inner.id,
 												)
 											{
@@ -3804,10 +3832,10 @@ impl Map
 										}
 
 										if let (Ok(other_pos), Ok(solid), Ok(mut other_vel)) = (
-											self.world.get::<components::Position>(entry.inner.id),
-											self.world.get::<components::Solid>(entry.inner.id),
+											self.world.get::<&components::Position>(entry.inner.id),
+											self.world.get::<&components::Solid>(entry.inner.id),
 											self.world
-												.get_mut::<components::Velocity>(entry.inner.id),
+												.get::<&mut components::Velocity>(entry.inner.id),
 										)
 										{
 											let dir =
@@ -3845,7 +3873,7 @@ impl Map
 									if self.world.contains(entity)
 									{
 										if let Ok(mut counter) =
-											self.world.get_mut::<components::Counter>(entity)
+											self.world.get::<&mut components::Counter>(entity)
 										{
 											counter.count += 1;
 											dbg!(target, counter.count);
@@ -3867,7 +3895,7 @@ impl Map
 					}
 				}
 
-				if let Ok(mut vehicle) = self.world.get_mut::<components::Vehicle>(id)
+				if let Ok(mut vehicle) = self.world.get::<&mut components::Vehicle>(id)
 				{
 					if let Some(spawn_fn) = vehicle.contents.take()
 					{
@@ -3889,7 +3917,7 @@ impl Map
 			}
 		}
 
-		if !self.world.get::<components::Health>(self.player).is_ok()
+		if !self.world.get::<&components::Health>(self.player).is_ok()
 		{
 			if self.ui_state != UIState::InMenu
 			{
@@ -3909,7 +3937,7 @@ impl Map
 		}
 
 		// Update camera anchor.
-		if let Ok(player_pos) = self.world.get::<components::Position>(self.player)
+		if let Ok(player_pos) = self.world.get::<&components::Position>(self.player)
 		{
 			self.camera_anchor = *player_pos;
 		}
@@ -3970,13 +3998,13 @@ impl Map
 		{
 			let time_offset = self
 				.world
-				.get::<components::CreationTime>(id)
+				.get::<&components::CreationTime>(id)
 				.map(|v| v.time)
 				.unwrap_or(0.);
 
 			let mut color = Color::from_rgb_f(1., 1., 1.);
 			let mut f = 1.;
-			if let Ok(freezable) = self.world.get::<components::Freezable>(id)
+			if let Ok(freezable) = self.world.get::<&components::Freezable>(id)
 			{
 				if freezable.is_frozen()
 				{
@@ -3992,10 +4020,10 @@ impl Map
 					pos.dir,
 					self.camera_anchor.dir,
 					self.world
-						.get::<components::WeaponSet>(id)
+						.get::<&components::WeaponSet>(id)
 						.ok()
 						.map(|v| v.last_fire_time),
-					self.world.get::<components::Velocity>(id).ok().map(|v| *v),
+					self.world.get::<&components::Velocity>(id).ok().map(|v| *v),
 				)
 				.unwrap();
 
@@ -4052,7 +4080,7 @@ impl Map
 		let c_ui = Color::from_rgb_f(0.8, 0.8, 0.5);
 		let dw = 96.;
 
-		if let Ok(health) = self.world.get::<components::Health>(self.player)
+		if let Ok(health) = self.world.get::<&components::Health>(self.player)
 		{
 			state.core.draw_text(
 				&state.ui_font,
@@ -4109,7 +4137,7 @@ impl Map
 			);
 		}
 
-		if let Ok(weapon_set) = self.world.get::<components::WeaponSet>(self.player)
+		if let Ok(weapon_set) = self.world.get::<&components::WeaponSet>(self.player)
 		{
 			let inactive_color = Color::from_rgb_f(0.8, 0.8, 0.8);
 			let active_color = Color::from_rgb_f(1., 1., 1.);
@@ -4357,7 +4385,7 @@ impl Map
 					if *dz != 0
 					{
 						if let Ok(mut weapon_set) =
-							self.world.get_mut::<components::WeaponSet>(self.player)
+							self.world.get::<&mut components::WeaponSet>(self.player)
 						{
 							let mut cur_weapon_idx = match weapon_set.cur_weapon
 							{
@@ -4493,7 +4521,8 @@ impl Map
 
 			if let Some(desired_weapon) = desired_weapon
 			{
-				if let Ok(mut weapon_set) = self.world.get_mut::<components::WeaponSet>(self.player)
+				if let Ok(mut weapon_set) =
+					self.world.get::<&mut components::WeaponSet>(self.player)
 				{
 					if weapon_set.weapons.contains_key(&desired_weapon)
 					{

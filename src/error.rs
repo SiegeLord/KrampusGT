@@ -58,9 +58,9 @@ impl From<hecs::ComponentError> for Error
 	}
 }
 
-impl From<tiled::error::TiledError> for Error
+impl From<tiled::Error> for Error
 {
-	fn from(error: tiled::error::TiledError) -> Self
+	fn from(error: tiled::Error) -> Self
 	{
 		Self {
 			message: format!("{}", error),

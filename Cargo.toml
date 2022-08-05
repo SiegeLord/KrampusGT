@@ -30,17 +30,15 @@ allegro_color = { version="0.0.43" }
 #allegro_color = { path = "/home/siege/Projects/RustAllegro/allegro_color" }
 
 bimap = { version="0.6.2", features = ["serde"] }
-hecs = "0.7.1"
+hecs = "0.9.0"
 slr_config = "0.0.21"
 #slr_config = { path = "/home/siege/Projects/SLRConfig/slr_config" }
-nalgebra = "0.29.0"
-rand = "0.8.4"
-serde = "1.0.131"
-serde_derive = "1.0.131"
-gltf = "0.16.0"
-#tiled = "0.9.5"
-#tiled = { path = "/home/siege/src/rs-tiled" }
-tiled = { git = "https://github.com/mapeditor/rs-tiled", rev = "2f6d637ff4318cab086f53a94c77d95e760492b3" }
+nalgebra = "0.31.1"
+rand = "0.8.5"
+serde = "1.0.142"
+serde_derive = "1.0.142"
+gltf = "1.0.0"
+tiled = "0.10.2"
 gl = "0.14.0"
 gl_loader = "0.1.2"
 rect_packer = "0.2.1"
