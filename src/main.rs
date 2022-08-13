@@ -36,12 +36,13 @@ fn real_main() -> Result<()>
 {
 	let mut state = GameState::new()?;
 
+	let mut flags = OPENGL | RESIZABLE;
+
 	if state.options.fullscreen
 	{
-		state
-			.core
-			.set_new_display_flags(OPENGL | FULLSCREEN_WINDOW | RESIZABLE);
+		flags = flags | FULLSCREEN_WINDOW;
 	}
+	state.core.set_new_display_flags(flags);
 
 	state.core.set_new_display_option(
 		DisplayOption::DepthSize,
