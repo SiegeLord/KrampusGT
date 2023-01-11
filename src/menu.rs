@@ -66,38 +66,9 @@ impl Menu
 		{
 			match action
 			{
-				Action::MainMenu =>
+				Action::Forward(subscreen_fn) =>
 				{
-					self.subscreens.push(SubScreen::MainMenu(MainMenu::new(
-						self.display_width,
-						self.display_height,
-					)));
-				}
-				Action::LevelMenu =>
-				{
-					self.subscreens.push(SubScreen::LevelMenu(LevelMenu::new(
-						state,
-						self.display_width,
-						self.display_height,
-					)));
-				}
-				Action::ControlsMenu =>
-				{
-					self.subscreens
-						.push(SubScreen::ControlsMenu(ControlsMenu::new(
-							self.display_width,
-							self.display_height,
-							state,
-						)));
-				}
-				Action::OptionsMenu =>
-				{
-					self.subscreens
-						.push(SubScreen::OptionsMenu(OptionsMenu::new(
-							self.display_width,
-							self.display_height,
-							state,
-						)));
+					self.subscreens.push(subscreen_fn(state, self.display_width, self.display_height));
 				}
 				Action::Quit => return Ok(Some(game_state::NextScreen::Quit)),
 				Action::SelectLevel(name) =>

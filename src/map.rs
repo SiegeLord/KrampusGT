@@ -4331,23 +4331,9 @@ impl Map
 			{
 				match action
 				{
-					ui::Action::ControlsMenu =>
+					ui::Action::Forward(subscreen_fn) =>
 					{
-						self.subscreens
-							.push(ui::SubScreen::ControlsMenu(ui::ControlsMenu::new(
-								self.display_width,
-								self.display_height,
-								state,
-							)));
-					}
-					ui::Action::OptionsMenu =>
-					{
-						self.subscreens
-							.push(ui::SubScreen::OptionsMenu(ui::OptionsMenu::new(
-								self.display_width,
-								self.display_height,
-								state,
-							)));
+						self.subscreens.push(subscreen_fn(state, self.display_width, self.display_height));
 					}
 					ui::Action::MainMenu => return Ok(Some(game_state::NextScreen::Menu)),
 					ui::Action::Back =>

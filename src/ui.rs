@@ -6,23 +6,33 @@ use allegro_font::*;
 use allegro_sys::*;
 use nalgebra::{Matrix4, Point2, Vector2, Vector3};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]//, PartialEq)]
 pub enum Action
 {
 	SelectMe,
 	MainMenu,
-	ControlsMenu,
-	LevelMenu,
-	OptionsMenu,
 	SelectLevel(String),
 	SelectCharacter(game_state::PlayerClass),
 	Quit,
 	Back,
+	Forward(fn(&mut game_state::GameState, f32, f32) -> SubScreen),
 	ToggleFullscreen,
 	ChangeInput(controls::Action),
 	MouseSensitivity(f32),
 	MusicVolume(f32),
 	SfxVolume(f32),
+}
+
+impl Action
+{
+	pub fn is_select_me(&self) -> bool
+	{
+		match self
+		{
+			Action::SelectMe => true,
+			_ => false,
+		}
+	}
 }
 
 #[derive(Clone)]
@@ -650,7 +660,7 @@ impl WidgetList
 				}
 			}
 		}
-		if action.is_none() || action == Some(Action::SelectMe)
+		if action.is_none() || action.as_ref().map(|a| a.is_select_me()) == Some(true)
 		{
 			match event
 			{
@@ -768,7 +778,7 @@ impl MainMenu
 						w,
 						h,
 						"NEW GAME",
-						Action::LevelMenu,
+						Action::Forward(|s, dx, dy| SubScreen::LevelMenu(LevelMenu::new(s, dx, dy)))
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -776,7 +786,7 @@ impl MainMenu
 						w,
 						h,
 						"CONTROLS",
-						Action::ControlsMenu,
+						Action::Forward(|s, dx, dy| SubScreen::ControlsMenu(ControlsMenu::new(s, dx, dy)))
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -784,7 +794,7 @@ impl MainMenu
 						w,
 						h,
 						"OPTIONS",
-						Action::OptionsMenu,
+						Action::Forward(|s, dx, dy| SubScreen::OptionsMenu(OptionsMenu::new(s, dx, dy)))
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -885,7 +895,7 @@ pub struct ControlsMenu
 
 impl ControlsMenu
 {
-	pub fn new(display_width: f32, display_height: f32, state: &game_state::GameState) -> Self
+	pub fn new(state: &game_state::GameState, display_width: f32, display_height: f32) -> Self
 	{
 		let w = 256.;
 		let h = 16.;
@@ -1078,7 +1088,7 @@ pub struct OptionsMenu
 
 impl OptionsMenu
 {
-	pub fn new(display_width: f32, display_height: f32, state: &game_state::GameState) -> Self
+	pub fn new(state: &game_state::GameState, display_width: f32, display_height: f32) -> Self
 	{
 		let w = 256.;
 		let h = 16.;
@@ -1344,7 +1354,7 @@ impl InGameMenu
 						w,
 						h,
 						"CONTROLS",
-						Action::ControlsMenu,
+						Action::Forward(|s, dx, dy| SubScreen::ControlsMenu(ControlsMenu::new(s, dx, dy)))
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -1352,7 +1362,7 @@ impl InGameMenu
 						w,
 						h,
 						"OPTIONS",
-						Action::OptionsMenu,
+						Action::Forward(|s, dx, dy| SubScreen::OptionsMenu(OptionsMenu::new(s, dx, dy)))
 					))],
 					&[Widget::Button(Button::new(
 						0.,
