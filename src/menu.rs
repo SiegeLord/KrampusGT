@@ -50,25 +50,21 @@ impl Menu
 		&mut self, event: &Event, state: &mut game_state::GameState,
 	) -> Result<Option<game_state::NextScreen>>
 	{
-		if let Event::KeyDown {
-			keycode: KeyCode::Escape,
-			..
-		} = event
-		{
-			if self.subscreens.len() > 1
-			{
-				state.sfx.play_sound("data/ui2.ogg").unwrap();
-				self.subscreens.pop().unwrap();
-				return Ok(None);
-			}
-		}
 		if let Some(action) = self.subscreens.last_mut().unwrap().input(state, event)
 		{
 			match action
 			{
 				Action::Forward(subscreen_fn) =>
 				{
-					self.subscreens.push(subscreen_fn(state, self.display_width, self.display_height));
+					self.subscreens.push(subscreen_fn(
+						state,
+						self.display_width,
+						self.display_height,
+					));
+				}
+				Action::Back =>
+				{
+					self.subscreens.pop().unwrap();
 				}
 				Action::Quit => return Ok(Some(game_state::NextScreen::Quit)),
 				Action::SelectLevel(name) =>
@@ -90,10 +86,6 @@ impl Menu
 						None,
 						3,
 					)));
-				}
-				Action::Back =>
-				{
-					self.subscreens.pop().unwrap();
 				}
 				_ => (),
 			}

@@ -6,7 +6,7 @@ use allegro_font::*;
 use allegro_sys::*;
 use nalgebra::{Matrix4, Point2, Vector2, Vector3};
 
-#[derive(Clone)]//, PartialEq)]
+#[derive(Clone)] //, PartialEq)]
 pub enum Action
 {
 	SelectMe,
@@ -17,7 +17,7 @@ pub enum Action
 	Back,
 	Forward(fn(&mut game_state::GameState, f32, f32) -> SubScreen),
 	ToggleFullscreen,
-	ChangeInput(controls::Action),
+	ChangeInput(controls::Action, usize),
 	MouseSensitivity(f32),
 	MusicVolume(f32),
 	SfxVolume(f32),
@@ -30,6 +30,15 @@ impl Action
 		match self
 		{
 			Action::SelectMe => true,
+			_ => false,
+		}
+	}
+
+	pub fn is_back(&self) -> bool
+	{
+		match self
+		{
+			Action::Back => true,
 			_ => false,
 		}
 	}
@@ -100,14 +109,26 @@ impl Button
 				let (x, y) = state.transform_mouse(*x as f32, *y as f32);
 				if x > start.x && x < end.x && y > start.y && y < end.y
 				{
+					if !self.selected
+					{
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
+					}
 					return Some(Action::SelectMe);
 				}
 			}
-			Event::KeyUp { keycode, .. } => match keycode
+			Event::KeyDown { keycode, .. } => match keycode
 			{
 				KeyCode::Enter | KeyCode::Space =>
 				{
 					if self.selected
+					{
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
+						return Some(self.action.clone());
+					}
+				}
+				KeyCode::Escape =>
+				{
+					if self.action.is_back()
 					{
 						state.sfx.play_sound("data/ui2.ogg").unwrap();
 						return Some(self.action.clone());
@@ -200,10 +221,14 @@ impl Toggle
 				let (x, y) = state.transform_mouse(*x as f32, *y as f32);
 				if x > start.x && x < end.x && y > start.y && y < end.y
 				{
+					if !self.selected
+					{
+						state.sfx.play_sound("data/ui1.ogg").unwrap();
+					}
 					return Some(Action::SelectMe);
 				}
 			}
-			Event::KeyUp { keycode, .. } => match keycode
+			Event::KeyDown { keycode, .. } => match keycode
 			{
 				KeyCode::Enter | KeyCode::Space =>
 				{
@@ -229,7 +254,6 @@ impl Toggle
 
 	fn trigger(&mut self, state: &mut game_state::GameState) -> Action
 	{
-		state.sfx.play_sound("data/ui2.ogg").unwrap();
 		state.sfx.play_sound("data/ui2.ogg").unwrap();
 		self.cur_value = (self.cur_value + 1) % self.texts.len();
 		(self.action_fn)(self.cur_value)
@@ -331,6 +355,10 @@ impl Slider
 					}
 					else
 					{
+						if !self.selected
+						{
+							state.sfx.play_sound("data/ui1.ogg").unwrap();
+						}
 						return Some(Action::SelectMe);
 					}
 				}
@@ -350,7 +378,7 @@ impl Slider
 					return Some((self.action_fn)(self.cur_pos));
 				}
 			}
-			Event::KeyUp { keycode, .. } =>
+			Event::KeyDown { keycode, .. } =>
 			{
 				if self.selected
 				{
@@ -651,10 +679,6 @@ impl WidgetList
 				if cur_action.is_some()
 				{
 					action = cur_action;
-					if self.cur_selection != (i, j)
-					{
-						state.sfx.play_sound("data/ui1.ogg").unwrap();
-					}
 					self.cur_selection = (i, j);
 					break 'got_action;
 				}
@@ -664,7 +688,7 @@ impl WidgetList
 		{
 			match event
 			{
-				Event::KeyUp { keycode, .. } => match *keycode
+				Event::KeyDown { keycode, .. } => match *keycode
 				{
 					KeyCode::Up =>
 					{
@@ -778,7 +802,9 @@ impl MainMenu
 						w,
 						h,
 						"NEW GAME",
-						Action::Forward(|s, dx, dy| SubScreen::LevelMenu(LevelMenu::new(s, dx, dy)))
+						Action::Forward(|s, dx, dy| {
+							SubScreen::LevelMenu(LevelMenu::new(s, dx, dy))
+						}),
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -786,7 +812,9 @@ impl MainMenu
 						w,
 						h,
 						"CONTROLS",
-						Action::Forward(|s, dx, dy| SubScreen::ControlsMenu(ControlsMenu::new(s, dx, dy)))
+						Action::Forward(|s, dx, dy| {
+							SubScreen::ControlsMenu(ControlsMenu::new(s, dx, dy))
+						}),
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -794,7 +822,9 @@ impl MainMenu
 						w,
 						h,
 						"OPTIONS",
-						Action::Forward(|s, dx, dy| SubScreen::OptionsMenu(OptionsMenu::new(s, dx, dy)))
+						Action::Forward(|s, dx, dy| {
+							SubScreen::OptionsMenu(OptionsMenu::new(s, dx, dy))
+						}),
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -903,48 +933,44 @@ impl ControlsMenu
 		let cy = display_height / 2.;
 
 		let mut widgets = vec![];
-
-		let actions = [
-			controls::Action::TurnLeft,
-			controls::Action::TurnRight,
-			controls::Action::MoveForward,
-			controls::Action::StrafeLeft,
-			controls::Action::MoveBackward,
-			controls::Action::StrafeRight,
-			controls::Action::FireWeapon,
-			controls::Action::SelectWeapon1,
-			controls::Action::SelectWeapon2,
-			controls::Action::SelectWeapon3,
-			controls::Action::EnterVehicle,
-		];
-
 		widgets.push(vec![
-			Widget::Label(Label::new(0., 0., w, h, "TURN SPEED")),
+			Widget::Label(Label::new(0., 0., w, h, "MOUSE SENSITIVITY")),
 			Widget::Slider(Slider::new(
 				0.,
 				0.,
 				w,
 				h,
-				state.options.turn_sensitivity,
-				10.,
+				state.controls.get_mouse_sensitivity(),
+				2.,
 				|i| Action::MouseSensitivity(i),
 			)),
 		]);
 
-		for action in &actions
+		for (&action, &inputs) in state.controls.get_actions_to_inputs()
 		{
-			let keycode = state.options.controls.controls.get_by_left(action).unwrap();
-			widgets.push(vec![
-				Widget::Label(Label::new(0., 0., w, h, &action.to_str().to_uppercase())),
-				Widget::Button(Button::new(
+			let mut row = vec![Widget::Label(Label::new(
+				0.,
+				0.,
+				w,
+				h,
+				&action.to_str().to_uppercase(),
+			))];
+			for i in 0..2
+			{
+				let input = inputs[i];
+				let input_str = input
+					.map(|i| i.to_str().to_uppercase())
+					.unwrap_or("NONE".into());
+				row.push(Widget::Button(Button::new(
 					0.,
 					0.,
 					w,
 					h,
-					&keycode.to_str().to_uppercase(),
-					Action::ChangeInput(*action),
-				)),
-			])
+					&input_str,
+					Action::ChangeInput(action, i),
+				)));
+			}
+			widgets.push(row);
 		}
 		widgets.push(vec![Widget::Button(Button::new(
 			0.,
@@ -978,72 +1004,18 @@ impl ControlsMenu
 		let mut options_changed = false;
 		if self.accepting_input
 		{
-			match event
+			match &mut self.widgets.widgets[self.widgets.cur_selection.0]
+				[self.widgets.cur_selection.1]
 			{
-				Event::KeyUp { keycode, .. } =>
+				Widget::Button(b) =>
 				{
-					self.accepting_input = false;
-					state.sfx.play_sound("data/ui2.ogg").unwrap();
-					if *keycode != KeyCode::Escape
+					if let Action::ChangeInput(action, index) = b.action
 					{
-						match &mut self.widgets.widgets[self.widgets.cur_selection.0]
-							[self.widgets.cur_selection.1]
+						if let Some(changed) = state.controls.change_action(action, index, event)
 						{
-							Widget::Button(b) =>
-							{
-								let new_keycode = controls::KeyCode(*keycode);
-								if let Action::ChangeInput(action) = b.action
-								{
-									if state.options.controls.controls.contains_right(&new_keycode)
-									{
-										let old_keycode = *state
-											.options
-											.controls
-											.controls
-											.get_by_left(&action)
-											.unwrap();
-										let other_action = *state
-											.options
-											.controls
-											.controls
-											.get_by_right(&new_keycode)
-											.unwrap();
-										state
-											.options
-											.controls
-											.controls
-											.insert(other_action, old_keycode);
-									}
-									state.options.controls.controls.insert(action, new_keycode);
-									options_changed = true;
-								}
-							}
-							_ => (),
-						}
-					}
-					for row in &mut self.widgets.widgets
-					{
-						for w in row
-						{
-							match w
-							{
-								Widget::Button(b) => match b.action
-								{
-									Action::ChangeInput(action) =>
-									{
-										b.text = state
-											.options
-											.controls
-											.controls
-											.get_by_left(&action)
-											.unwrap()
-											.to_str()
-											.to_uppercase();
-									}
-									_ => (),
-								},
-								_ => (),
-							}
+							options_changed = changed;
+							state.sfx.play_sound("data/ui2.ogg").unwrap();
+							self.accepting_input = false;
 						}
 					}
 				}
@@ -1052,22 +1024,42 @@ impl ControlsMenu
 		}
 		else
 		{
+			if let allegro::Event::KeyDown {
+				keycode: allegro::KeyCode::Delete,
+				..
+			} = event
+			{
+				match &mut self.widgets.widgets[self.widgets.cur_selection.0]
+					[self.widgets.cur_selection.1]
+				{
+					Widget::Button(b) =>
+					{
+						if let Action::ChangeInput(action, index) = b.action
+						{
+							state.controls.clear_action(action, index);
+							options_changed = true;
+							state.sfx.play_sound("data/ui2.ogg").unwrap();
+						}
+					}
+					_ => (),
+				}
+			}
 			action = self.widgets.input(state, event);
 			match action
 			{
-				Some(Action::ChangeInput(_)) =>
+				Some(Action::ChangeInput(_, _)) =>
 				{
 					self.accepting_input = true;
 					match &mut self.widgets.widgets[self.widgets.cur_selection.0]
 						[self.widgets.cur_selection.1]
 					{
-						Widget::Button(b) => b.text = "PRESS KEY".into(),
+						Widget::Button(b) => b.text = "PRESS INPUT".into(),
 						_ => (),
 					}
 				}
 				Some(Action::MouseSensitivity(ms)) =>
 				{
-					state.options.turn_sensitivity = ms;
+					state.controls.set_mouse_sensitivity(ms);
 					options_changed = true;
 				}
 				_ => (),
@@ -1075,6 +1067,26 @@ impl ControlsMenu
 		}
 		if options_changed
 		{
+			for widget_row in &mut self.widgets.widgets
+			{
+				for widget in widget_row
+				{
+					match widget
+					{
+						Widget::Button(b) =>
+						{
+							if let Action::ChangeInput(action, index) = b.action
+							{
+								b.text = state.controls.get_inputs(action).unwrap()[index]
+									.map(|a| a.to_str().to_uppercase())
+									.unwrap_or("NONE".into());
+							}
+						}
+						_ => (),
+					}
+				}
+			}
+			state.options.controls = state.controls.get_controls().clone();
 			utils::save_config("options.cfg", &state.options).unwrap();
 		}
 		action
@@ -1354,7 +1366,9 @@ impl InGameMenu
 						w,
 						h,
 						"CONTROLS",
-						Action::Forward(|s, dx, dy| SubScreen::ControlsMenu(ControlsMenu::new(s, dx, dy)))
+						Action::Forward(|s, dx, dy| {
+							SubScreen::ControlsMenu(ControlsMenu::new(s, dx, dy))
+						}),
 					))],
 					&[Widget::Button(Button::new(
 						0.,
@@ -1362,7 +1376,9 @@ impl InGameMenu
 						w,
 						h,
 						"OPTIONS",
-						Action::Forward(|s, dx, dy| SubScreen::OptionsMenu(OptionsMenu::new(s, dx, dy)))
+						Action::Forward(|s, dx, dy| {
+							SubScreen::OptionsMenu(OptionsMenu::new(s, dx, dy))
+						}),
 					))],
 					&[Widget::Button(Button::new(
 						0.,

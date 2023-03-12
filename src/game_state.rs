@@ -22,8 +22,12 @@ pub struct Options
 	pub vsync_method: i32,
 	pub sfx_volume: f32,
 	pub music_volume: f32,
-	pub turn_sensitivity: f32,
 	pub controls: controls::Controls,
+}
+
+fn default_unlocked() -> bool
+{
+	false
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -31,6 +35,7 @@ pub struct LevelEntry
 {
 	pub filename: String,
 	pub name: String,
+	#[serde(default = "default_unlocked")]
 	pub unlocked: bool,
 }
 
@@ -79,6 +84,7 @@ pub struct GameState
 	pub display_width: f32,
 	pub display_height: f32,
 	pub levels: Levels,
+	pub controls: controls::ControlsHandler,
 
 	bitmaps: HashMap<String, Bitmap>,
 	character_sheets: HashMap<String, character_sprite_sheet::CharacterSpriteSheet>,
@@ -89,6 +95,7 @@ impl GameState
 	pub fn new() -> Result<GameState>
 	{
 		let options: Options = utils::load_config("options.cfg")?;
+
 		let core = Core::init()?;
 		let prim = PrimitivesAddon::init(&core)?;
 		let image = ImageAddon::init(&core)?;
@@ -109,6 +116,7 @@ impl GameState
 			.map_err(|_| "Couldn't load 'data/Open 24 Display St.ttf'".to_string())?;
 
 		let levels: Levels = utils::load_config("data/levels.cfg")?;
+		let controls = controls::ControlsHandler::new(options.controls.clone());
 
 		Ok(GameState {
 			options: options,
@@ -130,6 +138,7 @@ impl GameState
 			display_width: 0.,
 			display_height: 0.,
 			levels: levels,
+			controls: controls,
 		})
 	}
 

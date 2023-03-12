@@ -2269,15 +2269,6 @@ pub struct Map
 	lifes: i32,
 	camera_anchor: components::Position,
 
-	rot_left_state: i32,
-	rot_right_state: i32,
-	up_state: bool,
-	down_state: bool,
-	left_state: bool,
-	right_state: bool,
-	fire_state: bool,
-	clear_rot: bool,
-	enter_state: bool,
 	want_spawn: bool,
 
 	saved_health: components::Health,
@@ -2429,15 +2420,6 @@ impl Map
 			player: player_start,
 			camera_anchor: camera_anchor,
 			world: world,
-			rot_left_state: 0,
-			rot_right_state: 0,
-			up_state: false,
-			down_state: false,
-			left_state: false,
-			right_state: false,
-			fire_state: false,
-			clear_rot: false,
-			enter_state: false,
 			want_spawn: true,
 			active_player_start: player_start_entity.unwrap(),
 			saved_health: saved_health.unwrap_or(components::Health {
@@ -2852,38 +2834,44 @@ impl Map
 				.map(|f| !f.is_frozen())
 				.unwrap_or(true)
 		{
+			let get_action_state =
+				|state: &mut game_state::GameState, action| state.controls.get_action_state(action);
 			let moveable = *self.world.get::<&components::Moveable>(self.player)?;
-			let rot_left_right = self.rot_right_state - (self.rot_left_state as i32);
+			let rot_left_right = get_action_state(state, controls::Action::TurnRight)
+				- get_action_state(state, controls::Action::TurnLeft);
 			let left_right = if moveable.can_strafe
 			{
-				self.left_state as i32 - (self.right_state as i32)
+				get_action_state(state, controls::Action::StrafeLeft)
+					- get_action_state(state, controls::Action::StrafeRight)
 			}
 			else
 			{
-				0
+				0.
 			};
-			let up_down = self.up_state as i32 - (self.down_state as i32);
+			let up_down = get_action_state(state, controls::Action::MoveForward)
+				- get_action_state(state, controls::Action::MoveBackward);
 
 			let pos = *self.world.get::<&components::Position>(self.player)?;
 			let dir = pos.dir;
 			let rot = Rotation2::new(dir);
 			let speed = moveable.speed;
-			let vel = rot * Vector2::new(left_right as f32 * speed, up_down as f32 * speed);
+			let vel = rot * Vector2::new(left_right * speed, up_down * speed);
 
 			{
 				let mut player_vel = self.world.get::<&mut components::Velocity>(self.player)?;
 				player_vel.vel = Vector3::new(vel.x, 0., vel.y);
-				player_vel.dir_vel =
-					state.options.turn_sensitivity * (rot_left_right as f32 * f32::pi() / 2.);
+				player_vel.dir_vel = 3. * (rot_left_right * f32::pi() / 2.);
 			}
 
-			if self.enter_state
+			if get_action_state(state, controls::Action::EnterVehicle) > 0.5
 			{
 				let mut spawn_fn = None;
 				if let Ok(mut vehicle) = self.world.get::<&mut components::Vehicle>(self.player)
 				{
 					spawn_fn = vehicle.contents.take();
-					self.enter_state = false;
+					state
+						.controls
+						.clear_action_state(controls::Action::EnterVehicle);
 
 					let mut player_vel =
 						self.world.get::<&mut components::Velocity>(self.player)?;
@@ -2953,7 +2941,9 @@ impl Map
 							.unwrap() = components::Team::Player;
 
 						self.player = entry.inner.id;
-						self.enter_state = false;
+						state
+							.controls
+							.clear_action_state(controls::Action::EnterVehicle);
 					}
 				}
 				if let Some(spawn_fn) = spawn_fn
@@ -2968,7 +2958,70 @@ impl Map
 
 			if let Ok(mut weapon_set) = self.world.get::<&mut components::WeaponSet>(self.player)
 			{
-				weapon_set.want_to_fire = self.fire_state;
+				weapon_set.want_to_fire =
+					get_action_state(state, controls::Action::FireWeapon) > 0.5;
+
+				let mut desired_weapon = None;
+				if get_action_state(state, controls::Action::SelectWeapon1) > 0.5
+				{
+					desired_weapon = Some(components::WeaponType::SantaGun);
+				}
+				if get_action_state(state, controls::Action::SelectWeapon2) > 0.5
+				{
+					desired_weapon = Some(components::WeaponType::FreezeGun);
+				}
+				if get_action_state(state, controls::Action::SelectWeapon3) > 0.5
+				{
+					desired_weapon = Some(components::WeaponType::OrbGun);
+				}
+
+				let change = get_action_state(state, controls::Action::NextWeapon)
+					- get_action_state(state, controls::Action::PrevWeapon);
+				if change != 0.
+				{
+					let mut cur_weapon_idx = match weapon_set.cur_weapon
+					{
+						components::WeaponType::SantaGun => 0,
+						components::WeaponType::FreezeGun => 1,
+						components::WeaponType::OrbGun => 2,
+						_ => 0,
+					};
+
+					loop
+					{
+						cur_weapon_idx = (cur_weapon_idx + if change > 0. { 1 } else { -1 }) % 3;
+						while cur_weapon_idx < 0
+						{
+							cur_weapon_idx += 3;
+						}
+						let new_weapon = match cur_weapon_idx
+						{
+							0 => components::WeaponType::SantaGun,
+							1 => components::WeaponType::FreezeGun,
+							2 => components::WeaponType::OrbGun,
+							_ => unreachable!(),
+						};
+						if weapon_set.weapons.contains_key(&new_weapon)
+						{
+							if weapon_set.weapons[&new_weapon].selectable
+							{
+								weapon_set.cur_weapon = new_weapon;
+								break;
+							}
+						}
+					}
+				}
+
+				if let Some(desired_weapon) = desired_weapon
+				{
+					if weapon_set.weapons.contains_key(&desired_weapon)
+					{
+						if weapon_set.weapons[&desired_weapon].selectable
+						{
+							weapon_set.cur_weapon = desired_weapon;
+						}
+					}
+				}
 			}
 		}
 
@@ -3952,14 +4005,6 @@ impl Map
 			self.world.despawn(id)?;
 		}
 
-		// HACK.
-		if self.clear_rot
-		{
-			self.rot_left_state = 0;
-			self.rot_right_state = 0;
-			self.clear_rot = false;
-		}
-
 		Ok(None)
 	}
 
@@ -4316,14 +4361,6 @@ impl Map
 	{
 		if self.ui_state == UIState::InMenu
 		{
-			if let Event::KeyDown {
-				keycode: KeyCode::Escape,
-				..
-			} = event
-			{
-				state.sfx.play_sound("data/ui2.ogg").unwrap();
-				self.subscreens.pop().unwrap();
-			}
 			if let Some(action) = self
 				.subscreens
 				.last_mut()
@@ -4333,13 +4370,17 @@ impl Map
 				{
 					ui::Action::Forward(subscreen_fn) =>
 					{
-						self.subscreens.push(subscreen_fn(state, self.display_width, self.display_height));
+						self.subscreens.push(subscreen_fn(
+							state,
+							self.display_width,
+							self.display_height,
+						));
 					}
-					ui::Action::MainMenu => return Ok(Some(game_state::NextScreen::Menu)),
 					ui::Action::Back =>
 					{
 						self.subscreens.pop().unwrap();
 					}
+					ui::Action::MainMenu => return Ok(Some(game_state::NextScreen::Menu)),
 					_ => (),
 				}
 			}
@@ -4352,77 +4393,8 @@ impl Map
 		}
 		else
 		{
-			let mut desired_weapon = None;
 			match event
 			{
-				Event::MouseAxes { dx, dz, .. } =>
-				{
-					if *dx < 0
-					{
-						self.rot_left_state = -*dx;
-						self.rot_right_state = 0;
-					}
-					else if *dx > 0
-					{
-						self.rot_left_state = 0;
-						self.rot_right_state = *dx;
-					}
-
-					if *dz != 0
-					{
-						if let Ok(mut weapon_set) =
-							self.world.get::<&mut components::WeaponSet>(self.player)
-						{
-							let mut cur_weapon_idx = match weapon_set.cur_weapon
-							{
-								components::WeaponType::SantaGun => 0,
-								components::WeaponType::FreezeGun => 1,
-								components::WeaponType::OrbGun => 2,
-								_ => 0,
-							};
-
-							loop
-							{
-								cur_weapon_idx = (cur_weapon_idx + utils::clamp(*dz, -1, 1)) % 3;
-								while cur_weapon_idx < 0
-								{
-									cur_weapon_idx += 3;
-								}
-								let new_weapon = match cur_weapon_idx
-								{
-									0 => components::WeaponType::SantaGun,
-									1 => components::WeaponType::FreezeGun,
-									2 => components::WeaponType::OrbGun,
-									_ => unreachable!(),
-								};
-								if weapon_set.weapons.contains_key(&new_weapon)
-								{
-									if weapon_set.weapons[&new_weapon].selectable
-									{
-										weapon_set.cur_weapon = new_weapon;
-										break;
-									}
-								}
-							}
-						}
-					}
-					self.clear_rot = true;
-				}
-				Event::MouseButtonDown { button, .. } =>
-				{
-					state.hide_mouse = true;
-					if *button == 1
-					{
-						self.fire_state = true;
-					}
-				}
-				Event::MouseButtonUp { button, .. } =>
-				{
-					if *button == 1
-					{
-						self.fire_state = false;
-					}
-				}
 				Event::KeyDown { keycode, .. } => match keycode
 				{
 					KeyCode::R =>
@@ -4453,72 +4425,7 @@ impl Map
 				},
 				_ => (),
 			}
-
-			if let Some((down, action)) = state.options.controls.decode_event(event)
-			{
-				match action
-				{
-					controls::Action::MoveForward =>
-					{
-						self.up_state = down;
-					}
-					controls::Action::MoveBackward =>
-					{
-						self.down_state = down;
-					}
-					controls::Action::StrafeLeft =>
-					{
-						self.left_state = down;
-					}
-					controls::Action::StrafeRight =>
-					{
-						self.right_state = down;
-					}
-					controls::Action::EnterVehicle =>
-					{
-						self.enter_state = down;
-					}
-					controls::Action::TurnLeft =>
-					{
-						self.rot_left_state = if down { 3 } else { 0 };
-					}
-					controls::Action::TurnRight =>
-					{
-						self.rot_right_state = if down { 3 } else { 0 };
-					}
-					controls::Action::FireWeapon =>
-					{
-						self.fire_state = down;
-					}
-					controls::Action::SelectWeapon1 =>
-					{
-						desired_weapon = Some(components::WeaponType::SantaGun);
-					}
-					controls::Action::SelectWeapon2 =>
-					{
-						desired_weapon = Some(components::WeaponType::FreezeGun);
-					}
-					controls::Action::SelectWeapon3 =>
-					{
-						desired_weapon = Some(components::WeaponType::OrbGun);
-					}
-				}
-			}
-
-			if let Some(desired_weapon) = desired_weapon
-			{
-				if let Ok(mut weapon_set) =
-					self.world.get::<&mut components::WeaponSet>(self.player)
-				{
-					if weapon_set.weapons.contains_key(&desired_weapon)
-					{
-						if weapon_set.weapons[&desired_weapon].selectable
-						{
-							weapon_set.cur_weapon = desired_weapon;
-						}
-					}
-				}
-			}
+			state.controls.decode_event(event);
 		}
 
 		Ok(None)

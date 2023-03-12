@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 #![allow(unused_imports)]
 #![allow(dead_code)]
-#![feature(backtrace)]
 
 mod atlas;
 mod character_sprite_sheet;
