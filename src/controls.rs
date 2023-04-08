@@ -188,9 +188,9 @@ impl Input
 			Input::MouseButton(b) => match b
 			{
 				0 => "Mouse0",
-				1 => "Mouse1",
-				2 => "Mouse2",
-				3 => "Mouse3",
+				1 => "Mouse Left",
+				2 => "Mouse Right",
+				3 => "Mouse Middle",
 				4 => "Mouse4",
 				5 => "Mouse5",
 				6 => "Mouse6",
@@ -349,9 +349,9 @@ impl Input
 			input = match s
 			{
 				"Mouse0" => Some(0),
-				"Mouse1" => Some(1),
-				"Mouse2" => Some(2),
-				"Mouse3" => Some(3),
+				"Mouse Left" => Some(1),
+				"Mouse Right" => Some(2),
+				"Mouse Middle" => Some(3),
 				"Mouse4" => Some(4),
 				"Mouse5" => Some(5),
 				"Mouse6" => Some(6),
@@ -479,6 +479,87 @@ pub struct Controls
 {
 	action_to_inputs: BTreeMap<Action, [Option<Input>; 2]>,
 	mouse_sensitivity: f32,
+}
+
+impl Controls
+{
+	pub fn new() -> Self
+	{
+		let mut action_to_inputs = BTreeMap::new();
+		action_to_inputs.insert(
+			Action::TurnLeft,
+			[
+				Some(Input::Keyboard(allegro::KeyCode::Left)),
+				Some(Input::MouseXNeg),
+			],
+		);
+		action_to_inputs.insert(
+			Action::TurnRight,
+			[
+				Some(Input::Keyboard(allegro::KeyCode::Right)),
+				Some(Input::MouseXPos),
+			],
+		);
+		action_to_inputs.insert(
+			Action::StrafeLeft,
+			[Some(Input::Keyboard(allegro::KeyCode::A)), None],
+		);
+		action_to_inputs.insert(
+			Action::StrafeRight,
+			[Some(Input::Keyboard(allegro::KeyCode::D)), None],
+		);
+		action_to_inputs.insert(
+			Action::MoveForward,
+			[Some(Input::Keyboard(allegro::KeyCode::W)), None],
+		);
+		action_to_inputs.insert(
+			Action::MoveForward,
+			[Some(Input::Keyboard(allegro::KeyCode::S)), None],
+		);
+		action_to_inputs.insert(
+			Action::FireWeapon,
+			[
+				Some(Input::Keyboard(allegro::KeyCode::Space)),
+				Some(Input::MouseButton(1)),
+			],
+		);
+		action_to_inputs.insert(
+			Action::SelectWeapon1,
+			[Some(Input::Keyboard(allegro::KeyCode::_1)), None],
+		);
+		action_to_inputs.insert(
+			Action::SelectWeapon2,
+			[Some(Input::Keyboard(allegro::KeyCode::_2)), None],
+		);
+		action_to_inputs.insert(
+			Action::SelectWeapon3,
+			[Some(Input::Keyboard(allegro::KeyCode::_3)), None],
+		);
+		action_to_inputs.insert(
+			Action::EnterVehicle,
+			[Some(Input::Keyboard(allegro::KeyCode::E)), None],
+		);
+		action_to_inputs.insert(Action::PrevWeapon, [Some(Input::MouseZNeg), None]);
+		action_to_inputs.insert(Action::NextWeapon, [Some(Input::MouseZPos), None]);
+
+		Self {
+			action_to_inputs: action_to_inputs,
+			mouse_sensitivity: 0.1,
+		}
+	}
+
+	pub fn get_action_string(&self, action: Action) -> String
+	{
+		let mut inputs = vec![];
+		for input in self.action_to_inputs.get(&action).unwrap()
+		{
+			if let Some(input) = input
+			{
+				inputs.push(input.to_str());
+			}
+		}
+		inputs.join("/")
+	}
 }
 
 #[derive(Clone, Debug)]

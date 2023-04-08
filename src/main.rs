@@ -301,11 +301,16 @@ fn main()
 				.or_else(|| e.downcast_ref::<String>().map(|e| e.clone()))
 				.unwrap_or("Unknown error!".to_owned());
 
+			let mut lines = vec![];
+			for line in err.lines().take(10)
+			{
+				lines.push(line.to_string());
+			}
 			show_native_message_box(
 				None,
 				"Error!",
 				"An error has occurred!",
-				&err,
+				&lines.join("\n"),
 				Some("You make me sad."),
 				MESSAGEBOX_ERROR,
 			);

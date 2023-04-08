@@ -104,10 +104,10 @@ impl Atlas
 
 	pub fn insert(&mut self, core: &Core, filename: &str) -> Result<AtlasBitmap>
 	{
-		let old_flags = core.get_new_bitmap_flags();
-		core.set_new_bitmap_flags(MEMORY_BITMAP);
+		//~ let old_flags = core.get_new_bitmap_flags();
+		//~ core.set_new_bitmap_flags(MEMORY_BITMAP);
 		let bitmap = utils::load_bitmap(core, filename)?;
-		core.set_new_bitmap_flags(old_flags);
+		//~ core.set_new_bitmap_flags(old_flags);
 
 		for (id, page) in self.pages.iter_mut().enumerate()
 		{

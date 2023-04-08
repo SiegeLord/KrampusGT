@@ -10,7 +10,7 @@ use allegro_ttf::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::fmt;
+use std::{fmt, path};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Options
@@ -23,6 +23,23 @@ pub struct Options
 	pub sfx_volume: f32,
 	pub music_volume: f32,
 	pub controls: controls::Controls,
+}
+
+impl Default for Options
+{
+	fn default() -> Self
+	{
+		Self {
+			fullscreen: true,
+			width: 1024,
+			height: 728,
+			play_music: true,
+			vsync_method: 2,
+			sfx_volume: 1.,
+			music_volume: 0.5,
+			controls: controls::Controls::new(),
+		}
+	}
 }
 
 fn default_unlocked() -> bool
@@ -65,6 +82,42 @@ pub enum NextScreen
 	Quit,
 }
 
+pub fn load_options(core: &Core) -> Result<Options>
+{
+	let mut path_buf = path::PathBuf::new();
+	if cfg!(feature = "use_user_settings")
+	{
+		path_buf.push(
+			core.get_standard_path(StandardPath::UserSettings)
+				.map_err(|_| "Couldn't get standard path".to_string())?,
+		);
+	}
+	path_buf.push("options.cfg");
+	if path_buf.exists()
+	{
+		utils::load_config(path_buf.to_str().unwrap())
+	}
+	else
+	{
+		Ok(Default::default())
+	}
+}
+
+pub fn save_options(core: &Core, options: &Options) -> Result<()>
+{
+	let mut path_buf = path::PathBuf::new();
+	if cfg!(feature = "use_user_settings")
+	{
+		path_buf.push(
+			core.get_standard_path(StandardPath::UserSettings)
+				.map_err(|_| "Couldn't get standard path".to_string())?,
+		);
+	}
+	std::fs::create_dir_all(&path_buf).map_err(|_| "Couldn't create directory".to_string())?;
+	path_buf.push("options.cfg");
+	utils::save_config(path_buf.to_str().unwrap(), &options)
+}
+
 pub struct GameState
 {
 	pub core: Core,
@@ -94,9 +147,9 @@ impl GameState
 {
 	pub fn new() -> Result<GameState>
 	{
-		let options: Options = utils::load_config("options.cfg")?;
-
 		let core = Core::init()?;
+		let options = load_options(&core)?;
+
 		let prim = PrimitivesAddon::init(&core)?;
 		let image = ImageAddon::init(&core)?;
 		let font = FontAddon::init(&core)?;
