@@ -6,7 +6,7 @@ use allegro_font::*;
 use allegro_sys::*;
 use nalgebra::{Matrix4, Point2, Vector2, Vector3};
 
-#[derive(Clone)] //, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Action
 {
 	SelectMe,
@@ -873,7 +873,7 @@ impl LevelMenu
 		let mut buttons = vec![];
 		for level in &state.levels.levels
 		{
-			if level.unlocked
+			if state.options.unlocked.contains(&level.name)
 			{
 				buttons.push([Widget::Button(Button::new(
 					0.,
@@ -1087,7 +1087,7 @@ impl ControlsMenu
 				}
 			}
 			state.options.controls = state.controls.get_controls().clone();
-			utils::save_config("options.cfg", &state.options).unwrap();
+			game_state::save_options(&state.core, &state.options).unwrap();
 		}
 		action
 	}
@@ -1200,7 +1200,7 @@ impl OptionsMenu
 		}
 		if options_changed
 		{
-			utils::save_config("options.cfg", &state.options).unwrap();
+			game_state::save_options(&state.core, &state.options).unwrap();
 		}
 		None
 	}

@@ -4359,6 +4359,7 @@ impl Map
 		&mut self, event: &Event, state: &mut game_state::GameState,
 	) -> Result<Option<game_state::NextScreen>>
 	{
+		state.controls.decode_event(event);
 		if self.ui_state == UIState::InMenu
 		{
 			if let Some(action) = self
@@ -4425,7 +4426,6 @@ impl Map
 				},
 				_ => (),
 			}
-			state.controls.decode_event(event);
 		}
 
 		Ok(None)

@@ -9,7 +9,7 @@ use allegro_primitives::*;
 use allegro_ttf::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::{fmt, path};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -23,12 +23,15 @@ pub struct Options
 	pub sfx_volume: f32,
 	pub music_volume: f32,
 	pub controls: controls::Controls,
+	pub unlocked: HashSet<String>,
 }
 
 impl Default for Options
 {
 	fn default() -> Self
 	{
+		let mut unlocked = HashSet::new();
+		unlocked.insert("ARCTIC APOCALYPSE".to_string());
 		Self {
 			fullscreen: true,
 			width: 1024,
@@ -38,13 +41,9 @@ impl Default for Options
 			sfx_volume: 1.,
 			music_volume: 0.5,
 			controls: controls::Controls::new(),
+			unlocked: unlocked,
 		}
 	}
-}
-
-fn default_unlocked() -> bool
-{
-	false
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -52,8 +51,6 @@ pub struct LevelEntry
 {
 	pub filename: String,
 	pub name: String,
-	#[serde(default = "default_unlocked")]
-	pub unlocked: bool,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

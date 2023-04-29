@@ -248,14 +248,19 @@ fn real_main() -> Result<()>
 			{
 				NextScreen::Game(level, class, health, weapons, lives) =>
 				{
+					let mut unlock_name = None;
 					for other_level in &mut state.levels.levels
 					{
 						if level == other_level.filename
 						{
-							other_level.unlocked = true;
+							unlock_name = Some(other_level.name.clone());
 						}
 					}
-					utils::save_config("data/levels.cfg", &state.levels)?;
+					if let Some(unlock_name) = unlock_name
+					{
+						state.options.unlocked.insert(unlock_name);
+					}
+					game_state::save_options(&state.core, &state.options)?;
 					cur_screen = CurScreen::Game(map::Map::new(
 						&mut state,
 						&level,
