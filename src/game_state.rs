@@ -145,8 +145,10 @@ impl GameState
 	pub fn new() -> Result<GameState>
 	{
 		let core = Core::init()?;
-		let options = load_options(&core)?;
+		core.set_app_name("KrampusGT");
+		core.set_org_name("SiegeLord");
 
+		let options = load_options(&core)?;
 		let prim = PrimitivesAddon::init(&core)?;
 		let image = ImageAddon::init(&core)?;
 		let font = FontAddon::init(&core)?;
