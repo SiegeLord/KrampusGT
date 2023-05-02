@@ -39,7 +39,7 @@ impl Default for Options
 			play_music: true,
 			vsync_method: 2,
 			sfx_volume: 1.,
-			music_volume: 0.5,
+			music_volume: 1.,
 			controls: controls::Controls::new(),
 			unlocked: unlocked,
 		}
