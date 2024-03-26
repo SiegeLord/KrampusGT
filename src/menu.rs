@@ -3,6 +3,7 @@ use crate::ui::{Action, CharacterMenu, ControlsMenu, LevelMenu, MainMenu, Option
 use crate::{components, controls, game_state, map, utils};
 
 use allegro::*;
+use allegro_font::*;
 use allegro_sys::*;
 use nalgebra::Matrix4;
 
@@ -117,6 +118,19 @@ impl Menu
 		}
 		state.core.clear_to_color(Color::from_rgb_f(0., 0., 0.));
 		self.subscreens.last().unwrap().draw(state);
+
+		if self.subscreens.len() == 1
+		{
+			state.core.draw_text(
+				&state.ui_font,
+				Color::from_rgb_f(1., 1., 1.),
+				self.display_width - 16.,
+				self.display_height - 16. - state.ui_font.get_line_height() as f32,
+				FontAlign::Right,
+				&format!("VERSION: {}", game_state::VERSION),
+			);
+		}
+
 		Ok(())
 	}
 }
