@@ -513,7 +513,7 @@ impl Controls
 			[Some(Input::Keyboard(allegro::KeyCode::W)), None],
 		);
 		action_to_inputs.insert(
-			Action::MoveForward,
+			Action::MoveBackward,
 			[Some(Input::Keyboard(allegro::KeyCode::S)), None],
 		);
 		action_to_inputs.insert(
