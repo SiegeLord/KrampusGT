@@ -192,6 +192,16 @@ fn real_main() -> Result<()>
 					.acknowledge_resize()
 					.map_err(|_| "Couldn't acknowledge resize".to_string())?;
 			}
+			Event::MouseAxes { .. } =>
+			{
+				if state.hide_mouse
+				{
+					state
+						.core
+						.set_mouse_xy(&display, display.get_width() / 2, display.get_height() / 2)
+						.map_err(|_| "Couldn't set mouse position".to_string())?;
+				}
+			}
 			Event::TimerTick { .. } =>
 			{
 				if logics_without_draw > 10
@@ -206,14 +216,6 @@ fn real_main() -> Result<()>
 						CurScreen::Game(map) => map.logic(&mut state)?,
 						_ => None,
 					}
-				}
-
-				if state.hide_mouse
-				{
-					state
-						.core
-						.set_mouse_xy(&display, display.get_width() / 2, display.get_height() / 2)
-						.map_err(|_| "Couldn't set mouse position".to_string())?;
 				}
 
 				if old_mouse_hide != state.hide_mouse
