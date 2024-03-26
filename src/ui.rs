@@ -784,8 +784,9 @@ impl MainMenu
 {
 	pub fn new(_display_width: f32, display_height: f32) -> Self
 	{
-		let w = 128.;
-		let h = 32.;
+		let w = 192.;
+		let h = 16.;
+		let h_space = 8.;
 		let cx = 128.;
 		let cy = display_height / 2.;
 
@@ -794,7 +795,7 @@ impl MainMenu
 				cx,
 				cy,
 				h,
-				h,
+				h_space,
 				&[
 					&[Widget::Button(Button::new(
 						0.,
@@ -865,8 +866,9 @@ impl LevelMenu
 {
 	pub fn new(state: &game_state::GameState, display_width: f32, display_height: f32) -> Self
 	{
-		let w = 128.;
-		let h = 32.;
+		let w = 192.;
+		let h = 16.;
+		let h_space = 8.;
 		let cx = display_width / 2.;
 		let cy = display_height / 2.;
 
@@ -900,7 +902,7 @@ impl LevelMenu
 				cx,
 				cy,
 				h,
-				h,
+				h_space,
 				&buttons.iter().map(|r| &r[..]).collect::<Vec<_>>(),
 			),
 		}
@@ -929,6 +931,7 @@ impl ControlsMenu
 	{
 		let w = 256.;
 		let h = 16.;
+		let h_space = 8.;
 		let cx = display_width / 2.;
 		let cy = display_height / 2.;
 
@@ -986,7 +989,7 @@ impl ControlsMenu
 				cx,
 				cy,
 				h,
-				h,
+				h_space,
 				&widgets.iter().map(|r| &r[..]).collect::<Vec<_>>(),
 			),
 			accepting_input: false,
@@ -1104,6 +1107,7 @@ impl OptionsMenu
 	{
 		let w = 256.;
 		let h = 16.;
+		let h_space = 8.;
 		let cx = display_width / 2.;
 		let cy = display_height / 2.;
 
@@ -1159,7 +1163,7 @@ impl OptionsMenu
 				cx,
 				cy,
 				h,
-				h,
+				h_space,
 				&widgets.iter().map(|r| &r[..]).collect::<Vec<_>>(),
 			),
 		}
@@ -1217,8 +1221,9 @@ impl CharacterMenu
 {
 	pub fn new(_state: &game_state::GameState, display_width: f32, display_height: f32) -> Self
 	{
-		let w = 128.;
-		let h = 32.;
+		let w = 192.;
+		let h = 16.;
+		let h_space = 8.;
 		let cx = display_width / 2.;
 		let cy = display_height / 2.;
 
@@ -1247,7 +1252,7 @@ impl CharacterMenu
 				cx,
 				cy + 128.,
 				512. - w,
-				h,
+				h_space,
 				&[
 					&buttons,
 					&[Widget::Button(Button::new(
@@ -1340,8 +1345,9 @@ impl InGameMenu
 {
 	pub fn new(display_width: f32, display_height: f32) -> Self
 	{
-		let w = 128.;
-		let h = 32.;
+		let w = 192.;
+		let h = 16.;
+		let h_space = 8.;
 		let cx = display_width / 2.;
 		let cy = display_height / 2.;
 
@@ -1350,7 +1356,7 @@ impl InGameMenu
 				cx,
 				cy,
 				h,
-				h,
+				h_space,
 				&[
 					&[Widget::Button(Button::new(
 						0.,
