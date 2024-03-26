@@ -1,5 +1,7 @@
+/*.exe
+allegro
+/*.dll
 game.log
 target
-data/raw
 /*.png
 /*.jpg
